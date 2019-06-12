@@ -5,10 +5,13 @@ from scipy import ndimage as scnd
 from scipy import optimize as spo
 import numba
 import pyfftw
-import gauss_tools as gt
+from . import gauss_tools as gt
 
 @numba.jit(cache=True)
-def peaks_vis(data_image,distance=1,threshold=0.1,imsize=(20,20)):
+def peaks_vis(data_image,
+              distance=1,
+              threshold=0.1,
+              imsize=(20,20)):
     """
     Find atom maxima pixels in images
     
@@ -52,7 +55,9 @@ def peaks_vis(data_image,distance=1,threshold=0.1,imsize=(20,20)):
     return peaks
 
 @numba.jit(parallel=True,cache=True)
-def refine_atoms(image_data,positions,distance):
+def refine_atoms(image_data,
+                 positions,
+                 distance):
     no_of_points = positions.shape[0]
     refined_pos = (np.zeros((no_of_points,6))).astype(float)
     for ii in numba.prange(no_of_points):
@@ -66,7 +71,10 @@ def refine_atoms(image_data,positions,distance):
     return refined_pos
 
 @numba.jit(parallel=True,cache=True)
-def fourier_mask(original_image,center,radius,threshold=0.2):
+def fourier_mask(original_image,
+                 center,
+                 radius,
+                 threshold=0.2):
     pyfftw.interfaces.cache.enable()
     image_fourier = pyfftw.interfaces.scipy_fftpack.fftshift(pyfftw.interfaces.scipy_fftpack.fft2(original_image))
     pos_x = center[0]
@@ -92,7 +100,10 @@ def fourier_mask(original_image,center,radius,threshold=0.2):
     return fourier_selected_image, SAED_image, new_center, filtered_SAED
 
 @numba.jit(parallel=True,cache=True)
-def find_diffraction_spots(image,circ_c,circ_y,circ_x):
+def find_diffraction_spots(image,
+                           circ_c,
+                           circ_y,
+                           circ_x):
     """
     Find the diffraction spots visually.
     
@@ -133,7 +144,12 @@ def find_diffraction_spots(image,circ_c,circ_y,circ_x):
     ax.add_artist(circ_x_im)
     plt.show()
 
-def find_coords(image,fourier_center,fourier_y,fourier_x, y_axis, x_axis):
+def find_coords(image,
+                fourier_center,
+                fourier_y,
+                fourier_x, 
+                y_axis, 
+                x_axis):
     """
     Convert the fourier positions to image axes.
     Do not use numba to accelerate as LLVM IR
@@ -196,7 +212,9 @@ def find_coords(image,fourier_center,fourier_y,fourier_x, y_axis, x_axis):
         coords[1,:] = (-1) * coords[1,:]
     return coords
 
-def get_origin(image,peak_pos,coords):
+def get_origin(image,
+               peak_pos,
+               coords):
     def origin_function(xyCenter,input_data=(peak_pos,coords)):
         peaks = input_data[0]
         coords = input_data[1]
@@ -216,7 +234,10 @@ def get_origin(image,peak_pos,coords):
     origin = res.x
     return origin
 
-def get_coords(image,peak_pos,origin,current_coords):
+def get_coords(image,
+               peak_pos,
+               origin,
+               current_coords):
     ang_1 = np.degrees(np.arctan2(current_coords[0,1],current_coords[0,0]))
     mag_1 = np.linalg.norm((current_coords[0,1],current_coords[0,0]))
     ang_2 = np.degrees(np.arctan2(current_coords[1,1],current_coords[1,0]))
@@ -247,7 +268,9 @@ def get_coords(image,peak_pos,origin,current_coords):
     return new_coords
 
 @numba.jit(cache=True)
-def coords_of_atoms(peaks,coords,origin):
+def coords_of_atoms(peaks,
+                    coords,
+                    origin):
     """
     Convert atom positions to coordinates
     
@@ -281,7 +304,9 @@ def coords_of_atoms(peaks,coords,origin):
     return atom_coords
 
 @numba.jit(cache=True)
-def three_neighbors(peak_list,coords,delta=0.25):
+def three_neighbors(peak_list,
+                    coords,
+                    delta=0.25):
     no_atoms = peak_list.shape[0]
     atoms_neighbors = np.zeros((no_atoms,8))
     atoms_distances = np.zeros((no_atoms,4))
@@ -327,7 +352,8 @@ def three_neighbors(peak_list,coords,delta=0.25):
     return atoms_neighbors, atoms_distances
 
 @numba.jit(parallel=True,cache=True)
-def relative_strain(n_list,coords):
+def relative_strain(n_list,
+                    coords):
     identity = np.asarray(((1,0),
                            (0,1)))
     axis_pos = np.asarray(((0, 0), 
