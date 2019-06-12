@@ -386,3 +386,38 @@ def image_tiler(dataset_4D,reducer=3,bit_depth=8):
     image_tile = (2 ** bit_depth)*(image_tile/(np.amax(image_tile)))
     image_tile = image_tile.astype(int)
     return image_tile
+
+@numba.jit(parallel=True)
+def flip_corrector(data4D):
+    """
+    Correcting Image Flip
+    
+    Parameters
+    ----------
+    image_orig: ndarray
+                'data4D' is the original 4D dataset in the 
+                form DiffX,DiffY,ScanX,ScanY
+                
+    Returns
+    -------
+    image_norm: ndarray
+                Flip corrected 4D dataset
+                
+    Notes
+    -----
+    The microscope lenses may add a flip in
+    the X direction of the ronchigram. This
+    corrects for that.
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    
+    """
+    datasize = (np.asarray(data4D.shape)).astype(int)
+    flipped4D = np.zeros((datasize[0],datasize[1],datasize[2],datasize[3]))
+    for jj in numba.prange(datasize[3]):
+        for ii in range(datasize[2]):
+            ronchi = data4D[:,:,ii,jj]
+            ronchi_flip = np.fliplr(ronchi)
+            flipped4D[:,:,ii,jj] = ronchi_flip
+    return flipped4D

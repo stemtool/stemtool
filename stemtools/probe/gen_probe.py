@@ -1,5 +1,6 @@
 import numpy as np
 import numba
+import pyfftw
 
 @numba.jit(cache=True)
 def wavelength_ang(voltage_kV):
@@ -54,9 +55,12 @@ def make_probe(aperture,
                c3=0,
                c5=0):
     """
-    This calculates an electron probe based on the size and the estimated Fourier co-ordinates
+    This calculates an electron probe based on the 
+    size and the estimated Fourier co-ordinates with
+    the option of adding spherical aberration in the 
+    form of defocus, C3 and C5
     """ 
-    
+    pyfftw.interfaces.cache.enable()
     aperture = aperture / 1000
     wavelength = wavelength_ang(voltage)
     LMax = aperture / wavelength
@@ -72,36 +76,19 @@ def make_probe(aperture,
     L2 = np.multiply(Lxa, Lxa) + np.multiply(Lya, Lya)
     inverse_real_matrix = L2 ** 0.5
     fourier_scan_coordinate = Lx[1] - Lx[0]
-    Adist = ((LMax - inverse_real_matrix) /
-             fourier_scan_coordinate) + 0.5
-    Adist[Adist < 0] = 0
-    Adist[Adist > 1] = 1
-    ideal_probe = np.fft.fftshift(Adist)
-    chi_probe = aberration(fourier_scan_coordinate,wavelength,defocus,c3,c5)
-    return (np.fft.fftshift(Adist),fourier_scan_coordinate)
+    Adist = np.asarray(inverse_real_matrix<=LMax, dtype=complex)
+    chi_probe = aberration(inverse_real_matrix,wavelength,defocus,c3,c5)
+    Adist *= np.exp(-1j*chi_probe)
+    probe_real_space = np.fft.ifftshift(pyfftw.interfaces.numpy_fft.ifft2(Adist))
+    return probe_real_space
 
 @numba.jit(cache=True)
-def aberration(four_coord,
+def aberration(fourier_coord,
                wavelength_ang,
                defocus=0,
                c3=0,
                c5=0):
-    """
-    Calculates the aberration function chi as a function of diffraction space radial coordinates qr
-    for an electron with wavelength lam.
-    Note that this function only considers the rotationally symmetric terms of chi (i.e. spherical
-    aberration) up to 5th order.  Non-rotationally symmetric terms (coma, stig, etc) and higher
-    order terms (c7, etc) are not considered.
-    Accepts:
-        qr      (float or array) diffraction space radial coordinate(s), in inverse Angstroms
-        lam     (float) wavelength of electron, in Angstroms
-        df      (float) probe defocus, in Angstroms
-        cs      (float) probe 3rd order spherical aberration coefficient, in mm
-        c5      (float) probe 5th order spherical aberration coefficient, in mm
-    Returns:
-        chi     (float) the aberation function
-    """
-    p = lam*qr
-    chi = df*np.square(p)/2.0 + cs*1e7*np.power(p,4)/4.0 + c5*1e7*np.power(p,6)/6.0
-    chi = 2*np.pi*chi/lam
+    p_matrix = wavelength_ang*fourier_coord
+    chi = ((defocus*np.power(p_matrix,2))/2) + ((C3*(1e7)*np.power(p_matrix,4))/4) + ((C5*(1e7)*np.power(p_matrix,6))/6)
+    chi_probe = (2*np.pi*chi)/wavelength_ang
     return chi_probe
