@@ -4,9 +4,9 @@ import math
 import pyfftw
 from scipy import ndimage as scnd
 from scipy import optimize as spo
-import gauss_tools as gt
+from ..utils import gauss_utils as gt
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def phase_diff(angle_image):
     imaginary_image = np.exp(1j * angle_image)
     diff_imaginary_x = np.zeros(imaginary_image.shape,dtype='complex_')
@@ -20,7 +20,7 @@ def phase_diff(angle_image):
     diff_y = np.imag(diff_complex_y)
     return diff_x,diff_y
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def disk_phase(image_orig, g_vec):
     image_size = (np.asarray(image_orig.shape)).astype(int)
     fourier_vec_y = np.linspace((-image_size[0] / 2), ((image_size[0] / 2) - 1), image_size[0])
@@ -33,7 +33,7 @@ def disk_phase(image_orig, g_vec):
     phase_matrix = 2 * np.pi * ((fourier_mesh_x*g_vec[1]) + (fourier_mesh_y*g_vec[0]))
     return phase_matrix
 
-@numba.jit(parallel=True, cache=True)
+@numba.jit(cache=True)
 def get_g_vector(image,g_disk,center_disk):
     image_size = np.shape(image)
     fourier_vec_y = np.linspace((-image_size[0] / 2), ((image_size[0] / 2) - 1), image_size[0])
@@ -46,13 +46,13 @@ def get_g_vector(image,g_disk,center_disk):
     g_vec = np.multiply(fourier_cal,(g_disk - center_disk))
     return g_vec
 
-@numba.jit(parallel=True, cache=True)
+@numba.jit(cache=True)
 def get_a_matrix(g_vector_1,g_vector_2):
     g_matrix = np.asarray((g_vector_1,g_vector_2))
     a_matrix = np.linalg.inv(np.transpose(g_matrix))
     return a_matrix
 
-@numba.jit(parallel=True, cache=True)
+@numba.jit(cache=True)
 def phase_subtract(matrix_1,matrix_2):
     complex_1 = np.exp(1j*matrix_1)
     complex_2 = np.exp(1j*matrix_2)
@@ -60,7 +60,7 @@ def phase_subtract(matrix_1,matrix_2):
     subtracted_matrix = np.angle(complex_div)
     return subtracted_matrix
 
-@numba.jit(parallel=True, cache=True)
+@numba.jit(cache=True)
 def get_phase_matrix(image,disk_posn,disk_cent):
     pyfftw.interfaces.cache.enable()
     P_disk = gt.gauss2D(image.shape, disk_posn[1], disk_posn[0], 0, 1, 1, 1)
@@ -70,7 +70,7 @@ def get_phase_matrix(image,disk_posn,disk_cent):
     phase_matrix = phase_subtract(np.angle(F_disk),np.angle(F_cent))
     return phase_matrix
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def saed_mask(original_image,center,radius,threshold=0.2):
     pyfftw.interfaces.cache.enable()
     image_fourier = pyfftw.interfaces.scipy_fftpack.fftshift(pyfftw.interfaces.scipy_fftpack.fft2(original_image))
@@ -89,7 +89,7 @@ def saed_mask(original_image,center,radius,threshold=0.2):
     fourier_selected_image = np.multiply(original_image,filtered_SAED)
     return fourier_selected_image, filtered_SAED
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def strain_gpa(diff1x,diff1y,diff2x,diff2y,a_matrix):
     sm = np.transpose(np.asarray([[diff1x,diff1y],[diff2x,diff2y]]),axes=(2,3,0,1))
     sm = (np.matmul(sm,a_matrix))/(((-2)*np.pi))

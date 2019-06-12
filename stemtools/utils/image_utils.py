@@ -7,7 +7,7 @@ import matplotlib.colors as mplc
 import matplotlib.cm as mplcm
 from scipy import misc as scm
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def move_by_phase(image_to_move, x_pixels, y_pixels):
     """
     Move Images with sub-pixel precision
@@ -53,7 +53,7 @@ def move_by_phase(image_to_move, x_pixels, y_pixels):
     moved_image = pyfftw.interfaces.scipy_fftpack.ifft2(moved_in_fourier)
     return moved_image
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def image_normalizer(image_orig):
     """
     Normalizing Image
@@ -86,7 +86,7 @@ def image_normalizer(image_orig):
     image_norm = image_pos / np.amax(image_pos)
     return image_norm
 
-@numba.jit(parallel=True)
+@numba.jit(cache=True)
 def image_logarizer(image_orig,bit_depth=32):
     """
     Normalized log of image
@@ -124,7 +124,7 @@ def image_logarizer(image_orig,bit_depth=32):
     image_log = np.log2(image_norm)
     return image_log
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def hanned_image(image):
     """
     2D hanning filter for images
@@ -163,7 +163,7 @@ def sane_colorbar(mappable):
     cax = divider.append_axes("right", size="5%", pad=0.05)
     return fig.colorbar(mappable, cax=cax)
  
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def phase_color(phase_image):
     size_im = np.asarray(np.shape(phase_image))
     hsv_im = np.ones((size_im[0],size_im[1],3))
@@ -178,7 +178,7 @@ def phase_color(phase_image):
     rgb_im = mplc.hsv_to_rgb(hsv_im)
     return rgb_im
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def hsv_overlay(data,image,color,climit=None,bit_depth = 8):
     bit_range = 2 ** bit_depth
     im_map = mplcm.get_cmap(color, bit_range)
@@ -193,7 +193,7 @@ def hsv_overlay(data,image,color,climit=None,bit_depth = 8):
     rgb_image = mplc.hsv_to_rgb(hsv_image)
     return rgb_image
 
-@numba.jit(parallel=True)
+@numba.jit(cache=True)
 def sparse_division(sparse_numer,sparse_denom,bit_depth=32):
     """
     Divide two sparse matrices element wise to prevent zeros
@@ -241,7 +241,7 @@ def sparse_division(sparse_numer,sparse_denom,bit_depth=32):
     divided_matrix[threshold_ind_denom] = 0
     return divided_matrix
 
-@numba.jit(parallel=True)
+@numba.jit(cache=True)
 def normalized_correlation(image_1,image_2,hybridizer=0):
     """
     Normalized Correlation, allowing for hybridization 
@@ -313,6 +313,7 @@ def normalized_correlation(image_1,image_2,hybridizer=0):
     corr_hybrid = pyfftw.interfaces.numpy_fft.ifftshift(pyfftw.interfaces.numpy_fft.ifft2(corr_hybrid_fft))
     return corr_hybrid
 
+@numba.jit(cache=True)
 def make_circle(size_circ,center_x,center_y,radius):
     """
     Make a circle

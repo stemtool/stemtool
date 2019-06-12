@@ -1,7 +1,7 @@
 import numpy as np
 import numba
 from scipy import ndimage as scnd
-import image_utils as iu
+from ..utils import image_utils as iu
 import math
 
 @numba.jit(cache=True)
@@ -56,7 +56,7 @@ def sobel_filter(input_image):
             ang[ii,jj] = np.arctan2(S2,S1)
     return mag, ang
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(parallel=True)
 def edge_thinner(sobel_mag,sobel_angle):
     """
     Thinning Sobel Filtered Edges
@@ -154,7 +154,7 @@ def canny_threshold(thinned_edge, lowThreshold, highThreshold):
     residual[np.where((thinned_edge <= highT) & (thinned_edge > lowT))] = lowT
     return residual
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(parallel=True)
 def edge_joining(thresholded, lowThreshold, highThreshold):
     """
     Joining of Edges

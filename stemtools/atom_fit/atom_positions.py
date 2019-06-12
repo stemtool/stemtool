@@ -5,7 +5,7 @@ from scipy import ndimage as scnd
 from scipy import optimize as spo
 import numba
 import pyfftw
-from . import gauss_tools as gt
+from ..utils import gauss_utils as gt
 
 @numba.jit(cache=True)
 def peaks_vis(data_image,
@@ -54,7 +54,7 @@ def peaks_vis(data_image,
     plt.scatter(peaks[:,1],peaks[:,0],c='g', s=15)
     return peaks
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(parallel=True)
 def refine_atoms(image_data,
                  positions,
                  distance):
@@ -70,7 +70,7 @@ def refine_atoms(image_data,
         refined_pos[ii,-1] = fitted_diff[-1] - 1
     return refined_pos
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def fourier_mask(original_image,
                  center,
                  radius,
@@ -99,7 +99,7 @@ def fourier_mask(original_image,
     fourier_selected_image = np.multiply(original_image,filtered_SAED)
     return fourier_selected_image, SAED_image, new_center, filtered_SAED
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def find_diffraction_spots(image,
                            circ_c,
                            circ_y,
@@ -351,7 +351,7 @@ def three_neighbors(peak_list,
     atoms_distances = atoms_distances[~np.isnan(atoms_distances).any(axis=1)]
     return atoms_neighbors, atoms_distances
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(parallel=True)
 def relative_strain(n_list,
                     coords):
     identity = np.asarray(((1,0),

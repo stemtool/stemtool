@@ -2,10 +2,10 @@ from .__version__ import version as __version__
 
 __all__ = ['__version__']
 
-from .atom_positions import *
-from .code_timer import *
-from .gauss_tools import *
-from .gpa import *
-from .image_utils import *
-from .nanobeam_diffraction_strain import *
-from .sobel_canny import *
+from . import analyze2D
+from . import atom_fit
+from . import utils
+from . import timer
+from . import process
+from . import nbed
+from . import probe

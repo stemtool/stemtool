@@ -2,9 +2,9 @@ import numpy as np
 import numba
 from scipy import optimize as spo
 from scipy import ndimage as scnd
-import image_utils as iu
+from ..utils import image_utils as iu
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
     x = xy[0] - x0
     y = xy[1] - y0
@@ -17,7 +17,7 @@ def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
     gauss2D = amplitude * np.exp((-1)*(expo_1 + expo_2 + expo_3))
     return np.ravel(gauss2D)
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def gauss2D(image_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
     xr, yr = np.meshgrid(np.arange(image_size[1]),np.arange(image_size[0]))
     x = xr - x0
@@ -31,7 +31,7 @@ def gauss2D(image_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
     gauss2D = amplitude * np.exp((-1)*(expo_1 + expo_2 + expo_3))
     return gauss2D
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def initialize_gauss(xx, yy, zz, center_type='COM'):
     if (center_type == 'maxima'):
         x_com = xx[zz == np.amax(zz)]
@@ -50,7 +50,7 @@ def initialize_gauss(xx, yy, zz, center_type='COM'):
     height = np.amax(zz)
     return x_com, y_com, 0, sigma_x, sigma_y, height
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def process_circul_mask(image_data,mask_x,mask_y,mask_radius):
     p,q = np.shape(image_data)
     yV, xV = np.mgrid[0:p, 0:q]
@@ -60,7 +60,7 @@ def process_circul_mask(image_data,mask_x,mask_y,mask_radius):
     zValues = np.asarray(image_data[sub]).astype('float')
     return xValues, yValues, zValues
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def process_square_mask(image_data,mask_x,mask_y,mask_size):
     p,q = np.shape(image_data)
     yV, xV = np.mgrid[0:p, 0:q]
@@ -70,7 +70,6 @@ def process_square_mask(image_data,mask_x,mask_y,mask_size):
     zValues = np.asarray(image_data[sub]).astype('float')
     return xValues, yValues, zValues
 
-@numba.jit(parallel=True,cache=True)
 def fit_gaussian2D_mask(image_data,mask_x,mask_y,mask_radius,mask_type='circular',center_type='COM'):
     if (mask_type == 'circular'):
         x_pos, y_pos, masked_image = process_circul_mask(image_data,mask_x,mask_y,mask_radius)
@@ -91,7 +90,7 @@ def fit_gaussian2D_mask(image_data,mask_x,mask_y,mask_radius,mask_type='circular
     popt[-1] = (popt[-1]*(mi_max - mi_min)) + mi_min
     return popt
 
-@numba.jit(parallel=True,cache=True)
+@numba.jit(cache=True)
 def create_circmask(image,center,radius):
     pos_x = center[0]
     pos_y = center[1]
