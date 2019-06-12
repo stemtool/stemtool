@@ -1,6 +1,8 @@
 from setuptools import setup, find_packages
+import os
 
-exec(open('stemtools/version.py').read())
+with open(os.path.join(here, 'stemtools/__version__.py')) as f:
+    __version__ = f.read().split("'")[1]
 
 setup(name='stemtools',
     version=__version__,
