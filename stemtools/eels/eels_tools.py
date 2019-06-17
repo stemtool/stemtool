@@ -18,12 +18,15 @@ def cleanEELS(data,threshold):
     return data2
 
 @numba.jit(cache=True)
-def cleanEELS_3D(data3D,threshold):
+def cleanEELS_3D(data3D,threshold=0):
     data_shape = np.asarray(np.shape(data3D)).astype(int)
     cleaned_3D = np.zeros(data_shape)
-    for ii in numba.prange(data_shape[2]):
-        for jj in range(data_shape[1]):
-            cleaned_3D[:,jj,ii] = cleanEELS(data3D[:,jj,ii],threshold)
+    if (threshold > 0):
+        for ii in numba.prange(data_shape[2]):
+            for jj in range(data_shape[1]):
+                cleaned_3D[:,jj,ii] = cleanEELS(data3D[:,jj,ii],threshold)
+    else:
+        cleaned_3D = data3D
     return cleaned_3D
 
 def func_powerlaw(x, m, c):
@@ -53,7 +56,7 @@ def powerlaw_plot(xdata,ydata,xrange):
     plt.legend(loc='upper right')
     plt.xlabel('Energy Loss (eV)')
     plt.ylabel('Intensity (A.U.)')
-    plt.xlim(np.amin(eV_Vals),np.amax(eV_Vals))
+    plt.xlim(np.amin(xdata),np.amax(xdata))
     plt.show()
 
 def region_intensity(xdata,ydata,xrange,peak_range,showdata=True):
@@ -62,4 +65,32 @@ def region_intensity(xdata,ydata,xrange,peak_range,showdata=True):
     start_val = np.int((peak_range[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
     stop_val = np.int((peak_range[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
     peak_ratio = np.sum(subtracted_data[start_val:stop_val])/np.sum(fitted_data)
+    yrange = np.zeros_like(peak_range)
+    yrange[0] = subtracted_data[start_val]
+    yrange[1] = subtracted_data[stop_val]
+    if showdata:
+        plt.figure(figsize=(20,10))
+        plt.plot(xdata,ydata,'c',label='Original Data',linewidth=3)
+        plt.plot(xdata,subtracted_data,'g',label='After background subtraction',linewidth=3)
+        plt.scatter(peak_range,yrange,c='r', s=120,label='Sum Region')
+        plt.legend(loc='upper right')
+        plt.xlabel('Energy Loss (eV)')
+        plt.ylabel('Intensity (A.U.)')
+        plt.title('Sum from region = {}'.format(peak_ratio))
+        plt.xlim(np.amin(xdata),np.amax(xdata))
     return peak_ratio
+
+@numba.jit(parallel=True)
+def eels_3D(eels_dict,fit_range,peak_range,clean_val=0):
+    eels_array = eels_dict['data']
+    if (clean_val > 0):
+        eels_clean = cleanEELS_3D(eels_array,clean_val)
+    else:
+        eels_clean = eels_array
+    xdata = (np.arange(eels_clean.shape[0]) - eels_dict['pixelOrigin'][0])*eels_dict['pixelSize'][0]
+    peak_val = np.zeros((eels_clean.shape[-2],eels_clean.shape[-1]), dtype=np.float64)
+    for jj in numba.prange(eels_clean.shape[-1]):
+        for ii in range(eels_clean.shape[-2]):
+            peak_val[ii,jj] = region_intensity(xdata,eels_clean[:,ii,jj],fit_range,peak_range,showdata=False)
+    peak_val = peak_val - np.amin(peak_val)
+    return peak_val
