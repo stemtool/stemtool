@@ -1,7 +1,7 @@
 import numpy as np
 import numba
 from scipy import ndimage as scnd
-from ..utils import image_utils as iu
+from ..util import image_utils as iu
 import math
 
 @numba.jit(cache=True)

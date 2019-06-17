@@ -2,7 +2,7 @@ import numpy as np
 import numba
 from scipy import optimize as spo
 from scipy import ndimage as scnd
-from ..utils import image_utils as iu
+from ..util import image_utils as iu
 
 @numba.jit(cache=True)
 def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):

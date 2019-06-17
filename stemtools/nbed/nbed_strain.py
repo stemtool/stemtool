@@ -2,9 +2,9 @@ import numpy as np
 from scipy import ndimage as scnd
 from scipy import optimize as sio
 import numba
-from ..utils import image_utils as iu
-from ..process import sobel_canny as sc
-from ..utils import gauss_utils as gt
+from ..util import image_utils as iu
+from ..proc import sobel_canny as sc
+from ..util import gauss_utils as gt
 
 @numba.jit(cache=True)
 def angle_fun(angle,image_orig):

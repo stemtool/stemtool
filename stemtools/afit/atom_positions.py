@@ -5,7 +5,7 @@ from scipy import ndimage as scnd
 from scipy import optimize as spo
 import numba
 import pyfftw
-from ..utils import gauss_utils as gt
+from ..util import gauss_utils as gt
 
 @numba.jit(cache=True)
 def peaks_vis(data_image,

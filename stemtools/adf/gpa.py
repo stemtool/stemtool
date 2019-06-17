@@ -4,7 +4,7 @@ import math
 import pyfftw
 from scipy import ndimage as scnd
 from scipy import optimize as spo
-from ..utils import gauss_utils as gt
+from ..util import gauss_utils as gt
 
 @numba.jit(cache=True)
 def phase_diff(angle_image):
