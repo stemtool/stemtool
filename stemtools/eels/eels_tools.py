@@ -38,43 +38,83 @@ def cleanEELS_3D(data3D,method,threshold=0):
             cleaned_3D = data3D
     return cleaned_3D
 
-def func_powerlaw(x, m, c):
-    return ((x**m) * c)
-
 def powerlaw_fit(xdata,ydata,xrange):
+    """
+    Power Law Fiiting of EELS spectral data
+    
+    Parameters
+    ----------
+    xdata:  ndarray
+            energy values in electron-volts
+    ydata:  ndarray
+            intensity values in A.U.
+    xrange: ndarray
+            Starting and stopping energy values 
+            in electron volts
+                
+    Returns
+    -------
+    fitted: ndarray
+            Background from the region of xdata
+    power:  float
+            The power term
+    const:  float
+            Constant of multiplication
+                
+    Notes
+    -----
+    We first find the array start and stop points
+    to which the power law will be fitted to. Once
+    done, we take the logarithm of both the intensity
+    values and the energy loss values, taking care to 
+    to only take the log of non-negative intensity
+    values to prevent imaginary numbers from occuring.
+    We then do a linear polynomial fit in numpy, and 
+    return the power law fitted data, power and the 
+    multiplicative constant. Since the fitting is done 
+    in log-log space, we have to take the exponential
+    of the intercept to get the multiplicative constant.
+                 
+    :Authors:
+    Jordan Hachtel <hachtelja@ornl.gov>
+    
+    """
     start_val = np.int((xrange[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
     stop_val = np.int((xrange[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
-    popt, _ = spo.curve_fit(func_powerlaw, xdata[start_val:stop_val], ydata[start_val:stop_val],maxfev=10000)
-    fitted = func_powerlaw(xdata,popt[0],popt[1])
-    return fitted, popt
+    xlog = np.log(xdata[start_val:stop_val][np.where(ydata[start_val:stop_val]>0)])
+    ylog = np.log(ydata[start_val:stop_val][np.where(ydata[start_val:stop_val]>0)])
+    power,const = np.polyfit(xlog,ylog,1)
+    const = np.exp(const)
+    fitted = const * (xdata ** power)
+    return fitted,power,const
 
 def powerlaw_plot(xdata,ydata,xrange,figtitle,showdata=True):
     font = {'family' : 'sans-serif',
-            'weight' : 'regular',
-            'size'   : 22}
+            'weight' : 'bold',
+            'size'   : 25}
     mpl.rc('font', **font)
-    mpl.rcParams['axes.linewidth'] = 2
-    fitted_data, popt = powerlaw_fit(xdata,ydata,xrange)
+    mpl.rcParams['axes.linewidth'] = 4
+    fitted_data, power, const  = powerlaw_fit(xdata,ydata,xrange)
     subtracted_data = ydata - fitted_data
-    yrange = func_powerlaw(xrange,popt[0],popt[1])
+    yrange = const * (xrange ** power)
     zero_line = np.zeros(np.shape(xdata))
     if showdata:
-        plt.figure(figsize=(20,10))
-        plt.plot(xdata,ydata,'c',label='Original Data',linewidth=2)
-        plt.plot(xdata,fitted_data,'m',label='Power Law Fit',linewidth=2)
-        plt.plot(xdata,subtracted_data,'g',label='Remnant',linewidth=2)
-        plt.plot(xdata,zero_line,'r',label='Zero Line',linewidth=2)
+        plt.figure(figsize=(32,8))
+        plt.plot(xdata,ydata,'c',label='Original Data',linewidth=3)
+        plt.plot(xdata,fitted_data,'m',label='Power Law Fit',linewidth=3)
+        plt.plot(xdata,subtracted_data,'g',label='Remnant',linewidth=3)
+        plt.plot(xdata,zero_line,'r',label='Zero Line',linewidth=3)
         plt.scatter(xrange,yrange,c='b', s=200,label='Fit Region')
-        plt.legend(loc='upper right')
-        plt.xlabel('Energy Loss (eV)')
-        plt.ylabel('Intensity (A.U.)')
+        plt.legend(loc='upper right',frameon=False)
+        plt.xlabel('Energy Loss (eV)',**font)
+        plt.ylabel('Intensity (A.U.)',**font)
         plt.xlim(np.amin(xdata),np.amax(xdata))
         plt.ylim(np.amin(ydata)-1000,np.amax(ydata)+1000)
-        plt.savefig(figtitle,dpi=300)
+        plt.savefig(figtitle,dpi=400)
     return fitted_data
 
 def region_intensity(xdata,ydata,xrange,peak_range,showdata=True):
-    fitted_data, popt = powerlaw_fit(xdata,ydata,xrange)
+    fitted_data, _, _ = powerlaw_fit(xdata,ydata,xrange)
     subtracted_data = ydata - fitted_data
     start_val = np.int((peak_range[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
     stop_val = np.int((peak_range[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
