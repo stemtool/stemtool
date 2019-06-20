@@ -421,3 +421,10 @@ def flip_corrector(data4D):
             ronchi_flip = np.fliplr(ronchi)
             flipped4D[:,:,ii,jj] = ronchi_flip
     return flipped4D
+
+@numba.jit(cache=True)
+def array_rms(arr):
+    arr_sq = arr ** 2
+    arr_mean = np.mean(arr_sq)
+    arr_rms = (arr_mean) ** 0.5
+    return arr_rms

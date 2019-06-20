@@ -48,7 +48,7 @@ def powerlaw_fit(xdata,ydata,xrange):
     fitted = func_powerlaw(xdata,popt[0],popt[1])
     return fitted, popt
 
-def powerlaw_plot(xdata,ydata,xrange,showdata=True):
+def powerlaw_plot(xdata,ydata,xrange,figtitle,showdata=True):
     font = {'family' : 'sans-serif',
             'weight' : 'regular',
             'size'   : 22}
@@ -70,7 +70,7 @@ def powerlaw_plot(xdata,ydata,xrange,showdata=True):
         plt.ylabel('Intensity (A.U.)')
         plt.xlim(np.amin(xdata),np.amax(xdata))
         plt.ylim(np.amin(ydata)-1000,np.amax(ydata)+1000)
-        plt.show()
+        plt.savefig(figtitle,dpi=300)
     return fitted_data
 
 def region_intensity(xdata,ydata,xrange,peak_range,showdata=True):
@@ -100,17 +100,22 @@ def region_intensity(xdata,ydata,xrange,peak_range,showdata=True):
 
 @numba.jit(parallel=True)
 def eels_3D(eels_dict,fit_range,peak_range,clean_val=0):
+    fit_range = np.asarray(fit_range)
+    peak_range = np.asarray(peak_range)
+    no_elements = len(peak_range)
     eels_array = eels_dict['data']
     if (clean_val > 0):
-        eels_clean = cleanEELS_3D(eels_array,clean_val)
+        eels_clean = cleanEELS_3D(eels_array,'median',clean_val)
     else:
         eels_clean = eels_array
     xdata = (np.arange(eels_clean.shape[0]) - eels_dict['pixelOrigin'][0])*eels_dict['pixelSize'][0]
-    rel_peak_val = np.zeros((eels_clean.shape[-2],eels_clean.shape[-1]), dtype=np.float64)
-    abs_peak_val = np.zeros((eels_clean.shape[-2],eels_clean.shape[-1]), dtype=np.float64)
-    for jj in numba.prange(eels_clean.shape[-1]):
-        for ii in range(eels_clean.shape[-2]):
-            pv,ps = region_intensity(xdata,eels_clean[:,ii,jj],fit_range,peak_range,showdata=False)
-            rel_peak_val[ii,jj] = pv
-            abs_peak_val[ii,jj] = ps
-    return rel_peak_val, abs_peak_val
+    peak_values = np.zeros((eels_clean.shape[-2],eels_clean.shape[-1],no_elements), dtype=np.float64)
+    for ii in numba.prange(eels_clean.shape[-2]):
+        for jj in range(eels_clean.shape[-1]):
+            for qq in range(no_elements):
+                eels_data = eels_clean[:,ii,jj]
+                fit_points = fit_range[qq,:]
+                peak_point = peak_range[qq,:]
+                peak_val = region_intensity(xdata,eels_data,fit_points,peak_point,showdata=False)
+                peak_values[ii,jj,qq] = peak_val
+    return peak_values
