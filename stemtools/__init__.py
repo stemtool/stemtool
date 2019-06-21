@@ -8,5 +8,5 @@ from . import beam
 from . import eels
 from . import nbed
 from . import proc
-from . import time
 from . import util
+from .code_timer import *
