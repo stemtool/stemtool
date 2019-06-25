@@ -9,4 +9,5 @@ from . import eels
 from . import nbed
 from . import proc
 from . import util
+from . import dpc
 from .code_timer import *
