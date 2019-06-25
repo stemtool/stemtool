@@ -2,6 +2,8 @@ from scipy import ndimage as scnd
 from scipy import optimize as sio
 import numpy as np
 import numba
+from ..util import image_utils as iu
+from ..proc import sobel_canny as sc
 
 @numba.jit(cache=True)
 def cart2pol(x, y):
@@ -33,13 +35,24 @@ def optimize_angle(rho_dpc,phi_dpc):
     sol2 = min_x + 90
     return sol1,sol2
 
+@numba.jit(cache=True)
+def data_rotator(cbed_pattern,rotangle,xcenter,ycenter,data_radius):
+    data_size = np.shape(cbed_pattern)
+    yV, xV = np.mgrid[0:data_size[0], 0:data_size[1]]
+    mask = ((((yV - ycenter) ** 2) + ((xV - xcenter) ** 2)) ** 0.5) > (1.04*data_radius)
+    cbed_min = np.amin(scnd.median_filter(cbed_pattern, 15))
+    moved_cbed = np.abs(iu.move_by_phase(cbed_pattern,(xcenter - (0.5 * data_size[1])),(ycenter - (0.5 * data_size[0]))))
+    rotated_cbed = scnd.rotate(moved_cbed,rotangle,order=5,reshape=False)
+    rotated_cbed[mask] = cbed_min
+    return rotated_cbed
+
 @numba.jit(parallel=True)
 def calculate_dpc(data4D):
     data_size = (np.asarray(data4D.shape)).astype(int)
     rho_shift = (np.zeros((data_size[2],data_size[3])))
     phi_shift = (np.zeros((data_size[2],data_size[3])))
     Mean_r = np.mean(np.mean(data4D,axis=3),axis=2)
-    center_x,center_y,data_radius = circle_fit(canny_edge(scnd.median_filter(Mean_r,2),0.2,0.8))
+    center_x,center_y,data_radius = sc.circle_fit(sc.canny_edge(scnd.median_filter(Mean_r,2),0.2,0.8))
     for jj in numba.prange(data_size[3]):
         for ii in range(data_size[2]):
             ronchigram = scnd.median_filter(data4D[:,:,ii,jj],2)

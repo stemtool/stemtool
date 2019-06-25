@@ -32,7 +32,7 @@ def wavelength_ang(voltage_kV):
     numerator = (h ** 2) * (c ** 2)
     denominator = (e * voltage) * ((2*m*(c ** 2)) + (e * voltage))
     wavelength = (10 ** 10) *((numerator/denominator) ** 0.5) #in angstroms
-    return wavelength_ang
+    return wavelength
 
 @numba.jit(cache=True)
 def FourierCoords(calibration,sizebeam):
