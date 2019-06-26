@@ -273,3 +273,42 @@ def ROI_to_map(strain_ROI,image,ROI_range,med_value=0.25):
     strain_map[y_ROI,x_ROI] = strain_ROI
     strain_map = np.multiply(strain_map,ROI_box)
     return strain_map
+
+def test_aperture(pattern,center,radius,showfig=True):
+    center = np.asarray(center)
+    yy,xx = np.mgrid[0:pattern.shape[0],0:pattern.shape[1]]
+    yy = yy - center[1]
+    xx = xx - center[0]
+    rr = ((yy ** 2) + (xx ** 2)) ** 0.5
+    aperture = np.asarray(rr<=radius, dtype=np.double)
+    if showfig:
+        plt.figure(figsize=(15,15))
+        plt.imshow(iu.image_normalizer(pattern)+aperture,cmap='Spectral')
+        plt.scatter(center[0],center[1],c='w', s=25)
+    return aperture
+
+@numba.jit(parallel=True)
+def aperture_image(data4D,center,radius):
+    center = np.asarray(center)
+    yy,xx = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
+    yy = yy - center[1]
+    xx = xx - center[0]
+    rr = ((yy ** 2) + (xx ** 2)) ** 0.5
+    aperture = np.asarray(rr<=radius, dtype=np.double)
+    image = np.zeros((data4D.shape[2],data4D.shape[3]),dtype=np.double)
+    for ii in numba.prange(data4D.shape[2]):
+        for jj in range(data4D.shape[3]):
+            image[ii,jj] = np.sum(np.multiply(aperture,data4D[:,:,ii,jj]))
+    return image
+
+def ROI_from_image(image,med_val,style='over',showfig=True):
+    if style == 'over':
+        ROI = np.asarray(image > (med_val*np.median(image)),dtype=np.double)
+    else:
+        ROI = np.asarray(image < (med_val*np.median(image)),dtype=np.double)
+    if showfig:
+        plt.figure(figsize=(15, 15))
+        plt.imshow(ROI+iu.image_normalizer(image),cmap='viridis')
+        plt.title('ROI overlaid')
+        plt.axis('off')
+    return ROI
