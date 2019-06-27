@@ -105,3 +105,25 @@ def create_circmask(image,center,radius):
     circle = (np.asarray(sub)).astype('float')
     masked_image = np.multiply(image,circle)
     return masked_image, new_center, circle
+
+@numba.jit(cache=True)
+def gaussian_1D_function(x, x0, sigma_x, amplitude):
+    x = x - x0
+    term = (x ** 2)/(2*(sigma_x ** 2))
+    gauss1D = amplitude * np.exp((-1)*term)
+    return gauss1D
+
+@numba.jit(cache=True)
+def initialize_gauss1D(rr, zz, center_type='COM'):
+    if (center_type == 'maxima'):
+        r_com = rr[zz == np.amax(zz)]
+        r_com = r_com[0]
+    elif (center_type == 'COM'):
+        total = np.sum(zz)
+        r_com = np.sum(np.multiply(rr,zz))/total
+    zz_norm = iu.image_normalizer(zz)
+    r_fwhm = rr[zz_norm > 0.5]
+    r_fwhm = np.abs(r_fwhm - r_com)
+    sigma_r = np.amax(r_fwhm)/(2*((2*np.log(2)) ** 0.5))
+    height = np.amax(zz)
+    return r_com, sigma_r, height

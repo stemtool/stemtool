@@ -6,6 +6,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.colors as mplc
 import matplotlib.cm as mplcm
 from scipy import misc as scm
+from scipy import optimize as spo
+from scipy import ndimage as scnd
+from ..proc import sobel_canny as sc
+from ..util import gauss_utils as gt
 
 @numba.jit(cache=True)
 def move_by_phase(image_to_move, x_pixels, y_pixels):
@@ -120,7 +124,7 @@ def image_logarizer(image_orig,bit_depth=32):
     """
     bit_max = 2 ** bit_depth
     image_pos = image_orig - np.amin(image_orig)
-    image_norm = 1 + ((bit_max - 1) * (image_pos / np.amax(image_pos)))
+    image_norm = (1 + ((bit_max - 1) * (image_pos / np.amax(image_pos)))).astype(np.longdouble)
     image_log = np.log2(image_norm)
     return image_log
 
@@ -431,3 +435,14 @@ def array_rms(arr):
     arr_mean = np.mean(arr_sq)
     arr_rms = (arr_mean) ** 0.5
     return arr_rms
+
+@numba.jit(cache=True)
+def sobel_circle(image):
+    sobel_image,_ = sc.sobel(image)
+    yy,xx = np.mgrid[0:sobel_image.shape[0],0:sobel_image.shape[1]]
+    center_y, center_x = np.asarray(scnd.measurements.center_of_mass(sobel_image))
+    rr = (((yy - center_y) ** 2) + ((xx - center_x) ** 2)) ** 0.5
+    initial_guess = gt.initialize_gauss1D(np.ravel(rr),np.ravel(sobel_image),'maxima')
+    popt, _ = spo.curve_fit(gt.gaussian_1D_function, xdata=np.ravel(rr), ydata=np.ravel(sobel_image), p0=initial_guess)
+    radius = popt[0]
+    return center_x,center_y,radius

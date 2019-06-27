@@ -5,7 +5,7 @@ from ..util import image_utils as iu
 import math
 
 @numba.jit(cache=True)
-def sobel_filter(input_image):
+def sobel(input_image):
     """
     Sobel Filter an Input Image
     
