@@ -242,7 +242,7 @@ def sparse_division(sparse_numer,sparse_denom,bit_depth=32):
     return divided_matrix
 
 @numba.jit(cache=True)
-def normalized_correlation(image_1,image_2,hybridizer=0):
+def cross_corr(image_1,image_2,hybridizer=0,normal=True):
     """
     Normalized Correlation, allowing for hybridization 
     with cross correlation being the default output if
@@ -282,8 +282,8 @@ def normalized_correlation(image_1,image_2,hybridizer=0):
     .. math::
          G_c = \frac{G_1 \times G_2^*}{\mid G_1 \times G_2^* \mid ^n}
          
-    If n is 0, we have pure cross correlation, and if n is 1 we 
-    have pure phase correlation.
+    If n is 0, we have cross correlation, and if n is 1 we 
+    have phase correlation.
     
     References
     ----------
@@ -300,17 +300,20 @@ def normalized_correlation(image_1,image_2,hybridizer=0):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    im1_norm = image_normalizer(image_1)
-    im2_norm = image_normalizer(image_2)
-    im1_fft = pyfftw.interfaces.numpy_fft.fftshift(pyfftw.interfaces.numpy_fft.fft2(im1_norm))
-    im2_fft = pyfftw.interfaces.numpy_fft.fftshift(pyfftw.interfaces.numpy_fft.fft2(im2_norm))
-    im2_fft_conj = np.conj(im2_fft)
-    corr_fft = np.multiply(im1_fft,im2_fft_conj)
-    corr_abs = np.abs(corr_fft)
-    corr_angle = np.angle(corr_fft)
-    corr_abs_hybrid = corr_abs ** hybridizer
-    corr_hybrid_fft = sparse_division(corr_fft,corr_abs_hybrid,32)
-    corr_hybrid = pyfftw.interfaces.numpy_fft.ifftshift(pyfftw.interfaces.numpy_fft.ifft2(corr_hybrid_fft))
+    pyfftw.interfaces.cache.enable()
+    if normal:
+        im1_norm = image_normalizer(image_1)
+        im2_norm = image_normalizer(image_2)
+        im1_fft = pyfftw.interfaces.numpy_fft.fft2(im1_norm)
+        im2_fft = np.conj(pyfftw.interfaces.numpy_fft.fft2(im2_norm))
+    else:
+        im1_fft = pyfftw.interfaces.numpy_fft.fft2(image_1)
+        im2_fft = np.conj(pyfftw.interfaces.numpy_fft.fft2(image_2))
+    corr_fft = np.multiply(im1_fft,im2_fft)
+    corr_abs = (np.abs(corr_fft)) ** hybridizer
+    corr_hybrid_fft = sparse_division(corr_fft,corr_abs,32)
+    corr_hybrid = pyfftw.interfaces.numpy_fft.ifft2(corr_hybrid_fft)
+    corr_hybrid = np.abs(np.fft.ifftshift(corr_hybrid))
     return corr_hybrid
 
 @numba.jit(cache=True)
