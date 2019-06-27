@@ -125,7 +125,7 @@ def image_logarizer(image_orig,bit_depth=32):
     bit_max = 2 ** bit_depth
     image_pos = image_orig - np.amin(image_orig)
     image_norm = (1 + ((bit_max - 1) * (image_pos / np.amax(image_pos)))).astype(np.longdouble)
-    image_log = np.log2(image_norm)
+    image_log = (np.log2(image_norm)).astype(np.double)
     return image_log
 
 @numba.jit(cache=True)
