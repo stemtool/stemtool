@@ -8,6 +8,8 @@ nbed/__pycache__/
 proc/__pycache__/
 time/__pycache__/
 util/__pycache__/
+dpc/__pycache__/
+sim/__pycache__/
 *.py[cod]
 *$py.class
 *.pyc
