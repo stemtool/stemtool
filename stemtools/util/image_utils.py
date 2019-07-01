@@ -8,6 +8,7 @@ import matplotlib.cm as mplcm
 from scipy import misc as scm
 from scipy import optimize as spo
 from scipy import ndimage as scnd
+from scipy import signal as scsig
 from ..proc import sobel_canny as sc
 from ..util import gauss_utils as gt
 
@@ -110,24 +111,64 @@ def image_logarizer(image_orig,bit_depth=32):
     
     Notes
     -----
-    Subtract the minima of the data from the 
-    numpy array of the image and then divide 
-    it by the maximmum value of the numpy array.
-    Then multiply it by the bit depth raised to
-    the power of 2, so that the value lies between
-    1 and (2^{bit depth}). Then take the logarithm
-    of the image with base 2, so the final output
-    data lies between 0 and the bit depth.
+    Remove dead pixels, and then apply a median
+    filter to smooth the image out. Then normalize
+    the image, and scale it 2^0 to 2^bit_depth. Take 
+    log2 of the scaled image.
                  
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     bit_max = 2 ** bit_depth
-    image_pos = image_orig - np.amin(image_orig)
-    image_norm = (1 + ((bit_max - 1) * (image_pos / np.amax(image_pos)))).astype(np.longdouble)
-    image_log = (np.log2(image_norm)).astype(np.double)
+    image_pos = scsig.medfilt(remove_dead_pixels(image_orig,3),3)
+    image_norm = image_normalizer(image_pos)
+    image_scale = (1 + ((bit_max - 1) * image_norm)).astype(np.longdouble)
+    image_log = (np.log2(image_scale)).astype(np.double)
     return image_log
 
+def remove_dead_pixels(image_orig,iter_count=1,level=10000):
+    """
+    Remove dead pixels
+    
+    Parameters
+    ----------
+    image_orig: ndarray
+                Numpy array of real valued image
+    iter_count: int
+                Number of iterations to run
+                the process. Default is 1
+    level:      int,float
+                Ratio of minima pixels to total
+                pixels. Default is 10,000
+                
+    Returns
+    -------
+    image_orig: ndarray
+                Image with dead pixels converted
+                
+    Notes
+    -----
+    Subtract the minima from the image, and if the
+    number of pixels with minima values is less than 
+    the 1/level of the total pixels, then those are
+    decided to be dead pixels. Iterate if necessary
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    pp,qq = np.mgrid[0:image_orig.shape[0],0:image_orig.shape[1]]
+    no_points = np.size(pp)
+    for ii in range(iter_count):
+        original_min = np.amin(image_orig)
+        image_pos = image_orig - original_min
+        no_minima = np.size(pp[image_pos == 0])
+        if no_minima < (no_points/level):
+            new_minimum = np.amin(image_pos[image_pos > 0])
+        image_pos = image_pos - new_minimum
+        image_pos[image_pos < 0] = 0
+        image_orig = image_pos + new_minimum + original_min
+    return image_orig
+    
 @numba.jit(cache=True)
 def hanned_image(image):
     """
