@@ -43,7 +43,7 @@ def sobel(input_image):
     rows,cols = input_image.shape
     mag = np.zeros((rows,cols))
     ang = np.zeros((rows,cols))
-    for ii in numba.prange(1,rows - 1):
+    for ii in range(1,rows - 1):
         for jj in range(1,cols - 1):
             pp = ii - 1
             qq = jj - 1
