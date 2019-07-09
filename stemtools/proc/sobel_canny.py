@@ -1,10 +1,8 @@
 import numpy as np
-import numba
 from scipy import ndimage as scnd
 from ..util import image_utils as iu
 import math
 
-@numba.jit(cache=True)
 def sobel(input_image):
     """
     Sobel Filter an Input Image
@@ -56,7 +54,6 @@ def sobel(input_image):
             ang[ii,jj] = np.arctan2(S2,S1)
     return mag, ang
 
-@numba.jit(parallel=True)
 def edge_thinner(sobel_mag,sobel_angle):
     """
     Thinning Sobel Filtered Edges
@@ -87,7 +84,7 @@ def edge_thinner(sobel_mag,sobel_angle):
     sobel_degree = sobel_angle*(180/np.pi)
     sobel_degree[sobel_degree < 0] += 180
     matrix_size = (np.asarray(sobel_mag.shape)).astype(int)
-    for ii in numba.prange(1,matrix_size[0]-1):
+    for ii in range(1,matrix_size[0]-1):
         for jj in range(1,matrix_size[1]-1):
             q = 1
             r = 1
@@ -110,7 +107,6 @@ def edge_thinner(sobel_mag,sobel_angle):
                 thinned_edge[ii,jj] = 0
     return thinned_edge
 
-@numba.jit(cache=True)
 def canny_threshold(thinned_edge, lowThreshold, highThreshold):
     """
     Thresholding of Edges
@@ -154,7 +150,6 @@ def canny_threshold(thinned_edge, lowThreshold, highThreshold):
     residual[np.where((thinned_edge <= highT) & (thinned_edge > lowT))] = lowT
     return residual
 
-@numba.jit(parallel=True)
 def edge_joining(thresholded, lowThreshold, highThreshold):
     """
     Joining of Edges
@@ -195,7 +190,7 @@ def edge_joining(thresholded, lowThreshold, highThreshold):
     """
     matrix_size = (np.asarray(thresholded.shape)).astype(int)
     thresholded[thresholded > highThreshold] = highThreshold
-    for ii in numba.prange(1, matrix_size[0]-1):
+    for ii in range(1, matrix_size[0]-1):
         for jj in range(1, matrix_size[1]-1):
             if (thresholded[ii,jj] == lowThreshold):
                 if ((thresholded[ii-1, jj-1] == highThreshold) #top left
@@ -212,7 +207,6 @@ def edge_joining(thresholded, lowThreshold, highThreshold):
     joined_edge = thresholded /  np.amax(thresholded)
     return joined_edge
 
-@numba.jit(cache=True)
 def canny_edge(input_image, lowThreshold, highThreshold):
     """
     Canny Edge Detection
@@ -271,7 +265,6 @@ def canny_edge(input_image, lowThreshold, highThreshold):
     joined_bool = joined_edge.astype(bool)
     return joined_bool
 
-@numba.jit(cache=True)
 def circle_fit(edge_image):
     """
     Fit circle to data points algebraically

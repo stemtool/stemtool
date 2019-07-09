@@ -1,5 +1,4 @@
 import numpy as np
-import numba
 import matplotlib as mpl
 import pyfftw
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -12,7 +11,6 @@ from scipy import signal as scsig
 from ..proc import sobel_canny as sc
 from ..util import gauss_utils as gt
 
-@numba.jit(cache=True)
 def move_by_phase(image_to_move, x_pixels, y_pixels):
     """
     Move Images with sub-pixel precision
@@ -58,7 +56,6 @@ def move_by_phase(image_to_move, x_pixels, y_pixels):
     moved_image = pyfftw.interfaces.scipy_fftpack.ifft2(moved_in_fourier)
     return moved_image
 
-@numba.jit(cache=True)
 def image_normalizer(image_orig):
     """
     Normalizing Image
@@ -91,7 +88,6 @@ def image_normalizer(image_orig):
     image_norm = image_pos / np.amax(image_pos)
     return image_norm
 
-@numba.jit(cache=True)
 def image_logarizer(image_orig,bit_depth=32):
     """
     Normalized log of image
@@ -168,8 +164,7 @@ def remove_dead_pixels(image_orig,iter_count=1,level=10000):
         image_pos[image_pos < 0] = 0
         image_orig = image_pos + new_minimum + original_min
     return image_orig
-    
-@numba.jit(cache=True)
+
 def hanned_image(image):
     """
     2D hanning filter for images
@@ -207,8 +202,7 @@ def sane_colorbar(mappable):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     return fig.colorbar(mappable, cax=cax)
- 
-@numba.jit(cache=True)
+
 def phase_color(phase_image):
     size_im = np.asarray(np.shape(phase_image))
     hsv_im = np.ones((size_im[0],size_im[1],3))
@@ -223,7 +217,6 @@ def phase_color(phase_image):
     rgb_im = mplc.hsv_to_rgb(hsv_im)
     return rgb_im
 
-@numba.jit(cache=True)
 def hsv_overlay(data,image,color,climit=None,bit_depth = 8):
     bit_range = 2 ** bit_depth
     im_map = mplcm.get_cmap(color, bit_range)
@@ -238,7 +231,6 @@ def hsv_overlay(data,image,color,climit=None,bit_depth = 8):
     rgb_image = mplc.hsv_to_rgb(hsv_image)
     return rgb_image
 
-@numba.jit(cache=True)
 def sparse_division(sparse_numer,sparse_denom,bit_depth=32):
     """
     Divide two sparse matrices element wise to prevent zeros
@@ -286,7 +278,6 @@ def sparse_division(sparse_numer,sparse_denom,bit_depth=32):
     divided_matrix[threshold_ind_denom] = 0
     return divided_matrix
 
-@numba.jit(cache=True)
 def cross_corr(image_1,image_2,hybridizer=0,normal=True):
     """
     Normalized Correlation, allowing for hybridization 
@@ -361,7 +352,6 @@ def cross_corr(image_1,image_2,hybridizer=0,normal=True):
     corr_hybrid = np.abs(np.fft.ifftshift(corr_hybrid))
     return corr_hybrid
 
-@numba.jit(cache=True)
 def make_circle(size_circ,center_x,center_y,radius):
     """
     Make a circle
@@ -393,7 +383,6 @@ def make_circle(size_circ,center_x,center_y,radius):
     circle = (np.asarray(sub)).astype('float')
     return circle
 
-@numba.jit(parallel=True)
 def image_tiler(dataset_4D,reducer=3,bit_depth=8):
     """
     Generate a tiled pattern of the 4D-STEM dataset
@@ -408,7 +397,7 @@ def image_tiler(dataset_4D,reducer=3,bit_depth=8):
     reduced_size[1] = int(round(size_data[1]*(1/reducer)))
     tile_size = np.multiply(reduced_size,(size_data[2],size_data[3]))
     image_tile = np.zeros(tile_size)
-    for jj in numba.prange(size_data[3]):
+    for jj in range(size_data[3]):
         for ii in range(size_data[2]):
             ronchi = normalized_4D[:,:,ii,jj]
             reduced_shape = np.round(np.asarray(np.shape(ronchi))/reducer)
@@ -435,7 +424,6 @@ def image_tiler(dataset_4D,reducer=3,bit_depth=8):
     image_tile = image_tile.astype(int)
     return image_tile
 
-@numba.jit(parallel=True)
 def flip_corrector(data4D):
     """
     Correcting Image Flip
@@ -463,21 +451,19 @@ def flip_corrector(data4D):
     """
     datasize = (np.asarray(data4D.shape)).astype(int)
     flipped4D = np.zeros((datasize[0],datasize[1],datasize[2],datasize[3]))
-    for jj in numba.prange(datasize[3]):
+    for jj in range(datasize[3]):
         for ii in range(datasize[2]):
             ronchi = data4D[:,:,ii,jj]
             ronchi_flip = np.fliplr(ronchi)
             flipped4D[:,:,ii,jj] = ronchi_flip
     return flipped4D
 
-@numba.jit(cache=True)
 def array_rms(arr):
     arr_sq = arr ** 2
     arr_mean = np.mean(arr_sq)
     arr_rms = (arr_mean) ** 0.5
     return arr_rms
 
-@numba.jit(cache=True)
 def sobel_circle(image):
     sobel_image,_ = sc.sobel(image)
     yy,xx = np.mgrid[0:sobel_image.shape[0],0:sobel_image.shape[1]]

@@ -3,11 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage as scnd
 from scipy import optimize as spo
-import numba
 import pyfftw
 from ..util import gauss_utils as gt
 
-@numba.jit(cache=True)
 def peaks_vis(data_image,
               distance=1,
               threshold=0.1,
@@ -54,13 +52,12 @@ def peaks_vis(data_image,
     plt.scatter(peaks[:,1],peaks[:,0],c='g', s=15)
     return peaks
 
-@numba.jit(parallel=True)
 def refine_atoms(image_data,
                  positions,
                  distance):
     no_of_points = positions.shape[0]
     refined_pos = (np.zeros((no_of_points,6))).astype(float)
-    for ii in numba.prange(no_of_points):
+    for ii in range(no_of_points):
         pos_x = (positions[ii,1]).astype(float)
         pos_y = (positions[ii,0]).astype(float)
         fitted_diff = gt.fit_gaussian2D_mask(1+image_data,pos_x,pos_y,distance)
@@ -70,7 +67,6 @@ def refine_atoms(image_data,
         refined_pos[ii,-1] = fitted_diff[-1] - 1
     return refined_pos
 
-@numba.jit(cache=True)
 def fourier_mask(original_image,
                  center,
                  radius,
@@ -99,7 +95,6 @@ def fourier_mask(original_image,
     fourier_selected_image = np.multiply(original_image,filtered_SAED)
     return fourier_selected_image, SAED_image, new_center, filtered_SAED
 
-@numba.jit(cache=True)
 def find_diffraction_spots(image,
                            circ_c,
                            circ_y,
@@ -267,7 +262,6 @@ def get_coords(image,
                              (mag[1]*np.cos(np.deg2rad(ang_2)),mag[1]*np.sin(np.deg2rad(ang_2)))))
     return new_coords
 
-@numba.jit(cache=True)
 def coords_of_atoms(peaks,
                     coords,
                     origin):
@@ -303,7 +297,6 @@ def coords_of_atoms(peaks,
     atom_coords[:,6:8] = atom_coords[:,6:8] + origin[0:2]
     return atom_coords
 
-@numba.jit(cache=True)
 def three_neighbors(peak_list,
                     coords,
                     delta=0.25):
@@ -351,7 +344,6 @@ def three_neighbors(peak_list,
     atoms_distances = atoms_distances[~np.isnan(atoms_distances).any(axis=1)]
     return atoms_neighbors, atoms_distances
 
-@numba.jit(parallel=True)
 def relative_strain(n_list,
                     coords):
     identity = np.asarray(((1,0),
@@ -367,7 +359,7 @@ def relative_strain(n_list,
     e_xy = np.zeros(no_atoms)
     e_yy = np.zeros(no_atoms)
     e_th = np.zeros(no_atoms)
-    for ii in numba.prange(no_atoms):
+    for ii in range(no_atoms):
         cc = np.zeros((4,2))
         cc[0,:] = n_list[ii,0:2] - n_list[ii,0:2]
         cc[1,:] = n_list[ii,2:4] - n_list[ii,0:2]

@@ -1,26 +1,22 @@
 import numpy as np
 from scipy import ndimage as scnd
 from scipy import optimize as sio
-import numba
 from ..util import image_utils as iu
 from ..proc import sobel_canny as sc
 from ..util import gauss_utils as gt
 
-@numba.jit(cache=True)
 def angle_fun(angle,image_orig):
     rotated_image = scnd.rotate(image_orig,angle,order=5,reshape=False)
     rotsum = (-1)*(np.sum(rotated_image,1))
     rotmin = np.amin(rotsum)
     return rotmin
 
-@numba.jit(cache=True)
 def rotation_finder(image_orig):
     x0 = 90
     x = sio.minimize(angle_fun,x0,args=(image_orig))
     min_x = x.x
     return min_x
 
-@numba.jit(parallel=True)
 def rotate_and_center_ROI(data4D_ROI,rotangle,xcenter,ycenter):
     """
     Rotation Corrector
@@ -56,14 +52,13 @@ def rotate_and_center_ROI(data4D_ROI,rotangle,xcenter,ycenter):
     """
     data_size = np.asarray(np.shape(data4D_ROI))
     corrected_ROI = np.zeros_like(data4D_ROI)
-    for ii in numba.prange(data4D_ROI.shape[0]):
+    for ii in range(data4D_ROI.shape[0]):
         cbed_pattern = data4D_ROI[ii,:,:]
         moved_cbed = np.abs(iu.move_by_phase(cbed_pattern,(-xcenter + (0.5 * data_size[-1])),(-ycenter + (0.5 * data_size[-2]))))
         rotated_cbed = scnd.rotate(moved_cbed,rotangle,order=5,reshape=False)
         corrected_ROI[ii,:,:] = rotated_cbed
     return corrected_ROI
 
-@numba.jit(parallel=True)
 def correlate_4D(data4D,corr_pattern,hybridizer=0.5):
     """
     Hybrid cross-correlate a 4D-STEM dataset's individual patterns
@@ -96,14 +91,13 @@ def correlate_4D(data4D,corr_pattern,hybridizer=0.5):
     """
     data_size = (np.asarray(data4D.shape)).astype(int)
     corr4D = (np.zeros((data_size[0],data_size[1],data_size[2],data_size[3]))).astype('complex128')
-    for jj in numba.prange(data_size[3]):
+    for jj in range(data_size[3]):
         for ii in range(data_size[2]):
             cbed = data4D[:,:,ii,jj]
             cc_cbed = iu.normalized_correlation(cbed,corr_pattern,hybridizer)
             corr4D[:,:,ii,jj] = cc_cbed
     return corr4D
 
-@numba.jit(parallel=True)
 def correlate_with_disk(data4D,radius,hybridizer=0.5):
     """
     Hybrid cross-correlate a 4D-STEM dataset's 
@@ -141,14 +135,13 @@ def correlate_with_disk(data4D,radius,hybridizer=0.5):
     data_size = (np.asarray(data4D.shape)).astype(int)
     central_disk = make_circle(data_size,(data_size[1] / 2), (data_size[0] / 2), radius)
     corr4D = (np.zeros((data_size[0],data_size[1],data_size[2],data_size[3]))).astype('complex128')
-    for jj in numba.prange(data_size[3]):
+    for jj in range(data_size[3]):
         for ii in range(data_size[2]):
             cbed = data4D[:,:,ii,jj]
             cc_cbed = iu.normalized_correlation(cbed,central_disk,hybridizer)
             corr4D[:,:,ii,jj] = cc_cbed
     return corr4D
 
-@numba.jit(cache=True)
 def gaussian_fit_corr(corr_data,radius_circ,center_distance):
     corr_centers = np.zeros((3,3,2))
     data_size = (np.asarray(corr_data.shape)).astype(int)
@@ -170,7 +163,6 @@ def gaussian_fit_corr(corr_data,radius_circ,center_distance):
             corr_centers[ii,jj,1] = gauss_ii_jj[1]
     return corr_centers
 
-@numba.jit(cache=True)
 def get_ROI(image,top_left,top_right,bottom_left,bottom_right):
     p,q = np.shape(image)
     xV, yV = np.meshgrid(np.arange(p),np.arange(q))
@@ -191,7 +183,6 @@ def get_ROI(image,top_left,top_right,bottom_left,bottom_right):
     yR = np.ravel(yV[sub])
     return sub, xR, yR
 
-@numba.jit(cache=True)
 def correlate_4D_ROI_test(data4D_ROI,corr_pattern,hybridizer=0.5):
     corr4D_raw = np.zeros_like(data4D_ROI,dtype=np.double) #raw data
     corr4D_log = np.zeros_like(data4D_ROI,dtype=np.double) #log of the data
@@ -219,17 +210,15 @@ def correlate_4D_ROI_test(data4D_ROI,corr_pattern,hybridizer=0.5):
         corr4D_lsb[ii,:,:] = cc_cbed_lsb
     return corr4D_raw, corr4D_log, corr4D_sob, corr4D_lsb
 
-@numba.jit(parallel=True)
 def gaussian_fit_4D_ROI(corr_data_ROI,radius_circ,center_distance):
     data_size = np.asarray(np.shape(corr_data_ROI))
     fitted_diff_points = np.zeros((data_size[0],3,3,2))
-    for ii in numba.prange(data_size[0]):
+    for ii in range(data_size[0]):
         corr_cbed = np.abs(corr_data_ROI[ii,:,:])
         corr_points = gaussian_fit_corr(corr_cbed,radius_circ,center_distance)
         fitted_diff_points[ii,:,:,:] = corr_points
     return fitted_diff_points
 
-@numba.jit(parallel=True)
 def strain_in_ROI(fitted_cbed,p_matrix,mean_centers,points):
     no_of_disks = int(0.5*(np.size(mean_centers)))
     b_mean = np.reshape(mean_centers, (no_of_disks,2))
@@ -244,7 +233,7 @@ def strain_in_ROI(fitted_cbed,p_matrix,mean_centers,points):
     l_mean, _,_,_ = np.linalg.lstsq(p_matrix[points,:],b_mean[points,:],rcond=None)
     l_mean_inv = np.linalg.inv(l_mean)
     
-    for ii in numba.prange(data_size):
+    for ii in range(data_size):
         corr_points = fitted_cbed[ii,:,:,:]
         b_cbed = np.reshape(corr_points, (no_of_disks,2))
         b_cbed = b_cbed - b_cbed[4,:]
@@ -262,7 +251,6 @@ def strain_in_ROI(fitted_cbed,p_matrix,mean_centers,points):
     
     return e_xx_ROI, e_xy_ROI, e_yy_ROI, e_th_ROI
 
-@numba.jit(cache=True)
 def ROI_to_map(strain_ROI,image,ROI_range,med_value=0.25):
     y_ROI = ROI_range[0]
     x_ROI = ROI_range[1]
@@ -287,7 +275,6 @@ def test_aperture(pattern,center,radius,showfig=True):
         plt.scatter(center[0],center[1],c='w', s=25)
     return aperture
 
-@numba.jit(parallel=True)
 def aperture_image(data4D,center,radius):
     center = np.asarray(center)
     yy,xx = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
@@ -296,7 +283,7 @@ def aperture_image(data4D,center,radius):
     rr = ((yy ** 2) + (xx ** 2)) ** 0.5
     aperture = np.asarray(rr<=radius, dtype=np.double)
     image = np.zeros((data4D.shape[2],data4D.shape[3]),dtype=np.double)
-    for ii in numba.prange(data4D.shape[2]):
+    for ii in range(data4D.shape[2]):
         for jj in range(data4D.shape[3]):
             image[ii,jj] = np.sum(np.multiply(aperture,data4D[:,:,ii,jj]))
     return image

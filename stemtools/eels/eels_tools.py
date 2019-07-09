@@ -1,12 +1,10 @@
 import numpy as np
-import numba
 import pywt
 from scipy import optimize as spo
 from scipy import signal as sps
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-@numba.jit(cache=True)
 def cleanEELS_wavelet(data,threshold):
     wave = pywt.Wavelet('sym4')
     max_level = pywt.dwt_max_level(len(data), wave.dec_len)
@@ -18,20 +16,19 @@ def cleanEELS_wavelet(data,threshold):
     data2 = pywt.waverec(coeffs2, 'sym4')
     return data2
 
-@numba.jit(parallel=True)
 def cleanEELS_3D(data3D,method,threshold=0):
     data_shape = np.asarray(np.shape(data3D)).astype(int)
     cleaned_3D = np.zeros(data_shape)
     if method == 'wavelet':
         if (threshold > 0):
-            for ii in numba.prange(data_shape[2]):
+            for ii in range(data_shape[2]):
                 for jj in range(data_shape[1]):
                     cleaned_3D[:,jj,ii] = cleanEELS_wavelet(data3D[:,jj,ii],threshold)
         else:
             cleaned_3D = data3D
     if method == 'median':
         if (threshold > 0):
-            for ii in numba.prange(data_shape[2]):
+            for ii in range(data_shape[2]):
                 for jj in range(data_shape[1]):
                     cleaned_3D[:,jj,ii] = sps.medfilt(data3D[:,jj,ii],threshold)
         else:
@@ -138,7 +135,6 @@ def region_intensity(xdata,ydata,xrange,peak_range,showdata=True):
         plt.ylim(np.amin(ydata)-1000,np.amax(ydata)+1000)
     return peak_sum
 
-@numba.jit(parallel=True)
 def eels_3D(eels_dict,fit_range,peak_range,clean_val=0):
     fit_range = np.asarray(fit_range)
     peak_range = np.asarray(peak_range)
@@ -150,7 +146,7 @@ def eels_3D(eels_dict,fit_range,peak_range,clean_val=0):
         eels_clean = eels_array
     xdata = (np.arange(eels_clean.shape[0]) - eels_dict['pixelOrigin'][0])*eels_dict['pixelSize'][0]
     peak_values = np.zeros((eels_clean.shape[-2],eels_clean.shape[-1],no_elements), dtype=np.float64)
-    for ii in numba.prange(eels_clean.shape[-2]):
+    for ii in range(eels_clean.shape[-2]):
         for jj in range(eels_clean.shape[-1]):
             for qq in range(no_elements):
                 eels_data = eels_clean[:,ii,jj]

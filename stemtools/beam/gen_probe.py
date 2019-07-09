@@ -1,8 +1,6 @@
 import numpy as np
-import numba
 import pyfftw
 
-@numba.jit(cache=True)
 def wavelength_ang(voltage_kV):
     """
     Calculates the relativistic electron wavelength
@@ -34,7 +32,6 @@ def wavelength_ang(voltage_kV):
     wavelength = (10 ** 10) *((numerator/denominator) ** 0.5) #in angstroms
     return wavelength
 
-@numba.jit(cache=True)
 def FourierCoords(calibration,sizebeam):
     FOV = sizebeam[0]*calibration
     qx = (np.arange((-sizebeam[0]/2),((sizebeam[0]/2)),1))/FOV
@@ -46,7 +43,6 @@ def FourierCoords(calibration,sizebeam):
     dL = Lx[1] - Lx[0]
     return dL,L1
 
-@numba.jit(cache=True)
 def make_probe(aperture,
                voltage,
                image_size,
@@ -82,7 +78,6 @@ def make_probe(aperture,
     probe_real_space = np.fft.ifftshift(pyfftw.interfaces.numpy_fft.ifft2(Adist))
     return probe_real_space
 
-@numba.jit(cache=True)
 def aberration(fourier_coord,
                wavelength_ang,
                defocus=0,
