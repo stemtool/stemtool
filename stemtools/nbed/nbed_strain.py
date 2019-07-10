@@ -133,7 +133,7 @@ def correlate_with_disk(data4D,radius,hybridizer=0.5):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     data_size = (np.asarray(data4D.shape)).astype(int)
-    central_disk = make_circle(data_size,(data_size[1] / 2), (data_size[0] / 2), radius)
+    central_disk = iu.make_circle(data_size,(data_size[1] / 2), (data_size[0] / 2), radius)
     corr4D = (np.zeros((data_size[0],data_size[1],data_size[2],data_size[3]))).astype('complex128')
     for jj in range(data_size[3]):
         for ii in range(data_size[2]):
