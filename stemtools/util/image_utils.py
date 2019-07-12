@@ -84,8 +84,8 @@ def image_normalizer(image_orig):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     
     """
-    image_pos = image_orig - np.amin(image_orig)
-    image_norm = image_pos / np.amax(image_pos)
+    image_norm = np.zeros_like(image_orig,dtype=np.double)
+    image_norm = (image_orig - np.amin(image_orig)) / (np.amax(image_orig) - np.amin(image_orig))
     return image_norm
 
 def image_logarizer(image_orig,bit_depth=32):
@@ -107,19 +107,18 @@ def image_logarizer(image_orig,bit_depth=32):
     
     Notes
     -----
-    Remove dead pixels, and then apply a median
-    filter to smooth the image out. Then normalize
-    the image, and scale it 2^0 to 2^bit_depth. Take 
-    log2 of the scaled image.
+    Normalize the image, and scale it 2^0 to 2^bit_depth. 
+    Take log2 of the scaled image.
                  
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     bit_max = 2 ** bit_depth
-    image_pos = scsig.medfilt(remove_dead_pixels(image_orig,3),3)
-    image_norm = image_normalizer(image_pos)
-    image_scale = (1 + ((bit_max - 1) * image_norm)).astype(np.longdouble)
-    image_log = (np.log2(image_scale)).astype(np.double)
+    image_norm = image_normalizer(image_orig)
+    image_scale = np.zeros_like(image_norm,dtype=np.double)
+    image_log = np.zeros_like(image_norm,dtype=np.double)
+    image_scale = 1 + ((bit_max - 1) * image_norm)
+    image_log = np.log2(image_scale)
     return image_log
 
 def remove_dead_pixels(image_orig,iter_count=1,level=10000):
