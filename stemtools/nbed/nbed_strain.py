@@ -288,6 +288,7 @@ def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes):
     no_of_disks = data4D_ROI.shape[-1]
     disk_size = (np.sum(center_disk)/np.pi) ** 0.5
     i_matrix = (np.eye(2)).astype(np.float)
+    sobel_center_disk,_ = sc.sobel(center_disk)
     # Initialize matrices
     e_xx_ROI = np.zeros(no_of_disks,dtype=np.float)
     e_xy_ROI = np.zeros(no_of_disks,dtype=np.float)
@@ -296,17 +297,17 @@ def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes):
     #axes present
     if np.size(reference_axes) < 2:
         mean_cbed = np.mean(data4D_ROI,axis=-1)
-        log_mean_cbed = st.util.image_logarizer(mean_cbed,16)
-        log_mean_corr = st.util.cross_corr(log_mean_cbed,center_disk,hybridizer=0.1)
-        _,_,mean_axes = get_disk_fit(log_mean_corr,disk_size,disk_list,pos_list)
+        sobel_lm_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
+        lsc_mean = iu.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=0.1)
+        _,_,mean_axes = get_disk_fit(lsc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(no_of_disks):
         pattern = data4D_ROI[:,:,ii]
-        log_pattern = iu.image_logarizer(pattern,16)
-        corr_pattern = iu.cross_corr(log_pattern,center_disk,hybridizer=0.1)
-        _,_,pattern_axes = get_disk_fit(corr_pattern,disk_size,disk_list,pos_list)
+        sobel_log_pattern,_ = sc.sobel(iu.image_logarizer(pattern))
+        lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=0.1)
+        _,_,pattern_axes = get_disk_fit(lsc_pattern,disk_size,disk_list,pos_list)
         t_pattern = np.matmul(pattern_axes,inverse_axes)
         s_pattern = t_pattern - i_matrix
         e_xx_ROI[ii] = -s_pattern[0,0]

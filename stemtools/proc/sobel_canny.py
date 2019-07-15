@@ -38,11 +38,15 @@ def sobel(input_image):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     
     """
-    Gx = np.asarray(((-1,0,1),(-2,0,2),(-1,0,1)))
-    Gy = np.asarray(((-1,-2,-1),(0,0,0),(1,2,1)))
+    Gx = np.asarray(((-1,0,1),
+                     (-2,0,2),
+                     (-1,0,1)),dtype=input_image.dtype)
+    Gy = np.asarray(((-1,-2,-1),
+                     (0,0,0),
+                     (1,2,1)),dtype=input_image.dtype)
     rows,cols = input_image.shape
-    mag = np.zeros((rows,cols))
-    ang = np.zeros((rows,cols))
+    mag = np.zeros((rows,cols),dtype=input_image.dtype)
+    ang = np.zeros((rows,cols),dtype=input_image.dtype)
     for ii in range(1,rows - 1):
         for jj in range(1,cols - 1):
             pp = ii - 1
