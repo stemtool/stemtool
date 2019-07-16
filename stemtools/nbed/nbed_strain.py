@@ -1,4 +1,5 @@
 import numpy as np
+import numba
 from scipy import ndimage as scnd
 from scipy import optimize as sio
 from scipy import signal as scisig
@@ -128,6 +129,86 @@ def data4Dto2D(data4D):
     data2D.shape = (data_shape[0]*data_shape[1],data_shape[2]*data_shape[3])
     return data2D
 
+@numba.njit
+def resizer(data,N):
+    """
+    Downsample 1D array
+    
+    Parameters
+    ----------
+    data: ndarray
+    N:    int
+          New size of array
+                     
+    Returns
+    -------
+    res: ndarray of shape N
+         Data resampled
+    
+    Notes
+    -----
+    The data is resampled. Since this is a Numba
+    function, compile it once (you will get errors)
+    by calling %timeit
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    M = data.size
+    res=np.zeros(int(N),data.dtype)
+    carry=0
+    m=0
+    for n in range(int(N)):
+        data_sum = carry
+        while m*N - n*M < M :
+            data_sum += data[m]
+            m += 1
+        carry = (m-(n+1)*M/N)*data[m-1]
+        data_sum -= carry
+        res[n] = data_sum*N/M
+    return res
+
+@numba.jit
+def resizer2D(data,sampling):
+    """
+    Downsample 2D array
+    
+    Parameters
+    ----------
+    data:     ndarray
+              (2,2) shape
+    sampling: tuple
+              Downsampling factor in each axisa
+                     
+    Returns
+    -------
+    resmpled: ndarray
+              Downsampled by the sampling factor
+              in each axis
+    
+    Notes
+    -----
+    The data is a 2D wrapper over the resizer function
+    
+    See Also
+    --------
+    resizer
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    sampling = np.asarray(sampling)
+    data_shape = np.asarray(np.shape(data))
+    sampled_shape = (np.round(data_shape/sampling)).astype(int)
+    resampled_x = np.zeros((data_shape[0],sampled_shape[1]),data.dtype)
+    resampled = np.zeros(sampled_shape,data.dtype)
+    for yy in range(int(data_shape[0])):
+        resampled_x[yy,:] = resizer(data[yy,:],sampled_shape[1])
+    for xx in range(int(sampled_shape[1])):
+        resampled[:,xx] = resizer(resampled_x[:,xx],sampled_shape[0])
+    return resampled
+
+@numba.jit
 def bin4D(data4D,bin_factor):
     """
     Bin 4D data in spectral dimensions
@@ -149,19 +230,22 @@ def bin4D(data4D,bin_factor):
     Notes
     -----
     The data is binned in the last two spectral dimensions
-    using scipy signal decimate
+    using resizer2D function.
+    
+    See Also
+    --------
+    resizer
+    resizer2D
                  
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     mean_data = np.mean(np.mean(data4D,-1),-1)
-    mean_binned = scisig.decimate(scisig.decimate(mean_data,bin_factor,axis=0),bin_factor,axis=1)
-    binned_data = np.zeros((mean_binned.shape[0],mean_binned.shape[1],data4D.shape[2],data4D.shape[3]),dtype=np.float)
+    mean_binned = resizer2D(mean_data,(bin_factor,bin_factor))
+    binned_data = np.zeros((mean_binned.shape[0],mean_binned.shape[1],data4D.shape[2],data4D.shape[3]),dtype=data4D.dtype)
     for ii in range(data4D.shape[2]):
         for jj in range(data4D.shape[3]):
-            ronchi = data4D[:,:,ii,jj]
-            binned_ronchi = scisig.decimate(scisig.decimate(ronchi,bin_factor,axis=0),bin_factor,axis=1)
-            binned_data[:,:,ii,jj] = binned_ronchi
+            binned_data[:,:,ii,jj] = resizer2D(data4D[:,:,ii,jj],(bin_factor,bin_factor))
     return binned_data
 
 def test_aperture(pattern,center,radius,showfig=True):
@@ -266,10 +350,11 @@ def ROI_from_image(image,med_val,style='over',showfig=True):
     ROI = ROI.astype(bool)
     return ROI
 
+@numba.jit
 def get_disk_fit(corr_image,disk_size,disk_list,pos_list):
     fitted_disk_list = np.zeros(np.shape(disk_list),dtype=np.float)
     disk_locations = np.zeros(np.shape(disk_list),dtype=np.float)
-    for ii in range(np.shape(disk_list)[0]):
+    for ii in range(int(np.shape(disk_list)[0])):
         posx = disk_list[ii,0]
         posy = disk_list[ii,1]
         par = gt.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
@@ -283,7 +368,8 @@ def get_disk_fit(corr_image,disk_size,disk_list,pos_list):
     center[0,0] = (-1)*center[0,0]
     return fitted_disk_list,center,lcbed
 
-def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes):
+@numba.jit
+def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes,med_factor=10):
     # Calculate needed values
     no_of_disks = data4D_ROI.shape[-1]
     disk_size = (np.sum(center_disk)/np.pi) ** 0.5
@@ -298,14 +384,16 @@ def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes):
     if np.size(reference_axes) < 2:
         mean_cbed = np.mean(data4D_ROI,axis=-1)
         sobel_lm_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
+        sobel_lm_cbed[sobel_lm_cbed > med_factor*np.median(sobel_lm_cbed)] = np.median(sobel_lm_cbed)
         lsc_mean = iu.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=0.1)
         _,_,mean_axes = get_disk_fit(lsc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
-    for ii in range(no_of_disks):
+    for ii in range(int(no_of_disks)):
         pattern = data4D_ROI[:,:,ii]
         sobel_log_pattern,_ = sc.sobel(iu.image_logarizer(pattern))
+        sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)
         lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=0.1)
         _,_,pattern_axes = get_disk_fit(lsc_pattern,disk_size,disk_list,pos_list)
         t_pattern = np.matmul(pattern_axes,inverse_axes)

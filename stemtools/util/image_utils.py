@@ -329,27 +329,32 @@ def cross_corr(image_1,image_2,hybridizer=0,normal=True):
     
     See Also
     --------
-    image_normalizer
     sparse_division
     
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    pyfftw.interfaces.cache.enable()
+    im_size = np.asarray(np.shape(image_1))
+    pad_size = (np.round(im_size/2)).astype(int)
     if normal:
-        im1_norm = image_normalizer(image_1)
-        im2_norm = image_normalizer(image_2)
-        im1_fft = pyfftw.interfaces.numpy_fft.fft2(im1_norm)
-        im2_fft = np.conj(pyfftw.interfaces.numpy_fft.fft2(im2_norm))
+        im1_norm = image_1/(np.sum(image_1 ** 2) ** 0.5)
+        im1_pad = np.pad(im1_norm,pad_width=pad_size,mode='median')
+        im2_norm = image_2/(np.sum(image_2 ** 2) ** 0.5)
+        im2_pad = np.pad(im2_norm,pad_width=pad_size,mode='median')
+        im1_fft = np.fft.fft2(im1_pad)
+        im2_fft = np.conj(np.fft.fft2(im2_pad))
     else:
-        im1_fft = pyfftw.interfaces.numpy_fft.fft2(image_1)
-        im2_fft = np.conj(pyfftw.interfaces.numpy_fft.fft2(image_2))
+        im1_pad = np.pad(image_1,pad_width=pad_size,mode='median')
+        im2_pad = np.pad(image_2,pad_width=pad_size,mode='median')
+        im1_fft = np.fft.fft2(im1_pad)
+        im2_fft = np.conj(np.fft.fft2(im2_pad))
     corr_fft = np.multiply(im1_fft,im2_fft)
     corr_abs = (np.abs(corr_fft)) ** hybridizer
     corr_hybrid_fft = sparse_division(corr_fft,corr_abs,32)
-    corr_hybrid = pyfftw.interfaces.numpy_fft.ifft2(corr_hybrid_fft)
+    corr_hybrid = np.fft.ifft2(corr_hybrid_fft)
     corr_hybrid = np.abs(np.fft.ifftshift(corr_hybrid))
-    return corr_hybrid
+    corr_unpadded = corr_hybrid[pad_size[0]:pad_size[0]+im_size[0],pad_size[1]:pad_size[1]+im_size[1]]
+    return corr_unpadded
 
 def make_circle(size_circ,center_x,center_y,radius):
     """
