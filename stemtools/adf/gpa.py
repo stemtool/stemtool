@@ -1,5 +1,5 @@
 import numpy as np
-import math
+import cmath
 import pyfftw
 from scipy import ndimage as scnd
 from scipy import optimize as spo
