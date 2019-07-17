@@ -45,9 +45,9 @@ def move_by_phase(image_to_move, x_pixels, y_pixels):
     pyfftw.interfaces.cache.enable()
     image_size = (np.asarray(image_to_move.shape)).astype(int)
     fourier_cal_y = np.linspace((-image_size[0] / 2), ((image_size[0] / 2) - 1), image_size[0])
-    fourier_cal_y = fourier_cal_y / image_size[0]
+    fourier_cal_y = fourier_cal_y / (image_size[0]).astype(np.float64)
     fourier_cal_x = np.linspace((-image_size[1] / 2), ((image_size[1] / 2) - 1), image_size[1])
-    fourier_cal_x = fourier_cal_x / image_size[1]
+    fourier_cal_x = fourier_cal_x / (image_size[1]).astype(np.float64)
     [fourier_mesh_x, fourier_mesh_y] = np.meshgrid(fourier_cal_x, fourier_cal_y)
     move_matrix = np.multiply(fourier_mesh_x,x_pixels) + np.multiply(fourier_mesh_y,y_pixels)
     move_phase = np.exp((-2) * np.pi * 1j * move_matrix)
@@ -84,7 +84,7 @@ def image_normalizer(image_orig):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     
     """
-    image_norm = np.zeros_like(image_orig,dtype=np.double)
+    image_norm = np.zeros_like(image_orig,dtype=np.float64)
     image_norm = (image_orig - np.amin(image_orig)) / (np.amax(image_orig) - np.amin(image_orig))
     return image_norm
 
@@ -115,8 +115,8 @@ def image_logarizer(image_orig,bit_depth=32):
     """
     bit_max = 2 ** bit_depth
     image_norm = image_normalizer(image_orig)
-    image_scale = np.zeros_like(image_norm,dtype=np.double)
-    image_log = np.zeros_like(image_norm,dtype=np.double)
+    image_scale = np.zeros_like(image_norm,dtype=np.float64)
+    image_log = np.zeros_like(image_norm,dtype=np.float64)
     image_scale = 1 + ((bit_max - 1) * image_norm)
     image_log = np.log2(image_scale)
     return image_log
@@ -203,7 +203,7 @@ def sane_colorbar(mappable):
     return fig.colorbar(mappable, cax=cax)
 
 def phase_color(phase_image):
-    size_im = np.asarray(np.shape(phase_image))
+    size_im = np.asarray(np.shape(phase_image),dtype=int)
     hsv_im = np.ones((size_im[0],size_im[1],3))
     hsv_im[:,:,0] = (phase_image + (2*np.pi))/(2*np.pi)
     hsv_im[:,:,0] = hsv_im[:,:,0] - np.floor(hsv_im[:,:,0])

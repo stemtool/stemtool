@@ -1,8 +1,11 @@
 import numpy as np
+import numba
+import warnings
 from scipy import ndimage as scnd
 from ..util import image_utils as iu
 import math
 
+@numba.jit
 def sobel(input_image):
     """
     Sobel Filter an Input Image
@@ -38,6 +41,7 @@ def sobel(input_image):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     
     """
+    warnings.filterwarnings('ignore')
     Gx = np.asarray(((-1,0,1),
                      (-2,0,2),
                      (-1,0,1)),dtype=input_image.dtype)
@@ -58,6 +62,7 @@ def sobel(input_image):
             ang[ii,jj] = np.arctan2(S2,S1)
     return mag, ang
 
+@numba.jit
 def edge_thinner(sobel_mag,sobel_angle):
     """
     Thinning Sobel Filtered Edges
@@ -84,6 +89,7 @@ def edge_thinner(sobel_mag,sobel_angle):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    warnings.filterwarnings('ignore')
     thinned_edge = np.zeros(sobel_mag.shape)
     sobel_degree = sobel_angle*(180/np.pi)
     sobel_degree[sobel_degree < 0] += 180
@@ -111,6 +117,7 @@ def edge_thinner(sobel_mag,sobel_angle):
                 thinned_edge[ii,jj] = 0
     return thinned_edge
 
+@numba.jit
 def canny_threshold(thinned_edge, lowThreshold, highThreshold):
     """
     Thresholding of Edges
@@ -147,6 +154,7 @@ def canny_threshold(thinned_edge, lowThreshold, highThreshold):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    warnings.filterwarnings('ignore')
     highT = np.amax(thinned_edge) * highThreshold
     lowT = highT * lowThreshold
     residual = np.zeros(thinned_edge.shape)
@@ -154,6 +162,7 @@ def canny_threshold(thinned_edge, lowThreshold, highThreshold):
     residual[np.where((thinned_edge <= highT) & (thinned_edge > lowT))] = lowT
     return residual
 
+@numba.jit
 def edge_joining(thresholded, lowThreshold, highThreshold):
     """
     Joining of Edges
@@ -192,6 +201,7 @@ def edge_joining(thresholded, lowThreshold, highThreshold):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    warnings.filterwarnings('ignore')
     matrix_size = (np.asarray(thresholded.shape)).astype(int)
     thresholded[thresholded > highThreshold] = highThreshold
     for ii in range(1, matrix_size[0]-1):
@@ -211,6 +221,7 @@ def edge_joining(thresholded, lowThreshold, highThreshold):
     joined_edge = thresholded /  np.amax(thresholded)
     return joined_edge
 
+@numba.jit
 def canny_edge(input_image, lowThreshold, highThreshold):
     """
     Canny Edge Detection
@@ -269,6 +280,7 @@ def canny_edge(input_image, lowThreshold, highThreshold):
     joined_bool = joined_edge.astype(bool)
     return joined_bool
 
+@numba.jit
 def circle_fit(edge_image):
     """
     Fit circle to data points algebraically
@@ -301,10 +313,11 @@ def circle_fit(edge_image):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    size_image = (np.asarray(edge_image.shape)).astype(int)
+    warnings.filterwarnings('ignore')
+    size_image = np.asarray(np.shape(edge_image)).astype(int)
     yV, xV = np.mgrid[0:size_image[0], 0:size_image[1]]
-    xValues = np.asarray(xV[edge_image]).astype('float')
-    yValues = np.asarray(yV[edge_image]).astype('float')
+    xValues = np.asarray(xV[edge_image],dtype=np.float64)
+    yValues = np.asarray(yV[edge_image],dtype=np.float64)
     
     #coordinates of the barycenter
     xCentroid = np.mean(xValues)

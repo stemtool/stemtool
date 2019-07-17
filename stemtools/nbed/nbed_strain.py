@@ -1,5 +1,6 @@
 import numpy as np
 import numba
+import warnings
 from scipy import ndimage as scnd
 from scipy import optimize as sio
 from scipy import signal as scisig
@@ -154,6 +155,7 @@ def resizer(data,N):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    warnings.filterwarnings('ignore')
     M = data.size
     res=np.zeros(int(N),data.dtype)
     carry=0
@@ -182,7 +184,7 @@ def resizer2D(data,sampling):
                      
     Returns
     -------
-    resmpled: ndarray
+    resampled: ndarray
               Downsampled by the sampling factor
               in each axis
     
@@ -197,6 +199,7 @@ def resizer2D(data,sampling):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    warnings.filterwarnings('ignore')
     sampling = np.asarray(sampling)
     data_shape = np.asarray(np.shape(data))
     sampled_shape = (np.round(data_shape/sampling)).astype(int)
@@ -240,6 +243,7 @@ def bin4D(data4D,bin_factor):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    warnings.filterwarnings('ignore')
     mean_data = np.mean(np.mean(data4D,-1),-1)
     mean_binned = resizer2D(mean_data,(bin_factor,bin_factor))
     binned_data = np.zeros((mean_binned.shape[0],mean_binned.shape[1],data4D.shape[2],data4D.shape[3]),dtype=data4D.dtype)
