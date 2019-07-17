@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from ..util import image_utils as iu
 from ..proc import sobel_canny as sc
 from ..util import gauss_utils as gt
+import warnings
 
 def angle_fun(angle,image_orig,axis=0,):
     """
@@ -354,7 +355,6 @@ def ROI_from_image(image,med_val,style='over',showfig=True):
     ROI = ROI.astype(bool)
     return ROI
 
-@numba.jit
 def get_disk_fit(corr_image,disk_size,disk_list,pos_list):
     fitted_disk_list = np.zeros(np.shape(disk_list),dtype=np.float)
     disk_locations = np.zeros(np.shape(disk_list),dtype=np.float)
@@ -374,6 +374,7 @@ def get_disk_fit(corr_image,disk_size,disk_list,pos_list):
 
 @numba.jit
 def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes,med_factor=10):
+    warnings.filterwarnings('ignore')
     # Calculate needed values
     no_of_disks = data4D_ROI.shape[-1]
     disk_size = (np.sum(center_disk)/np.pi) ** 0.5
