@@ -355,21 +355,26 @@ def ROI_from_image(image,med_val,style='over',showfig=True):
     ROI = ROI.astype(bool)
     return ROI
 
-def get_disk_fit(corr_image,disk_size,disk_list,pos_list):
-    fitted_disk_list = np.zeros(np.shape(disk_list),dtype=np.float)
-    disk_locations = np.zeros(np.shape(disk_list),dtype=np.float)
-    for ii in range(int(np.shape(disk_list)[0])):
-        posx = disk_list[ii,0]
-        posy = disk_list[ii,1]
+@numba.jit
+def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
+    warnings.filterwarnings('ignore')
+    positions = np.asarray(positions,dtype=np.float64)
+    diff_spots = np.asarray(diff_spots,dtype=np.float64)
+    fitted_disk_list = np.zeros_like(positions)
+    disk_locations = np.zeros_like(positions)
+    for ii in range(int(np.shape(positions)[0])):
+        posx = positions[ii,0]
+        posy = positions[ii,1]
         par = gt.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
         fitted_disk_list[ii,0] = par[0]
         fitted_disk_list[ii,1] = par[1]
-    disk_locations[:,0] = (-1)*fitted_disk_list[:,0]
-    disk_locations[:,1] = fitted_disk_list[:,1]
-    center = disk_locations[np.logical_and((pos_list[:,0] == 0),(pos_list[:,1] == 0)),:]
-    disk_locations[:,0:2] = disk_locations[:,0:2] - center
-    lcbed,_,_,_ = np.linalg.lstsq(pos_list,disk_locations,rcond=None)
-    center[0,0] = (-1)*center[0,0]
+    disk_locations = np.copy(fitted_disk_list)
+    disk_locations[:,1] = 0 - disk_locations[:,1]
+    center = disk_locations[np.logical_and((diff_spots[:,0] == 0),(diff_spots[:,1] == 0)),:]
+    center = np.asarray(center)
+    disk_locations[:,0:2] = disk_locations[:,0:2] - center[0:2]
+    lcbed,_,_,_ = np.linalg.lstsq(diff_spots,disk_locations,rcond=None)
+    center[0,1] = (-1)*center[0,1]
     return fitted_disk_list,center,lcbed
 
 @numba.jit
@@ -391,7 +396,7 @@ def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes,med_f
         sobel_lm_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
         sobel_lm_cbed[sobel_lm_cbed > med_factor*np.median(sobel_lm_cbed)] = np.median(sobel_lm_cbed)
         lsc_mean = iu.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=0.1)
-        _,_,mean_axes = get_disk_fit(lsc_mean,disk_size,disk_list,pos_list)
+        _,_,mean_axes = fit_nbed_disks(lsc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
@@ -400,7 +405,7 @@ def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes,med_f
         sobel_log_pattern,_ = sc.sobel(iu.image_logarizer(pattern))
         sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)
         lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=0.1)
-        _,_,pattern_axes = get_disk_fit(lsc_pattern,disk_size,disk_list,pos_list)
+        _,_,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list)
         t_pattern = np.matmul(pattern_axes,inverse_axes)
         s_pattern = t_pattern - i_matrix
         e_xx_ROI[ii] = -s_pattern[0,0]

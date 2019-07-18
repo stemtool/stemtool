@@ -16,7 +16,7 @@ def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
     return np.ravel(gauss2D)
 
 def gauss2D(image_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
-    xr, yr = np.meshgrid(np.arange(image_size[1]),np.arange(image_size[0]))
+    yr, xr = np.mgrid[0:image_size[0], 0:image_size[1]]
     x = xr - x0
     y = yr - y0
     term_1 = (((np.cos(theta))**2)/(2*(sigma_x**2))) + (((np.sin(theta))**2)/(2*(sigma_y**2)))
@@ -50,18 +50,18 @@ def process_circul_mask(image_data,mask_x,mask_y,mask_radius):
     p,q = np.shape(image_data)
     yV, xV = np.mgrid[0:p, 0:q]
     sub = ((((yV - mask_y) ** 2) + ((xV - mask_x) ** 2)) ** 0.5) < mask_radius
-    xValues = np.asarray(xV[sub]).astype('float')
-    yValues = np.asarray(yV[sub]).astype('float')
-    zValues = np.asarray(image_data[sub]).astype('float')
+    xValues = np.asarray(xV[sub],dtype=np.float64)
+    yValues = np.asarray(yV[sub],dtype=np.float64)
+    zValues = np.asarray(image_data[sub],dtype=np.float64)
     return xValues, yValues, zValues
 
 def process_square_mask(image_data,mask_x,mask_y,mask_size):
     p,q = np.shape(image_data)
     yV, xV = np.mgrid[0:p, 0:q]
     sub = np.logical_and((np.abs(yV - mask_y) < mask_size),(np.abs(xV - mask_x) < mask_size))
-    xValues = np.asarray(xV[sub]).astype('float')
-    yValues = np.asarray(yV[sub]).astype('float')
-    zValues = np.asarray(image_data[sub]).astype('float')
+    xValues = np.asarray(xV[sub],dtype=np.float64)
+    yValues = np.asarray(yV[sub],dtype=np.float64)
+    zValues = np.asarray(image_data[sub],dtype=np.float64)
     return xValues, yValues, zValues
 
 def fit_gaussian2D_mask(image_data,mask_x,mask_y,mask_radius,mask_type='circular',center_type='COM'):

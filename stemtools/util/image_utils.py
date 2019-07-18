@@ -384,7 +384,7 @@ def make_circle(size_circ,center_x,center_y,radius):
     q = size_circ[1]
     yV, xV = np.mgrid[0:p, 0:q]
     sub = ((((yV - center_y) ** 2) + ((xV - center_x) ** 2)) ** 0.5) < radius
-    circle = (np.asarray(sub)).astype('float')
+    circle = np.asarray(sub,dtype=np.float64)
     return circle
 
 def image_tiler(dataset_4D,reducer=3,bit_depth=8):
