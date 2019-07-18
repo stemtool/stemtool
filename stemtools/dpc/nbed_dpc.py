@@ -37,7 +37,7 @@ def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list):
     sy,sx = np.mgrid[0:scan_size[0],0:scan_size[1]]
     scan_positions = (np.asarray((np.ravel(sy),np.ravel(sx)))).astype(int)
     cbed_size = np.asarray(data4D.shape)[0:2]
-    center_disk = (iu.make_circle(cbed_size,cbed_size[1]/2,cbed_size[0]/2,beam_r)).astype(np.float64)
+    center_disk = (iu.make_circle(cbed_size,cbed_size[1]/2,cbed_size[0]/2,disk_size)).astype(np.float64)
     i_matrix = (np.eye(2)).astype(np.float64)
     sobel_center_disk,_ = sc.sobel(center_disk)
     # Initialize matrices
