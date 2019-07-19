@@ -131,7 +131,7 @@ def data4Dto2D(data4D):
     data2D.shape = (data_shape[0]*data_shape[1],data_shape[2]*data_shape[3])
     return data2D
 
-@numba.njit
+@numba.jit
 def resizer(data,N):
     """
     Downsample 1D array
