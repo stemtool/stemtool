@@ -443,3 +443,10 @@ def ROI_strain_map(strain_ROI,ROI):
     strain_map = np.zeros_like(ROI,dtype=np.float64)
     strain_map[ROI] = (strain_ROI).astype(np.float64)
     return strain_map
+
+def log_sobel(data4D):
+    data_lsb = np.zeros_like(data4D,dtype=np.float64)
+    for jj in range(data4D.shape[3]):
+        for ii in range(data4D.shape[2]):
+            data_lsb[:,:,ii,jj],_ = sc.sobel(iu.image_logarizer(data4D[:,:,ii,jj]))
+    return data_lsb
