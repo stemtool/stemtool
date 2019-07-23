@@ -4,6 +4,7 @@ import warnings
 from scipy import ndimage as scnd
 from scipy import optimize as sio
 from scipy import signal as scisig
+import matplotlib.colors as mplc
 import matplotlib.pyplot as plt
 from ..util import image_utils as iu
 from ..proc import sobel_canny as sc
@@ -356,6 +357,23 @@ def ROI_from_image(image,med_val,style='over',showfig=True):
     return ROI
 
 @numba.jit
+def colored_mcr(conc_data,data_shape):
+    no_spectra = np.shape(conc_data)[1]
+    color_hues = np.arange(no_spectra,dtype=np.float64)/no_spectra
+    norm_conc = (conc_data - np.amin(conc_data)) / (np.amax(conc_data) - np.amin(conc_data))
+    saturation_matrix = np.ones(data_shape,dtype=np.float64)
+    hsv_calc = np.zeros((data_shape[0],data_shape[1],3),dtype=np.float64)
+    rgb_calc = np.zeros((data_shape[0],data_shape[1],3),dtype=np.float64)
+    hsv_calc[:,:,1] = saturation_matrix
+    for ii in range(no_spectra):
+        conc_image = (np.reshape(norm_conc[:,ii],data_shape)).astype(np.float64)
+        hsv_calc[:,:,0] = saturation_matrix * color_hues[ii]
+        hsv_calc[:,:,2] = conc_image
+        rgb_calc = rgb_calc + mplc.hsv_to_rgb(hsv_calc)
+    rgb_image = rgb_calc/np.amax(rgb_calc)
+    return rgb_image
+
+@numba.jit
 def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
     warnings.filterwarnings('ignore')
     positions = np.asarray(positions,dtype=np.float64)
@@ -378,17 +396,18 @@ def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
     return fitted_disk_list,center,lcbed
 
 @numba.jit
-def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes,med_factor=10):
+def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes=0,med_factor=10):
     warnings.filterwarnings('ignore')
     # Calculate needed values
     no_of_disks = data4D_ROI.shape[-1]
     disk_size = (np.sum(center_disk)/np.pi) ** 0.5
-    i_matrix = (np.eye(2)).astype(np.float)
+    i_matrix = (np.eye(2)).astype(np.float64)
     sobel_center_disk,_ = sc.sobel(center_disk)
     # Initialize matrices
-    e_xx_ROI = np.zeros(no_of_disks,dtype=np.float)
-    e_xy_ROI = np.zeros(no_of_disks,dtype=np.float)
-    e_yy_ROI = np.zeros(no_of_disks,dtype=np.float)
+    e_xx_ROI = np.zeros(no_of_disks,dtype=np.float64)
+    e_xy_ROI = np.zeros(no_of_disks,dtype=np.float64)
+    e_th_ROI = np.zeros(no_of_disks,dtype=np.float64)
+    e_yy_ROI = np.zeros(no_of_disks,dtype=np.float64)
     #Calculate for mean CBED if no reference
     #axes present
     if np.size(reference_axes) < 2:
@@ -410,5 +429,17 @@ def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes,med_f
         s_pattern = t_pattern - i_matrix
         e_xx_ROI[ii] = -s_pattern[0,0]
         e_xy_ROI[ii] = -(s_pattern[0,1] + s_pattern[1,0])
+        e_th_ROI[ii] = s_pattern[0,1] - s_pattern[1,0]
         e_yy_ROI[ii] = -s_pattern[1,1]
-    return e_xx_ROI,e_xy_ROI,e_yy_ROI
+    return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI
+
+def ROI_strain_map(strain_ROI,ROI):
+    """
+    Convert the strain in the ROI array to a strain map
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    strain_map = np.zeros_like(ROI,dtype=np.float64)
+    strain_map[ROI] = (strain_ROI).astype(np.float64)
+    return strain_map
