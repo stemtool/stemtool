@@ -159,7 +159,8 @@ def resizer(data,N):
     """
     warnings.filterwarnings('ignore')
     M = data.size
-    res=np.zeros(int(N),data.dtype)
+    data = (data).astype(np.float64)
+    res=np.zeros(int(N),dtype=np.float64)
     carry=0
     m=0
     for n in range(int(N)):
@@ -205,8 +206,8 @@ def resizer2D(data,sampling):
     sampling = np.asarray(sampling)
     data_shape = np.asarray(np.shape(data))
     sampled_shape = (np.round(data_shape/sampling)).astype(int)
-    resampled_x = np.zeros((data_shape[0],sampled_shape[1]),data.dtype)
-    resampled = np.zeros(sampled_shape,data.dtype)
+    resampled_x = np.zeros((data_shape[0],sampled_shape[1]),dtype=np.float64)
+    resampled = np.zeros(sampled_shape,dtype=np.float64)
     for yy in range(int(data_shape[0])):
         resampled_x[yy,:] = resizer(data[yy,:],sampled_shape[1])
     for xx in range(int(sampled_shape[1])):
@@ -246,7 +247,7 @@ def bin4D(data4D,bin_factor):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     warnings.filterwarnings('ignore')
-    mean_data = np.mean(np.mean(data4D,-1),-1)
+    mean_data = np.mean(data4D,axis=(-1,-2),dtype=np.float64)
     mean_binned = resizer2D(mean_data,(bin_factor,bin_factor))
     binned_data = np.zeros((mean_binned.shape[0],mean_binned.shape[1],data4D.shape[2],data4D.shape[3]),dtype=data4D.dtype)
     for ii in range(data4D.shape[2]):
@@ -425,6 +426,39 @@ def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes=0,med
         sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)
         lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=0.1)
         _,_,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list)
+        t_pattern = np.matmul(pattern_axes,inverse_axes)
+        s_pattern = t_pattern - i_matrix
+        e_xx_ROI[ii] = -s_pattern[0,0]
+        e_xy_ROI[ii] = -(s_pattern[0,1] + s_pattern[1,0])
+        e_th_ROI[ii] = s_pattern[0,1] - s_pattern[1,0]
+        e_yy_ROI[ii] = -s_pattern[1,1]
+    return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI
+
+@numba.jit
+def strain_oldstyle(data4D_ROI,center_disk,disk_list,pos_list,reference_axes=0):
+    warnings.filterwarnings('ignore')
+    # Calculate needed values
+    no_of_disks = data4D_ROI.shape[-1]
+    disk_size = (np.sum(center_disk)/np.pi) ** 0.5
+    i_matrix = (np.eye(2)).astype(np.float64)
+    # Initialize matrices
+    e_xx_ROI = np.zeros(no_of_disks,dtype=np.float64)
+    e_xy_ROI = np.zeros(no_of_disks,dtype=np.float64)
+    e_th_ROI = np.zeros(no_of_disks,dtype=np.float64)
+    e_yy_ROI = np.zeros(no_of_disks,dtype=np.float64)
+    #Calculate for mean CBED if no reference
+    #axes present
+    if np.size(reference_axes) < 2:
+        mean_cbed = np.mean(data4D_ROI,axis=-1)
+        cc_mean = iu.cross_corr(mean_cbed,center_disk,hybridizer=0.1)
+        _,_,mean_axes = fit_nbed_disks(cc_mean,disk_size,disk_list,pos_list)
+        inverse_axes = np.linalg.inv(mean_axes)
+    else:
+        inverse_axes = np.linalg.inv(reference_axes)
+    for ii in range(int(no_of_disks)):
+        pattern = data4D_ROI[:,:,ii]
+        cc_pattern = iu.cross_corr(pattern,center_disk,hybridizer=0.1)
+        _,_,pattern_axes = fit_nbed_disks(cc_pattern,disk_size,disk_list,pos_list)
         t_pattern = np.matmul(pattern_axes,inverse_axes)
         s_pattern = t_pattern - i_matrix
         e_xx_ROI[ii] = -s_pattern[0,0]

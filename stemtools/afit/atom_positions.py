@@ -1,9 +1,11 @@
 from skimage import feature as skf
 import matplotlib.pyplot as plt
 import numpy as np
+import numba
 from scipy import ndimage as scnd
 from scipy import optimize as spo
 import pyfftw
+import warnings
 from ..util import gauss_utils as gt
 
 def peaks_vis(data_image,
@@ -52,9 +54,11 @@ def peaks_vis(data_image,
     plt.scatter(peaks[:,1],peaks[:,0],c='g', s=15)
     return peaks
 
+@numba.jit
 def refine_atoms(image_data,
                  positions,
                  distance):
+    warnings.filterwarnings('ignore')
     no_of_points = positions.shape[0]
     refined_pos = (np.zeros((no_of_points,6))).astype(float)
     for ii in range(no_of_points):
@@ -297,13 +301,15 @@ def coords_of_atoms(peaks,
     atom_coords[:,6:8] = atom_coords[:,6:8] + origin[0:2]
     return atom_coords
 
+@numba.jit
 def three_neighbors(peak_list,
                     coords,
                     delta=0.25):
+    warnings.filterwarnings('ignore')
     no_atoms = peak_list.shape[0]
     atoms_neighbors = np.zeros((no_atoms,8))
     atoms_distances = np.zeros((no_atoms,4))
-    for ii in numba.prange(no_atoms):
+    for ii in range(no_atoms):
         atom_pos = peak_list[ii,0:2]
         neigh_yy = atom_pos + coords[0,:]
         neigh_xx = atom_pos + coords[1,:]
@@ -344,8 +350,10 @@ def three_neighbors(peak_list,
     atoms_distances = atoms_distances[~np.isnan(atoms_distances).any(axis=1)]
     return atoms_neighbors, atoms_distances
 
+@numba.jit
 def relative_strain(n_list,
                     coords):
+    warnings.filterwarnings('ignore')
     identity = np.asarray(((1,0),
                            (0,1)))
     axis_pos = np.asarray(((0, 0), 
