@@ -30,7 +30,7 @@ def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
     return fitted_disk_list,center,lcbed
 
 @numba.jit
-def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list):
+def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list,med_factor=15):
     warnings.filterwarnings('ignore')
     # Calculate needed values
     scan_size = np.asarray(data4D.shape)[2:4]
@@ -50,6 +50,7 @@ def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list):
     #Calculate for mean CBED if no reference
     mean_cbed = np.mean(np.mean(data4D,axis=-1),axis=-1)
     mean_ls_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
+    mean_ls_cbed[mean_ls_cbed > med_factor*np.median(mean_ls_cbed)] = np.median(mean_ls_cbed)
     mean_lsc = iu.cross_corr(mean_ls_cbed,sobel_center_disk,hybridizer=0.1)
     _,mean_center,mean_axes = fit_nbed_disks(mean_lsc,disk_size,pixel_list_xy,disk_list)
     inverse_axes = np.linalg.inv(mean_axes)
@@ -58,6 +59,7 @@ def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list):
         jj = scan_positions[1,pp]
         pattern = data4D[:,:,ii,jj]
         pattern_ls,_ = sc.sobel(iu.image_logarizer(pattern))
+        pattern_ls[pattern_ls > med_factor*np.median(pattern_ls)] = np.median(pattern_ls)
         pattern_lsc = iu.cross_corr(pattern_ls,sobel_center_disk,hybridizer=0.1)
         _,pattern_center,pattern_axes = fit_nbed_disks(pattern_lsc,disk_size,pixel_list_xy,disk_list)
         t_pattern = np.matmul(pattern_axes,inverse_axes)
