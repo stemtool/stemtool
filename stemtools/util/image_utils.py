@@ -277,6 +277,19 @@ def sparse_division(sparse_numer,sparse_denom,bit_depth=32):
     divided_matrix[threshold_ind_denom] = 0
     return divided_matrix
 
+def cross_corr_unpadded(image_1,image_2,normal=True):
+    im_size = np.asarray(np.shape(image_1))
+    if normal:
+        im1_norm = image_1/(np.sum(image_1 ** 2) ** 0.5)
+        im2_norm = image_2/(np.sum(image_2 ** 2) ** 0.5)
+        im1_fft = np.fft.fft2(im1_norm)
+        im2_fft = np.conj(np.fft.fft2(im2_norm))
+    else:
+        im1_fft = np.fft.fft2(image1)
+        im2_fft = np.conj(np.fft.fft2(image2))
+    corr_fft = np.abs(np.fft.ifftshift(np.fft.ifft2(im1_fft*im2_fft)))
+    return corr_fft
+
 def cross_corr(image_1,image_2,hybridizer=0,normal=True):
     """
     Normalized Correlation, allowing for hybridization 
@@ -355,6 +368,8 @@ def cross_corr(image_1,image_2,hybridizer=0,normal=True):
     corr_hybrid = np.abs(np.fft.ifftshift(corr_hybrid))
     corr_unpadded = corr_hybrid[pad_size[0]:pad_size[0]+im_size[0],pad_size[1]:pad_size[1]+im_size[1]]
     return corr_unpadded
+
+
 
 def make_circle(size_circ,center_x,center_y,radius):
     """
