@@ -38,6 +38,7 @@ def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list,med_factor=50):
     sy,sx = np.mgrid[0:scan_size[0],0:scan_size[1]]
     scan_positions = (np.asarray((np.ravel(sy),np.ravel(sx)))).astype(int)
     cbed_size = np.asarray(data4D.shape)[0:2]
+    yy,xx = np.mgrid[0:cbed_size[0],0:cbed_size[1]]
     center_disk = (iu.make_circle(cbed_size,cbed_size[1]/2,cbed_size[0]/2,disk_size)).astype(np.float64)
     i_matrix = (np.eye(2)).astype(np.float64)
     sobel_center_disk,_ = sc.sobel(center_disk)
@@ -51,7 +52,7 @@ def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list,med_factor=50):
     COM_x = np.zeros(scan_size,dtype=np.float64)
     COM_y = np.zeros(scan_size,dtype=np.float64)
     #Calculate for mean CBED if no reference
-    mean_cbed = np.mean(np.mean(data4D,axis=-1),axis=-1)
+    mean_cbed = np.mean(data4D,axis=(-1,-2),dtype=np.float64)
     mean_ls_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
     mean_ls_cbed[mean_ls_cbed > med_factor*np.median(mean_ls_cbed)] = np.median(mean_ls_cbed)
     mean_lsc = iu.cross_corr_unpadded(mean_ls_cbed,sobel_center_disk)
@@ -67,17 +68,17 @@ def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list,med_factor=50):
         pattern_ls[pattern_ls > med_factor*np.median(pattern_ls)] = np.median(pattern_ls)
         pattern_lsc = iu.cross_corr_unpadded(pattern_ls,sobel_center_disk)
         _,pattern_center,pattern_axes = fit_nbed_disks(pattern_lsc,disk_size,pixel_list_xy,disk_list)
-        pcirc = ((((sy - pattern_center[1])**2) + ((sx - pattern_center[0])**2))**0.5)<=beam_r
-        pattern_com = np.asarray((np.sum(pattern[pcirc]*sx[pcirc])/np.sum(pattern[pcirc]),
-                                  np.sum(pattern[pcirc]*sy[pcirc])/np.sum(pattern[pcirc])),dtype=np.float64)
+        pcirc = ((((yy - pattern_center[1])**2) + ((xx - pattern_center[0])**2))**0.5)<=beam_r
+        pattern_x = np.sum(pattern[pcirc]*xx[pcirc])/np.sum(pattern[pcirc])
+        pattern_y = np.sum(pattern[pcirc]*yy[pcirc])/np.sum(pattern[pcirc])
         t_pattern = np.matmul(pattern_axes,inverse_axes)
         s_pattern = t_pattern - i_matrix
         e_xx[ii,jj] = -s_pattern[0,0]
         e_xy[ii,jj] = -(s_pattern[0,1] + s_pattern[1,0])
         e_th[ii,jj] = -(s_pattern[0,1] - s_pattern[1,0])
         e_yy[ii,jj] = -s_pattern[1,1]
-        disk_x[ii,jj] = pattern_center[0,0] - mean_center[0,0]
-        disk_y[ii,jj] = pattern_center[0,1] - mean_center[0,1]
-        COM_x[ii,jj] = pattern_com[0,0] - mean_center[0,0]
-        COM_y[ii,jj] = pattern_com[0,1] - mean_center[0,1]
+        disk_x[ii,jj] = pattern_center[0] - mean_center[0]
+        disk_y[ii,jj] = pattern_center[1] - mean_center[1]
+        COM_x[ii,jj] = pattern_x - mean_center[0]
+        COM_y[ii,jj] = pattern_y - mean_center[1]
     return e_xx,e_xy,e_th,e_yy,disk_x,disk_y,COM_x,COM_y
