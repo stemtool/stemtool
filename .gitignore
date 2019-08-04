@@ -3,16 +3,28 @@ __pycache__/
 adf/__pycache__/
 afit/__pycache__/
 beam/__pycache__/
+dpc/__pycache__/
 eels/__pycache__/
 nbed/__pycache__/
 proc/__pycache__/
-time/__pycache__/
+sim/__pycache__/
 util/__pycache__/
 dpc/__pycache__/
-sim/__pycache__/
 *.py[cod]
 *$py.class
 *.pyc
+
+.ipynb_checkpoints/
+adf/.ipynb_checkpoints/
+afit/.ipynb_checkpoints/
+beam/.ipynb_checkpoints/
+dpc/.ipynb_checkpoints/
+eels/.ipynb_checkpoints/
+nbed/.ipynb_checkpoints/
+proc/.ipynb_checkpoints/
+sim/.ipynb_checkpoints/
+util/.ipynb_checkpoints/
+dpc/.ipynb_checkpoints/
 
 # Mac OSX folder files
 *.DS_Store
