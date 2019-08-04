@@ -8,7 +8,10 @@ from ..proc import sobel_canny as sc
 from ..util import gauss_utils as gt
 
 @numba.jit
-def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
+def fit_nbed_disks(corr_image,
+                   disk_size,
+                   positions,
+                   diff_spots):
     warnings.filterwarnings('ignore')
     positions = np.asarray(positions,dtype=np.float64)
     diff_spots = np.asarray(diff_spots,dtype=np.float64)
@@ -31,7 +34,11 @@ def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
     return fitted_disk_list,np.asarray((cx,cy),dtype=np.float64),lcbed
 
 @numba.jit
-def strain_and_disk(data4D,disk_size,pixel_list_xy,disk_list,med_factor=50):
+def strain_and_disk(data4D,
+                    disk_size,
+                    pixel_list_xy,
+                    disk_list,
+                    med_factor=50):
     warnings.filterwarnings('ignore')
     # Calculate needed values
     scan_size = np.asarray(data4D.shape)[2:4]

@@ -2,7 +2,11 @@ import numpy as np
 from scipy import special as s2
 import PIL
 
-def atomic_potential(atom_no,pixel_size,sampling=16,potential_extent=4,datafile='Kirkland_Potentials.npy'):
+def atomic_potential(atom_no,
+                     pixel_size,
+                     sampling=16,
+                     potential_extent=4,
+                     datafile='Kirkland_Potentials.npy'):
     """
     Calculate the projected potential of a single atom
     

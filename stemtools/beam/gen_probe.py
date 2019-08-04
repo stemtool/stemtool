@@ -32,7 +32,8 @@ def wavelength_ang(voltage_kV):
     wavelength = (10 ** 10) *((numerator/denominator) ** 0.5) #in angstroms
     return wavelength
 
-def FourierCoords(calibration,sizebeam):
+def FourierCoords(calibration,
+                  sizebeam):
     FOV = sizebeam[0]*calibration
     qx = (np.arange((-sizebeam[0]/2),((sizebeam[0]/2)),1))/FOV
     shifter = int(sizebeam[0]/2)

@@ -5,7 +5,8 @@ from scipy import signal as sps
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-def cleanEELS_wavelet(data,threshold):
+def cleanEELS_wavelet(data,
+                      threshold):
     wave = pywt.Wavelet('sym4')
     max_level = pywt.dwt_max_level(len(data), wave.dec_len)
     coeffs = pywt.wavedec(data, 'sym4', level=max_level)
@@ -16,7 +17,9 @@ def cleanEELS_wavelet(data,threshold):
     data2 = pywt.waverec(coeffs2, 'sym4')
     return data2
 
-def cleanEELS_3D(data3D,method,threshold=0):
+def cleanEELS_3D(data3D,
+                 method,
+                 threshold=0):
     data_shape = np.asarray(np.shape(data3D)).astype(int)
     cleaned_3D = np.zeros(data_shape)
     if method == 'wavelet':
@@ -35,7 +38,9 @@ def cleanEELS_3D(data3D,method,threshold=0):
             cleaned_3D = data3D
     return cleaned_3D
 
-def powerlaw_fit(xdata,ydata,xrange):
+def powerlaw_fit(xdata,
+                 ydata,
+                 xrange):
     """
     Power Law Fiiting of EELS spectral data
     
@@ -85,10 +90,14 @@ def powerlaw_fit(xdata,ydata,xrange):
     fitted = const * (xdata ** power)
     return fitted,power,const
 
-def powerlaw_plot(xdata,ydata,xrange,figtitle,showdata=True):
-    font = {'family' : 'sans-serif',
-            'weight' : 'bold',
-            'size'   : 25}
+def powerlaw_plot(xdata,
+                  ydata,
+                  xrange,
+                  figtitle,
+                  showdata=True,
+                  font={'family' : 'sans-serif',
+                        'weight' : 'bold',
+                        'size'   : 25}):
     mpl.rc('font', **font)
     mpl.rcParams['axes.linewidth'] = 4
     fitted_data, power, const  = powerlaw_fit(xdata,ydata,xrange)
@@ -110,7 +119,11 @@ def powerlaw_plot(xdata,ydata,xrange,figtitle,showdata=True):
         plt.savefig(figtitle,dpi=400)
     return fitted_data
 
-def region_intensity(xdata,ydata,xrange,peak_range,showdata=True):
+def region_intensity(xdata,
+                     ydata,
+                     xrange,
+                     peak_range,
+                     showdata=True):
     fitted_data, _, _ = powerlaw_fit(xdata,ydata,xrange)
     subtracted_data = ydata - fitted_data
     start_val = np.int((peak_range[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
@@ -135,7 +148,10 @@ def region_intensity(xdata,ydata,xrange,peak_range,showdata=True):
         plt.ylim(np.amin(ydata)-1000,np.amax(ydata)+1000)
     return peak_sum
 
-def eels_3D(eels_dict,fit_range,peak_range,clean_val=0):
+def eels_3D(eels_dict,
+            fit_range,
+            peak_range,
+            clean_val=0):
     fit_range = np.asarray(fit_range)
     peak_range = np.asarray(peak_range)
     no_elements = len(peak_range)

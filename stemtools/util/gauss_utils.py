@@ -3,7 +3,12 @@ from scipy import optimize as spo
 from scipy import ndimage as scnd
 from ..util import image_utils as iu
 
-def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
+def gaussian_2D_function(xy,
+                         x0,
+                         y0,
+                         theta,sigma_x,
+                         sigma_y,
+                         amplitude):
     x = xy[0] - x0
     y = xy[1] - y0
     term_1 = (((np.cos(theta))**2)/(2*(sigma_x**2))) + (((np.sin(theta))**2)/(2*(sigma_y**2)))
@@ -15,7 +20,13 @@ def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
     gauss2D = amplitude * np.exp((-1)*(expo_1 + expo_2 + expo_3))
     return np.ravel(gauss2D)
 
-def gauss2D(image_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
+def gauss2D(image_size,
+            x0,
+            y0,
+            theta,
+            sigma_x,
+            sigma_y,
+            amplitude):
     yr, xr = np.mgrid[0:image_size[0], 0:image_size[1]]
     x = xr - x0
     y = yr - y0
@@ -28,7 +39,10 @@ def gauss2D(image_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
     gauss2D = amplitude * np.exp((-1)*(expo_1 + expo_2 + expo_3))
     return gauss2D
 
-def initialize_gauss(xx, yy, zz, center_type='COM'):
+def initialize_gauss(xx,
+                     yy,
+                     zz,
+                     center_type='COM'):
     if (center_type == 'maxima'):
         x_com = xx[zz == np.amax(zz)]
         y_com = yy[zz == np.amax(zz)]
@@ -46,7 +60,10 @@ def initialize_gauss(xx, yy, zz, center_type='COM'):
     height = np.amax(zz)
     return x_com, y_com, 0, sigma_x, sigma_y, height
 
-def process_circul_mask(image_data,mask_x,mask_y,mask_radius):
+def process_circul_mask(image_data,
+                        mask_x,
+                        mask_y,
+                        mask_radius):
     p,q = np.shape(image_data)
     yV, xV = np.mgrid[0:p, 0:q]
     sub = ((((yV - mask_y) ** 2) + ((xV - mask_x) ** 2)) ** 0.5) < mask_radius
@@ -55,7 +72,10 @@ def process_circul_mask(image_data,mask_x,mask_y,mask_radius):
     zValues = np.asarray(image_data[sub],dtype=np.float64)
     return xValues, yValues, zValues
 
-def process_square_mask(image_data,mask_x,mask_y,mask_size):
+def process_square_mask(image_data,
+                        mask_x,
+                        mask_y,
+                        mask_size):
     p,q = np.shape(image_data)
     yV, xV = np.mgrid[0:p, 0:q]
     sub = np.logical_and((np.abs(yV - mask_y) < mask_size),(np.abs(xV - mask_x) < mask_size))
@@ -64,7 +84,12 @@ def process_square_mask(image_data,mask_x,mask_y,mask_size):
     zValues = np.asarray(image_data[sub],dtype=np.float64)
     return xValues, yValues, zValues
 
-def fit_gaussian2D_mask(image_data,mask_x,mask_y,mask_radius,mask_type='circular',center_type='COM'):
+def fit_gaussian2D_mask(image_data,
+                        mask_x,
+                        mask_y,
+                        mask_radius,
+                        mask_type='circular',
+                        center_type='COM'):
     if (mask_type == 'circular'):
         x_pos, y_pos, masked_image = process_circul_mask(image_data,mask_x,mask_y,mask_radius)
     else:
@@ -84,7 +109,9 @@ def fit_gaussian2D_mask(image_data,mask_x,mask_y,mask_radius,mask_type='circular
     popt[-1] = (popt[-1]*(mi_max - mi_min)) + mi_min
     return popt
 
-def create_circmask(image,center,radius):
+def create_circmask(image,
+                    center,
+                    radius):
     pos_x = center[0]
     pos_y = center[1]
     blurred_image = scnd.filters.gaussian_filter(np.abs(image),3)
@@ -99,13 +126,18 @@ def create_circmask(image,center,radius):
     masked_image = np.multiply(image,circle)
     return masked_image, new_center, circle
 
-def gaussian_1D_function(x, x0, sigma_x, amplitude):
+def gaussian_1D_function(x,
+                         x0,
+                         sigma_x,
+                         amplitude):
     x = x - x0
     term = (x ** 2)/(2*(sigma_x ** 2))
     gauss1D = amplitude * np.exp((-1)*term)
     return gauss1D
 
-def initialize_gauss1D(rr, zz, center_type='COM'):
+def initialize_gauss1D(rr,
+                       zz,
+                       center_type='COM'):
     if (center_type == 'maxima'):
         r_com = rr[zz == np.amax(zz)]
         r_com = r_com[0]

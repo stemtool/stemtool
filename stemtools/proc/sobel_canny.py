@@ -63,7 +63,8 @@ def sobel(input_image):
     return mag, ang
 
 @numba.jit
-def edge_thinner(sobel_mag,sobel_angle):
+def edge_thinner(sobel_mag,
+                 sobel_angle):
     """
     Thinning Sobel Filtered Edges
     
@@ -118,7 +119,9 @@ def edge_thinner(sobel_mag,sobel_angle):
     return thinned_edge
 
 @numba.jit
-def canny_threshold(thinned_edge, lowThreshold, highThreshold):
+def canny_threshold(thinned_edge,
+                    lowThreshold,
+                    highThreshold):
     """
     Thresholding of Edges
     
@@ -163,7 +166,9 @@ def canny_threshold(thinned_edge, lowThreshold, highThreshold):
     return residual
 
 @numba.jit
-def edge_joining(thresholded, lowThreshold, highThreshold):
+def edge_joining(thresholded,
+                 lowThreshold,
+                 highThreshold):
     """
     Joining of Edges
     
@@ -222,7 +227,9 @@ def edge_joining(thresholded, lowThreshold, highThreshold):
     return joined_edge
 
 @numba.jit
-def canny_edge(input_image, lowThreshold, highThreshold):
+def canny_edge(input_image,
+               lowThreshold,
+               highThreshold):
     """
     Canny Edge Detection
     
