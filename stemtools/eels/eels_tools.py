@@ -183,16 +183,13 @@ def lcpl(xx,c1,p1,c2,p2):
     yy = (c1*(xx ** p1)) + (c2*(xx ** p2))
     return yy
 
-def lcpl(xx,c1,p1,c2,p2):
-    yy = (c1*(xx ** p1)) + (c2*(xx ** p2))
-    return yy
-
 @numba.jit
 def eels_3D_LCPL(eels_dict,
                 fit_range,
                 peak_range,
                 LBA_radius=3,
                 percentile=5):
+    
     fit_range = np.asarray(fit_range)
     peak_range = np.asarray(peak_range)
     no_elements = len(peak_range)
@@ -203,6 +200,7 @@ def eels_3D_LCPL(eels_dict,
     peak_values = np.zeros((eels_array.shape[-2],eels_array.shape[-1],no_elements), dtype=np.float32)
     power_values = np.zeros((eels_array.shape[-2],eels_array.shape[-1],no_elements), dtype=np.float32)
     const_values = np.zeros((eels_array.shape[-2],eels_array.shape[-1],no_elements), dtype=np.float32)
+    
     for ii in range(eels_array.shape[-2]):
         for jj in range(eels_array.shape[-1]):
             for kk in range(no_elements):
@@ -212,11 +210,20 @@ def eels_3D_LCPL(eels_dict,
                 _,power,const = powerlaw_fit(xdata,eels_data,fit_points)
                 power_values[ii,jj,kk] = power
                 const_values[ii,jj,kk] = const
+    
     percentile1 = np.zeros(no_elements,dtype=np.float32)
     percentile2 = np.zeros(no_elements,dtype=np.float32)
+    lower_bound = np.zeros((4,no_elements),dtype=np.float32)
+    upper_bound = np.zeros((4,no_elements),dtype=np.float32)
+    
     for ll in range(no_elements):
         percentile1[ll] = np.percentile(np.ravel(power_values[:,:,ll]),percentile)
         percentile2[ll] = np.percentile(np.ravel(power_values[:,:,ll]),100-percentile)
+        lower_bound[:,ll] = (0.5*np.amin(const_values[:,:,ll]),1.001*percentile1[ll],
+                             0.5*np.amin(const_values[:,:,ll]),1.001*percentile2[ll])
+        upper_bound[:,ll] = (2*np.amax(const_values[:,:,ll]),0.999*percentile1[ll],
+                             2*np.amax(const_values[:,:,ll]),0.999*percentile2[ll])
+    
     for pp in range(eels_array.shape[-2]):
         for qq in range(eels_array.shape[-1]):
             for rr in range(no_elements):
@@ -225,20 +232,20 @@ def eels_3D_LCPL(eels_dict,
                 peak_point = peak_range[rr,:]
                 star_val = np.int((fit_points[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
                 stop_val = np.int((fit_points[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
-                lower_bound = (np.amin(const_values[:,:,rr]),1.001*percentile1[rr],
-                               np.amin(const_values[:,:,rr]),1.001*percentile2[rr])
-                upper_bound = (np.amax(const_values[:,:,rr]),0.999*percentile1[rr],
-                               np.amax(const_values[:,:,rr]),0.999*percentile2[rr])
+                
                 lbi = (((yy - ii) ** 2) + ((xx - jj) ** 2)) <= (LBA_radius**2)
                 eels_lbi = np.mean(eels_array[:,lbi],axis=-1)
                 popt, _ = spo.curve_fit(lcpl,
                                         xdata[star_val:stop_val],
                                         eels_lbi[star_val:stop_val],
-                                        bounds=(lower_bound,upper_bound),
-                                        ftol=0.0001, xtol=0.0001)
-                bg = lcpl(xdata,popt[0],popt[1],popt[2],popt[3])
-                elemental_subtracted[:,pp,qq,rr] = eels_data - bg
+                                        bounds=(lower_bound[:,rr],upper_bound[:,rr]),
+                                        ftol=0.0001, 
+                                        xtol=0.0001)
+                background = lcpl(xdata,popt[0],popt[1],popt[2],popt[3])
+                subtracted_data = eels_data - background
+                elemental_subtracted[:,pp,qq,rr] = subtracted_data
                 star_sum = np.int((peak_point[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
                 stop_sum = np.int((peak_point[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
                 peak_values[pp,qq,rr] = np.sum(subtracted_data[star_sum:stop_sum])
+    
     return peak_values,elemental_subtracted
