@@ -1,5 +1,6 @@
 import numpy as np
 import pywt
+import numba
 from scipy import optimize as spo
 from scipy import signal as sps
 import matplotlib.pyplot as plt
@@ -148,26 +149,33 @@ def region_intensity(xdata,
         plt.ylim(np.amin(ydata)-1000,np.amax(ydata)+1000)
     return peak_sum
 
+@numba.jit
 def eels_3D(eels_dict,
             fit_range,
             peak_range,
-            clean_val=0):
+            LBA_radius=3):
     fit_range = np.asarray(fit_range)
     peak_range = np.asarray(peak_range)
     no_elements = len(peak_range)
     eels_array = eels_dict['data']
-    if (clean_val > 0):
-        eels_clean = cleanEELS_3D(eels_array,'median',clean_val)
-    else:
-        eels_clean = eels_array
-    xdata = (np.arange(eels_clean.shape[0]) - eels_dict['pixelOrigin'][0])*eels_dict['pixelSize'][0]
-    peak_values = np.zeros((eels_clean.shape[-2],eels_clean.shape[-1],no_elements), dtype=np.float64)
-    for ii in range(eels_clean.shape[-2]):
-        for jj in range(eels_clean.shape[-1]):
+    elemental_subtracted = np.zeros((eels_array.shape[0],eels_array.shape[1],eels_array.shape[2],no_elements),dtype=np.float64)
+    yy,xx = np.mgrid[0:eels_array.shape[1],0:eels_array.shape[2]]
+    xdata = (np.arange(eels_array.shape[0]) - eels_dict['pixelOrigin'][0])*eels_dict['pixelSize'][0]
+    peak_values = np.zeros((eels_array.shape[-2],eels_array.shape[-1],no_elements), dtype=np.float64)
+    for ii in range(eels_array.shape[-2]):
+        for jj in range(eels_array.shape[-1]):
             for qq in range(no_elements):
-                eels_data = eels_clean[:,ii,jj]
+                eels_data = eels_array[:,ii,jj]
                 fit_points = fit_range[qq,:]
                 peak_point = peak_range[qq,:]
-                peak_val = region_intensity(xdata,eels_data,fit_points,peak_point,showdata=False)
-                peak_values[ii,jj,qq] = peak_val
-    return peak_values
+                lbi = ((yy - ii) ** 2) + ((xx - jj) ** 2) <= LBA_radius**2
+                eels_lbi = np.mean(eels_array[:,lbi],axis=-1)
+                bg,_,_ = powerlaw_fit(xdata,eels_lbi,fit_points)
+                subtracted_data = eels_data - bg
+                elemental_subtracted[:,ii,jj,qq] = subtracted_data
+                start_val = np.int((peak_point[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
+                stop_val = np.int((peak_point[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
+                peak_sum = np.sum(subtracted_data[start_val:stop_val])
+                peak_values[ii,jj,qq] = peak_sum
+    
+    return peak_values,elemental_subtracted
