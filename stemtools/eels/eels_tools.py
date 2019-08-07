@@ -177,5 +177,68 @@ def eels_3D(eels_dict,
                 stop_val = np.int((peak_point[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
                 peak_sum = np.sum(subtracted_data[start_val:stop_val])
                 peak_values[ii,jj,qq] = peak_sum
-    
+    return peak_values,elemental_subtracted
+
+def lcpl(xx,c1,p1,c2,p2):
+    yy = (c1*(xx ** p1)) + (c2*(xx ** p2))
+    return yy
+
+def lcpl(xx,c1,p1,c2,p2):
+    yy = (c1*(xx ** p1)) + (c2*(xx ** p2))
+    return yy
+
+@numba.jit
+def eels_3D_LCPL(eels_dict,
+                fit_range,
+                peak_range,
+                LBA_radius=3,
+                percentile=5):
+    fit_range = np.asarray(fit_range)
+    peak_range = np.asarray(peak_range)
+    no_elements = len(peak_range)
+    eels_array = eels_dict['data']
+    elemental_subtracted = np.zeros((eels_array.shape[0],eels_array.shape[1],eels_array.shape[2],no_elements),dtype=np.float32)
+    yy,xx = np.mgrid[0:eels_array.shape[1],0:eels_array.shape[2]]
+    xdata = (np.arange(eels_array.shape[0]) - eels_dict['pixelOrigin'][0])*eels_dict['pixelSize'][0]
+    peak_values = np.zeros((eels_array.shape[-2],eels_array.shape[-1],no_elements), dtype=np.float32)
+    power_values = np.zeros((eels_array.shape[-2],eels_array.shape[-1],no_elements), dtype=np.float32)
+    const_values = np.zeros((eels_array.shape[-2],eels_array.shape[-1],no_elements), dtype=np.float32)
+    for ii in range(eels_array.shape[-2]):
+        for jj in range(eels_array.shape[-1]):
+            for kk in range(no_elements):
+                eels_data = eels_array[:,ii,jj]
+                fit_points = fit_range[kk,:]
+                peak_point = peak_range[kk,:]
+                _,power,const = powerlaw_fit(xdata,eels_data,fit_points)
+                power_values[ii,jj,kk] = power
+                const_values[ii,jj,kk] = const
+    percentile1 = np.zeros(no_elements,dtype=np.float32)
+    percentile2 = np.zeros(no_elements,dtype=np.float32)
+    for ll in range(no_elements):
+        percentile1[ll] = np.percentile(np.ravel(power_values[:,:,ll]),percentile)
+        percentile2[ll] = np.percentile(np.ravel(power_values[:,:,ll]),100-percentile)
+    for pp in range(eels_array.shape[-2]):
+        for qq in range(eels_array.shape[-1]):
+            for rr in range(no_elements):
+                eels_data = eels_array[:,pp,qq]
+                fit_points = fit_range[rr,:]
+                peak_point = peak_range[rr,:]
+                star_val = np.int((fit_points[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
+                stop_val = np.int((fit_points[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
+                lower_bound = (np.amin(const_values[:,:,rr]),1.001*percentile1[rr],
+                               np.amin(const_values[:,:,rr]),1.001*percentile2[rr])
+                upper_bound = (np.amax(const_values[:,:,rr]),0.999*percentile1[rr],
+                               np.amax(const_values[:,:,rr]),0.999*percentile2[rr])
+                lbi = (((yy - ii) ** 2) + ((xx - jj) ** 2)) <= (LBA_radius**2)
+                eels_lbi = np.mean(eels_array[:,lbi],axis=-1)
+                popt, _ = spo.curve_fit(lcpl,
+                                        xdata[star_val:stop_val],
+                                        eels_lbi[star_val:stop_val],
+                                        bounds=(lower_bound,upper_bound),
+                                        ftol=0.0001, xtol=0.0001)
+                bg = lcpl(xdata,popt[0],popt[1],popt[2],popt[3])
+                elemental_subtracted[:,pp,qq,rr] = eels_data - bg
+                star_sum = np.int((peak_point[0] - np.amin(xdata))/(np.median(np.diff(xdata))))
+                stop_sum = np.int((peak_point[1] - np.amin(xdata))/(np.median(np.diff(xdata))))
+                peak_values[pp,qq,rr] = np.sum(subtracted_data[star_sum:stop_sum])
     return peak_values,elemental_subtracted
