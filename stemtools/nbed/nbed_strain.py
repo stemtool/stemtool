@@ -390,11 +390,12 @@ def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
     disk_locations = np.copy(fitted_disk_list)
     disk_locations[:,1] = 0 - disk_locations[:,1]
     center = disk_locations[np.logical_and((diff_spots[:,0] == 0),(diff_spots[:,1] == 0)),:]
-    center = np.asarray(center)
-    disk_locations[:,0:2] = disk_locations[:,0:2] - center[0:2]
+    cx = center[0,0]
+    cy = center[0,1]
+    disk_locations[:,0:2] = disk_locations[:,0:2] - np.asarray((cx,cy),dtype=np.float64)
     lcbed,_,_,_ = np.linalg.lstsq(diff_spots,disk_locations,rcond=None)
-    center[0,1] = (-1)*center[0,1]
-    return fitted_disk_list,center,lcbed
+    cy = (-1)*cy
+    return fitted_disk_list,np.asarray((cx,cy),dtype=np.float64),lcbed
 
 @numba.jit
 def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes=0,med_factor=10):
