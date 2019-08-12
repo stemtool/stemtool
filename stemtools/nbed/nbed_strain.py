@@ -11,7 +11,9 @@ from ..proc import sobel_canny as sc
 from ..util import gauss_utils as gt
 import warnings
 
-def angle_fun(angle,image_orig,axis=0,):
+def angle_fun(angle,
+              image_orig,
+              axis=0,):
     """
     Rotation Sum Finder
     
@@ -38,7 +40,8 @@ def angle_fun(angle,image_orig,axis=0,):
     rotmin = np.amin(rotsum)
     return rotmin
 
-def rotation_finder(image_orig,axis=0):
+def rotation_finder(image_orig,
+                    axis=0):
     """
     Angle Finder
     
@@ -64,7 +67,10 @@ def rotation_finder(image_orig,axis=0):
     min_x = x.x
     return min_x
 
-def rotate_and_center_ROI(data4D_ROI,rotangle,xcenter,ycenter):
+def rotate_and_center_ROI(data4D_ROI,
+                          rotangle,
+                          xcenter,
+                          ycenter):
     """
     Rotation Corrector
     
@@ -133,7 +139,8 @@ def data4Dto2D(data4D):
     return data2D
 
 @numba.jit
-def resizer(data,N):
+def resizer(data,
+            N):
     """
     Downsample 1D array
     
@@ -174,7 +181,8 @@ def resizer(data,N):
     return res
 
 @numba.jit
-def resizer2D(data,sampling):
+def resizer2D(data,
+              sampling):
     """
     Downsample 2D array
     
@@ -215,7 +223,8 @@ def resizer2D(data,sampling):
     return resampled
 
 @numba.jit
-def bin4D(data4D,bin_factor):
+def bin4D(data4D,
+          bin_factor):
     """
     Bin 4D data in spectral dimensions
     
@@ -255,7 +264,10 @@ def bin4D(data4D,bin_factor):
             binned_data[:,:,ii,jj] = resizer2D(data4D[:,:,ii,jj],(bin_factor,bin_factor))
     return binned_data
 
-def test_aperture(pattern,center,radius,showfig=True):
+def test_aperture(pattern,
+                  center,
+                  radius,
+                  showfig=True):
     """
     Test an aperture position for Virtual DF image
     
@@ -300,7 +312,9 @@ def test_aperture(pattern,center,radius,showfig=True):
         plt.scatter(center[0],center[1],c='w', s=25)
     return aperture
 
-def aperture_image(data4D,center,radius):
+def aperture_image(data4D,
+                   center,
+                   radius):
     """
     Generate Virtual DF image for a given aperture
     
@@ -345,7 +359,10 @@ def aperture_image(data4D,center,radius):
     df_image = np.sum(np.sum(apt_mult,axis=0),axis=0)
     return df_image
 
-def ROI_from_image(image,med_val,style='over',showfig=True):
+def ROI_from_image(image,
+                   med_val,
+                   style='over',
+                   showfig=True):
     if style == 'over':
         ROI = np.asarray(image > (med_val*np.median(image)),dtype=np.double)
     else:
@@ -358,7 +375,8 @@ def ROI_from_image(image,med_val,style='over',showfig=True):
     return ROI
 
 @numba.jit
-def colored_mcr(conc_data,data_shape):
+def colored_mcr(conc_data,
+                data_shape):
     no_spectra = np.shape(conc_data)[1]
     color_hues = np.arange(no_spectra,dtype=np.float64)/no_spectra
     norm_conc = (conc_data - np.amin(conc_data)) / (np.amax(conc_data) - np.amin(conc_data))
@@ -375,7 +393,10 @@ def colored_mcr(conc_data,data_shape):
     return rgb_image
 
 @numba.jit
-def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
+def fit_nbed_disks(corr_image,
+                   disk_size,
+                   positions,
+                   diff_spots):
     warnings.filterwarnings('ignore')
     positions = np.asarray(positions,dtype=np.float64)
     diff_spots = np.asarray(diff_spots,dtype=np.float64)
@@ -398,7 +419,12 @@ def fit_nbed_disks(corr_image,disk_size,positions,diff_spots):
     return fitted_disk_list,np.asarray((cx,cy),dtype=np.float64),lcbed
 
 @numba.jit
-def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes=0,med_factor=10):
+def strain_in_ROI(data4D_ROI,
+                  center_disk,
+                  disk_list,
+                  pos_list,
+                  reference_axes=0,
+                  med_factor=10):
     warnings.filterwarnings('ignore')
     # Calculate needed values
     no_of_disks = data4D_ROI.shape[-1]
@@ -436,7 +462,11 @@ def strain_in_ROI(data4D_ROI,center_disk,disk_list,pos_list,reference_axes=0,med
     return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI
 
 @numba.jit
-def strain_oldstyle(data4D_ROI,center_disk,disk_list,pos_list,reference_axes=0):
+def strain_oldstyle(data4D_ROI,
+                    center_disk,
+                    disk_list,
+                    pos_list,
+                    reference_axes=0):
     warnings.filterwarnings('ignore')
     # Calculate needed values
     no_of_disks = data4D_ROI.shape[-1]
@@ -468,7 +498,8 @@ def strain_oldstyle(data4D_ROI,center_disk,disk_list,pos_list,reference_axes=0):
         e_yy_ROI[ii] = -s_pattern[1,1]
     return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI
 
-def ROI_strain_map(strain_ROI,ROI):
+def ROI_strain_map(strain_ROI,
+                   ROI):
     """
     Convert the strain in the ROI array to a strain map
                  

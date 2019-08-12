@@ -4,6 +4,8 @@ import pyfftw
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.colors as mplc
 import matplotlib.cm as mplcm
+import numba
+import warnings
 from scipy import misc as scm
 from scipy import optimize as spo
 from scipy import ndimage as scnd
@@ -11,7 +13,9 @@ from scipy import signal as scsig
 from ..proc import sobel_canny as sc
 from ..util import gauss_utils as gt
 
-def move_by_phase(image_to_move, x_pixels, y_pixels):
+def move_by_phase(image_to_move,
+                  x_pixels,
+                  y_pixels):
     """
     Move Images with sub-pixel precision
     
@@ -88,7 +92,8 @@ def image_normalizer(image_orig):
     image_norm = (image_orig - np.amin(image_orig)) / (np.amax(image_orig) - np.amin(image_orig))
     return image_norm
 
-def image_logarizer(image_orig,bit_depth=32):
+def image_logarizer(image_orig,
+                    bit_depth=32):
     """
     Normalized log of image
     
@@ -121,7 +126,9 @@ def image_logarizer(image_orig,bit_depth=32):
     image_log = np.log2(image_scale)
     return image_log
 
-def remove_dead_pixels(image_orig,iter_count=1,level=10000):
+def remove_dead_pixels(image_orig,
+                       iter_count=1,
+                       level=10000):
     """
     Remove dead pixels
     
@@ -216,7 +223,11 @@ def phase_color(phase_image):
     rgb_im = mplc.hsv_to_rgb(hsv_im)
     return rgb_im
 
-def hsv_overlay(data,image,color,climit=None,bit_depth = 8):
+def hsv_overlay(data,
+                image,
+                color,
+                climit=None,
+                bit_depth = 8):
     bit_range = 2 ** bit_depth
     im_map = mplcm.get_cmap(color, bit_range)
     if climit == None:
@@ -230,7 +241,9 @@ def hsv_overlay(data,image,color,climit=None,bit_depth = 8):
     rgb_image = mplc.hsv_to_rgb(hsv_image)
     return rgb_image
 
-def sparse_division(sparse_numer,sparse_denom,bit_depth=32):
+def sparse_division(sparse_numer,
+                    sparse_denom,
+                    bit_depth=32):
     """
     Divide two sparse matrices element wise to prevent zeros
     
@@ -277,7 +290,9 @@ def sparse_division(sparse_numer,sparse_denom,bit_depth=32):
     divided_matrix[threshold_ind_denom] = 0
     return divided_matrix
 
-def cross_corr_unpadded(image_1,image_2,normal=True):
+def cross_corr_unpadded(image_1,
+                        image_2,
+                        normal=True):
     im_size = np.asarray(np.shape(image_1))
     if normal:
         im1_norm = image_1/(np.sum(image_1 ** 2) ** 0.5)
@@ -290,7 +305,10 @@ def cross_corr_unpadded(image_1,image_2,normal=True):
     corr_fft = np.abs(np.fft.ifftshift(np.fft.ifft2(im1_fft*im2_fft)))
     return corr_fft
 
-def cross_corr(image_1,image_2,hybridizer=0,normal=True):
+def cross_corr(image_1,
+               image_2,
+               hybridizer=0,
+               normal=True):
     """
     Normalized Correlation, allowing for hybridization 
     with cross correlation being the default output if
@@ -371,7 +389,10 @@ def cross_corr(image_1,image_2,hybridizer=0,normal=True):
 
 
 
-def make_circle(size_circ,center_x,center_y,radius):
+def make_circle(size_circ,
+                center_x,
+                center_y,
+                radius):
     """
     Make a circle
     
@@ -402,7 +423,9 @@ def make_circle(size_circ,center_x,center_y,radius):
     circle = np.asarray(sub,dtype=np.float64)
     return circle
 
-def image_tiler(dataset_4D,reducer=3,bit_depth=8):
+def image_tiler(dataset_4D,
+                reducer=3,
+                bit_depth=8):
     """
     Generate a tiled pattern of the 4D-STEM dataset
     
@@ -443,6 +466,7 @@ def image_tiler(dataset_4D,reducer=3,bit_depth=8):
     image_tile = image_tile.astype(int)
     return image_tile
 
+@numba.jit
 def flip_corrector(data4D):
     """
     Correcting Image Flip
@@ -468,6 +492,7 @@ def flip_corrector(data4D):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     
     """
+    warnings.filterwarnings('ignore')
     datasize = (np.asarray(data4D.shape)).astype(int)
     flipped4D = np.zeros((datasize[0],datasize[1],datasize[2],datasize[3]))
     for jj in range(datasize[3]):

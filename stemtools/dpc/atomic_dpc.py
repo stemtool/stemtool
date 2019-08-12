@@ -4,17 +4,21 @@ import numpy as np
 from ..util import image_utils as iu
 from ..proc import sobel_canny as sc
 
-def cart2pol(x, y):
-    rho = np.sqrt(x**2 + y**2)
-    phi = np.arctan2(y, x)
+def cart2pol(xx,
+             yy):
+    rho = np.sqrt(xx**2 + yy**2)
+    phi = np.arctan2(yy, xx)
     return(rho, phi)
 
-def pol2cart(rho, phi):
+def pol2cart(rho,
+             phi):
     x = np.multiply(rho,np.cos(phi))
     y = np.multiply(rho,np.sin(phi))
     return(x, y)
 
-def angle_fun(angle,rho_dpc,phi_dpc):
+def angle_fun(angle,
+              rho_dpc,
+              phi_dpc):
     angle = angle*((np.pi)/180)
     new_phi = phi_dpc + angle
     x_dpc,y_dpc = pol2cart(rho_dpc,new_phi)
@@ -22,7 +26,8 @@ def angle_fun(angle,rho_dpc,phi_dpc):
     angle_sum = np.sum(np.abs(charge))
     return angle_sum
 
-def optimize_angle(rho_dpc,phi_dpc):
+def optimize_angle(rho_dpc,
+                   phi_dpc):
     x0 = 90
     x = sio.minimize(angle_fun,x0,args=(rho_dpc,phi_dpc))
     min_x = x.x
@@ -30,7 +35,11 @@ def optimize_angle(rho_dpc,phi_dpc):
     sol2 = min_x + 90
     return sol1,sol2
 
-def data_rotator(cbed_pattern,rotangle,xcenter,ycenter,data_radius):
+def data_rotator(cbed_pattern,
+                 rotangle,
+                 xcenter,
+                 ycenter,
+                 data_radius):
     data_size = np.shape(cbed_pattern)
     yV, xV = np.mgrid[0:data_size[0], 0:data_size[1]]
     mask = ((((yV - ycenter) ** 2) + ((xV - xcenter) ** 2)) ** 0.5) > (1.04*data_radius)
