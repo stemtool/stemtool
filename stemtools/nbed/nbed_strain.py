@@ -462,6 +462,46 @@ def strain_in_ROI(data4D_ROI,
     return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI
 
 @numba.jit
+def strain_log(data4D_ROI,
+               center_disk,
+               disk_list,
+               pos_list,
+               reference_axes=0,
+               med_factor=10):
+    warnings.filterwarnings('ignore')
+    # Calculate needed values
+    no_of_disks = data4D_ROI.shape[-1]
+    disk_size = (np.sum(center_disk)/np.pi) ** 0.5
+    i_matrix = (np.eye(2)).astype(np.float64)
+    # Initialize matrices
+    e_xx_log = np.zeros(no_of_disks,dtype=np.float64)
+    e_xy_log = np.zeros(no_of_disks,dtype=np.float64)
+    e_th_log = np.zeros(no_of_disks,dtype=np.float64)
+    e_yy_log = np.zeros(no_of_disks,dtype=np.float64)
+    #Calculate for mean CBED if no reference
+    #axes present
+    if np.size(reference_axes) < 2:
+        mean_cbed = np.mean(data4D_ROI,axis=-1)
+        log_cbed,_ = (iu.image_logarizer(mean_cbed)
+        log_cc_mean = iu.cross_corr(log_cbed,center_disk,hybridizer=0.1)
+        _,_,mean_axes = fit_nbed_disks(log_cc_mean,disk_size,disk_list,pos_list)
+        inverse_axes = np.linalg.inv(mean_axes)
+    else:
+        inverse_axes = np.linalg.inv(reference_axes)
+    for ii in range(int(no_of_disks)):
+        pattern = data4D_ROI[:,:,ii]
+        log_pattern,_ = iu.image_logarizer(pattern)
+        log_cc_pattern = iu.cross_corr(log_pattern,center_disk,hybridizer=0.1)
+        _,_,pattern_axes = fit_nbed_disks(log_cc_pattern,disk_size,disk_list,pos_list)
+        t_pattern = np.matmul(pattern_axes,inverse_axes)
+        s_pattern = t_pattern - i_matrix
+        e_xx_log[ii] = -s_pattern[0,0]
+        e_xy_log[ii] = -(s_pattern[0,1] + s_pattern[1,0])
+        e_th_log[ii] = s_pattern[0,1] - s_pattern[1,0]
+        e_yy_log[ii] = -s_pattern[1,1]
+    return e_xx_log,e_xy_log,e_th_log,e_yy_log
+
+@numba.jit
 def strain_oldstyle(data4D_ROI,
                     center_disk,
                     disk_list,
