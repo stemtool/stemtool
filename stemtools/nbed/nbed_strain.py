@@ -529,14 +529,15 @@ def strain_in_ROI(data4D_ROI,
         sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)
         sobel_log_pattern[sobel_log_pattern < np.median(sobel_log_pattern)/med_factor] = np.median(sobel_log_pattern)/med_factor
         lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=0.1)
-        _,_,_,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list)
+        _,_,std,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list,0.5)
+        fit_std[ii,:] = std
         t_pattern = np.matmul(pattern_axes,inverse_axes)
         s_pattern = t_pattern - i_matrix
         e_xx_ROI[ii] = -s_pattern[0,0]
         e_xy_ROI[ii] = -(s_pattern[0,1] + s_pattern[1,0])
         e_th_ROI[ii] = s_pattern[0,1] - s_pattern[1,0]
         e_yy_ROI[ii] = -s_pattern[1,1]
-    return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI
+    return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI,fit_std
 
 @numba.jit
 def strain_log(data4D_ROI,
