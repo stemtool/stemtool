@@ -29,18 +29,17 @@ def fourier_pad(imFT,
     Manuel Guizar - June 02, 2014
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    input_size = np.asarray(imFT.shape)
-    output_size = np.asarray(outsize)
+    n_in = np.asarray(imFT.shape)
+    nout = np.asarray(outsize)
     imFT = np.fft.fftshift(imFT)
-    center_in = np.floor((np.asarray(imFT.shape))/2) + 1
-    imFTout = np.zeros(outsize)
-    center_out = np.floor((np.asarray(imFTout.shape))/2) + 1
-    cenout_cen = center_out - center_in
-    imFTout[np.amax(cenout_cen[0],0):np.amin(cenout_cen[0]+input_size[0],output_size[0]),
-            np.amax(cenout_cen[1],0):np.amin(cenout_cen[1]+input_size[1],output_size[1])] = 
-    imFT[np.amax(-cenout_cen[0],0):np.amin(-cenout_cen[0]+output_size[0],input_size[0]),
-         np.amax(-cenout_cen[1],0):np.amin(-cenout_cen[1]+output_size[1],input_size[1])]
-    imout = (np.fft.ifftshift(imFTout) * np.prod(output_size))/np.prod(input_size)
+    center_in = np.floor(n_in/2) + 1
+    imFTout = np.zeros(nout)
+    center_out = np.floor(nout/2) + 1
+    cc = center_out - center_in
+    imFTout[np.amax(cc[0],0):np.amin(cc[0]+n_in[0],nout[0]),
+            np.amax(cc[1],0):np.amin(cc[1]+n_in[1],nout[1])] = imFT[np.amax(-cc[0],0):np.amin(-cc[0]+nout[0],n_in[0]),
+                                                                    np.amax(-cc[1],0):np.amin(-cc[1]+nout[1],n_in[1])]
+    imout = (np.fft.ifftshift(imFTout) * np.prod(nout))/np.prod(n_in)
     return imout
 
 def dftups(input_image,nor=0,noc=0,usfac=1,roff=0,coff=0):
@@ -84,7 +83,7 @@ def dftups(input_image,nor=0,noc=0,usfac=1,roff=0,coff=0):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     nr,nc=np.shape(input_image)
-    % Set defaults
+    # Set defaults
     if noc==0:
         noc = nc
     if nor==0:

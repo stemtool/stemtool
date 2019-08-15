@@ -396,27 +396,102 @@ def colored_mcr(conc_data,
 def fit_nbed_disks(corr_image,
                    disk_size,
                    positions,
-                   diff_spots):
+                   diff_spots,
+                   nan_cutoff=0):
+    """
+    Disk Fitting algorithm for a single NBED pattern
+    
+    Parameters
+    ----------
+    corr_image: ndarray of shape (2,2)
+                The cross-correlated image of the NBED that 
+                will be fitted
+    disk_size:  float
+                Size of each NBED disks in pixels
+    positions:  ndarray of shape (n,2)
+                X and Y positions where n is the number of positions.
+                These are the initial guesses that will be refined
+    diff_spots: ndarray of shape (n,2)
+                a and b Miller indices corresponding to the
+                disk positions
+    nan_cutoff: float
+                Optional parameter that is used for thresholding disk
+                fits. If the intensity ratio is below the threshold 
+                the position will not be fit. Default value is 0
+    
+    Returns
+    -------
+    fitted_disk_list: ndarray of shape (n,2)
+                      Sub-pixel precision Gaussian fitted disk
+                      locations. If nan_cutoff is greater than zero, then
+                      only the positions that are greater than the threshold 
+                      are returned.
+    center_position:  ndarray of shape (1,2)
+                      Location of the central (0,0) disk
+    fit_deviation:    ndarray of shape (1,2)
+                      Standard deviation of the X and Y disk fits given as pixel 
+                      ratios
+    lcbed:            ndarray of shape (2,2)
+                      Matrix defining the Miller indices axes
+    
+    Notes
+    -----
+    Every disk position is fitted with a 2D Gaussian by cutting off a circle
+    of the size of disk_size around the initial poistions. If nan-cutoff is above 
+    zero then only the locations inside this cutoff where the maximum pixel intensity 
+    is (1+nan_cutoff) times the median pixel intensity will be fitted. Use this 
+    parameter carefully, because in some cases this may result in no disks being fitted
+    and the program throwing weird errors at you. 
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
     warnings.filterwarnings('ignore')
-    positions = np.asarray(positions,dtype=np.float64)
+    no_pos = int(np.shape(positions)[0])
     diff_spots = np.asarray(diff_spots,dtype=np.float64)
     fitted_disk_list = np.zeros_like(positions)
-    disk_locations = np.zeros_like(positions)
-    for ii in range(int(np.shape(positions)[0])):
+    yy,xx = np.mgrid[0:(corr_image.shape[0]),0:(corr_image.shape[1])]
+    nancount = 0
+    for ii in range(no_pos):
         posx = positions[ii,0]
         posy = positions[ii,1]
-        par = gt.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
-        fitted_disk_list[ii,0] = par[0]
-        fitted_disk_list[ii,1] = par[1]
-    disk_locations = np.copy(fitted_disk_list)
-    disk_locations[:,1] = 0 - disk_locations[:,1]
-    center = disk_locations[np.logical_and((diff_spots[:,0] == 0),(diff_spots[:,1] == 0)),:]
-    cx = center[0,0]
-    cy = center[0,1]
-    disk_locations[:,0:2] = disk_locations[:,0:2] - np.asarray((cx,cy),dtype=np.float64)
-    lcbed,_,_,_ = np.linalg.lstsq(diff_spots,disk_locations,rcond=None)
-    cy = (-1)*cy
-    return fitted_disk_list,np.asarray((cx,cy),dtype=np.float64),lcbed
+        reg = ((yy - posy) ** 2) + ((xx - posx) ** 2) <= (disk_size ** 2)
+        peak_ratio = np.amax(corr_image[reg])/np.median(corr_image[reg])
+        if peak_ratio < (1+nan_cutoff):
+            fitted_disk_list[ii,:] = np.nan
+            nancount = nancount + 1
+        else:
+            par = gt.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
+            fitted_disk_list[ii,0] = par[0]
+            fitted_disk_list[ii,1] = par[1]
+    nancount = int(nancount)
+    if nancount == no_pos:
+        center_position = np.nan
+        fit_deviation = np.nan
+        lcbed = np.nan
+    else:
+        positions = (positions[~np.isnan(fitted_disk_list)]).reshape((no_pos - nancount),2)
+        fitted_disk_list = (fitted_disk_list[~np.isnan(fitted_disk_list)]).reshape((no_pos - nancount),2)
+        disk_locations = np.copy(fitted_disk_list)
+        disk_locations[:,1] = (-1)*disk_locations[:,1]
+        center = disk_locations[np.logical_and((diff_spots[:,0] == 0),(diff_spots[:,1] == 0)),:]
+        cx = center[0,0]
+        cy = center[0,1]
+        if (nancount/no_pos) < 0.5: 
+            disk_locations[:,0:2] = disk_locations[:,0:2] - np.asarray((cx,cy),dtype=np.float64)
+            lcbed,_,_,_ = np.linalg.lstsq(diff_spots,disk_locations,rcond=None)
+            calc_points = np.matmul(diff_spots,lcbed)
+            stdx = np.std(np.divide(disk_locations[np.where(calc_points[:,0] != 0),0],calc_points[np.where(calc_points[:,0] != 0),0]))
+            stdy = np.std(np.divide(disk_locations[np.where(calc_points[:,1] != 0),1],calc_points[np.where(calc_points[:,1] != 0),1]))
+            cy = (-1)*cy
+            center_position = np.asarray((cx,cy),dtype=np.float64)
+            fit_deviation = np.asarray((stdx,stdy),dtype=np.float64)
+        else:
+            cy = (-1)*cy
+            center_position = np.asarray((cx,cy),dtype=np.float64)
+            fit_deviation = np.nan
+            lcbed = np.nan*np.ones((2,2))
+    return fitted_disk_list,center_position,fit_deviation,lcbed
 
 @numba.jit
 def strain_in_ROI(data4D_ROI,
@@ -436,6 +511,7 @@ def strain_in_ROI(data4D_ROI,
     e_xy_ROI = np.zeros(no_of_disks,dtype=np.float64)
     e_th_ROI = np.zeros(no_of_disks,dtype=np.float64)
     e_yy_ROI = np.zeros(no_of_disks,dtype=np.float64)
+    fit_std = np.zeros((no_of_disks,2),dtype=np.float64)
     #Calculate for mean CBED if no reference
     #axes present
     if np.size(reference_axes) < 2:
@@ -443,16 +519,17 @@ def strain_in_ROI(data4D_ROI,
         sobel_lm_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
         sobel_lm_cbed[sobel_lm_cbed > med_factor*np.median(sobel_lm_cbed)] = np.median(sobel_lm_cbed)
         lsc_mean = iu.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=0.1)
-        _,_,mean_axes = fit_nbed_disks(lsc_mean,disk_size,disk_list,pos_list)
+        _,_,_,mean_axes = fit_nbed_disks(lsc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
         pattern = data4D_ROI[:,:,ii]
-        sobel_log_pattern,_ = sc.sobel(iu.image_logarizer(pattern))
+        sobel_log_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),3))
         sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)
+        sobel_log_pattern[sobel_log_pattern < np.median(sobel_log_pattern)/med_factor] = np.median(sobel_log_pattern)/med_factor
         lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=0.1)
-        _,_,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list)
+        _,_,_,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list)
         t_pattern = np.matmul(pattern_axes,inverse_axes)
         s_pattern = t_pattern - i_matrix
         e_xx_ROI[ii] = -s_pattern[0,0]
@@ -482,7 +559,7 @@ def strain_log(data4D_ROI,
     #axes present
     if np.size(reference_axes) < 2:
         mean_cbed = np.mean(data4D_ROI,axis=-1)
-        log_cbed,_ = (iu.image_logarizer(mean_cbed)
+        log_cbed,_ = iu.image_logarizer(mean_cbed)
         log_cc_mean = iu.cross_corr(log_cbed,center_disk,hybridizer=0.1)
         _,_,mean_axes = fit_nbed_disks(log_cc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
