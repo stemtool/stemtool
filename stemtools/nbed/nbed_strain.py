@@ -466,11 +466,11 @@ def fit_nbed_disks(corr_image,
             fitted_disk_list[ii,1] = par[1]
     nancount = int(nancount)
     if nancount == no_pos:
-        center_position = np.nan
+        center_position = np.nan*np.ones((1,2))
         fit_deviation = np.nan
         lcbed = np.nan
     else:
-        positions = (positions[~np.isnan(fitted_disk_list)]).reshape((no_pos - nancount),2)
+        diff_spots = (diff_spots[~np.isnan(fitted_disk_list)]).reshape((no_pos - nancount),2)
         fitted_disk_list = (fitted_disk_list[~np.isnan(fitted_disk_list)]).reshape((no_pos - nancount),2)
         disk_locations = np.copy(fitted_disk_list)
         disk_locations[:,1] = (-1)*disk_locations[:,1]
@@ -490,7 +490,7 @@ def fit_nbed_disks(corr_image,
             cy = (-1)*cy
             center_position = np.asarray((cx,cy),dtype=np.float64)
             fit_deviation = np.nan
-            lcbed = np.nan*np.ones((2,2))
+            lcbed = np.nan
     return fitted_disk_list,center_position,fit_deviation,lcbed
 
 @numba.jit
@@ -507,11 +507,11 @@ def strain_in_ROI(data4D_ROI,
     i_matrix = (np.eye(2)).astype(np.float64)
     sobel_center_disk,_ = sc.sobel(center_disk)
     # Initialize matrices
-    e_xx_ROI = np.zeros(no_of_disks,dtype=np.float64)
-    e_xy_ROI = np.zeros(no_of_disks,dtype=np.float64)
-    e_th_ROI = np.zeros(no_of_disks,dtype=np.float64)
-    e_yy_ROI = np.zeros(no_of_disks,dtype=np.float64)
-    fit_std = np.zeros((no_of_disks,2),dtype=np.float64)
+    e_xx_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
+    e_xy_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
+    e_th_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
+    e_yy_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
+    fit_std = np.nan*(np.ones((no_of_disks,2),dtype=np.float64))
     #Calculate for mean CBED if no reference
     #axes present
     if np.size(reference_axes) < 2:
@@ -530,13 +530,14 @@ def strain_in_ROI(data4D_ROI,
         sobel_log_pattern[sobel_log_pattern < np.median(sobel_log_pattern)/med_factor] = np.median(sobel_log_pattern)/med_factor
         lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=0.1)
         _,_,std,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list,0.5)
-        fit_std[ii,:] = std
-        t_pattern = np.matmul(pattern_axes,inverse_axes)
-        s_pattern = t_pattern - i_matrix
-        e_xx_ROI[ii] = -s_pattern[0,0]
-        e_xy_ROI[ii] = -(s_pattern[0,1] + s_pattern[1,0])
-        e_th_ROI[ii] = s_pattern[0,1] - s_pattern[1,0]
-        e_yy_ROI[ii] = -s_pattern[1,1]
+        if ~np.isnan(pattern_axes):
+            fit_std[ii,:] = std
+            t_pattern = np.matmul(pattern_axes,inverse_axes)
+            s_pattern = t_pattern - i_matrix
+            e_xx_ROI[ii] = -s_pattern[0,0]
+            e_xy_ROI[ii] = -(s_pattern[0,1] + s_pattern[1,0])
+            e_th_ROI[ii] = s_pattern[0,1] - s_pattern[1,0]
+            e_yy_ROI[ii] = -s_pattern[1,1]
     return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI,fit_std
 
 @numba.jit
