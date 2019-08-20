@@ -7,6 +7,7 @@ from scipy import optimize as spo
 import pyfftw
 import warnings
 from ..util import gauss_utils as gt
+from ..util import fourier_reg as fr
 
 def peaks_vis(data_image,
               distance=1,
@@ -382,3 +383,17 @@ def relative_strain(n_list,
         cell_center[ii,0] = 0.25*(n_list[ii,0] + n_list[ii,2] + n_list[ii,4] + n_list[ii,6])
         cell_center[ii,1] = 0.25*(n_list[ii,1] + n_list[ii,3] + n_list[ii,5] + n_list[ii,7])
     return cell_center, e_xx, e_xy, e_yy, e_th
+
+@numba.jit
+def image_stacker(image_stack,cc_fac=100):
+    no_images = np.shape(image_stack)[0]
+    corrected_stack = np.zeros_like(image_stack)
+    corrected_stack[0,:,:] = image_stack[0,:,:]
+    for ii in np.arange(no_images - 1):
+        im_num = ii + 1
+        cc_0 = np.fft.fft2(image_stack[0,:,:])
+        cc_b = np.fft.fft2(image_stack[im_num,:,:])
+        _,_,_,_,cc = fr.dftregistration(cc_0,cc_b,cc_fac)
+        corrected_stack[im_num,:,:] = np.abs(np.fft.ifft2(cc))
+    stacked_image = np.mean(corrected_stack,axis=0,dtype=np.float64)
+    return stacked_image
