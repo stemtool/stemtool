@@ -547,13 +547,13 @@ def strain_in_ROI(data4D,
     
     Returns
     -------
-    e_xx_ROI: ndarray
+    e_xx_map: ndarray
               Strain in the xx direction in the region of interest
-    e_xy_ROI: ndarray
+    e_xy_map: ndarray
               Strain in the xy direction in the region of interest
-    e_th_ROI: ndarray
+    e_th_map: ndarray
               Angular strain in the region of interest
-    e_yy_ROI: ndarray
+    e_yy_map: ndarray
               Strain in the yy direction in the region of interest
     fit_std: ndarray
              x and y deviations in axes fitting for the scan points
@@ -587,6 +587,10 @@ def strain_in_ROI(data4D,
     e_th_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
     e_yy_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
     fit_std = np.nan*(np.ones((no_of_disks,2),dtype=np.float64))
+    e_xx_map = np.nan*np.ones_like(scan_y)
+    e_xy_map = np.nan*np.ones_like(scan_y)
+    e_th_map = np.nan*np.ones_like(scan_y)
+    e_yy_map = np.nan*np.ones_like(scan_y)
     #Calculate for mean CBED if no reference
     #axes present
     if np.size(reference_axes) < 2:
@@ -613,7 +617,19 @@ def strain_in_ROI(data4D,
             e_xy_ROI[ii] = -(s_pattern[0,1] + s_pattern[1,0])
             e_th_ROI[ii] = s_pattern[0,1] - s_pattern[1,0]
             e_yy_ROI[ii] = -s_pattern[1,1]
-    return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI,fit_std
+    e_xx_map[ROI] = e_xx_ROI
+    e_xx_map[np.isnan(e_xx_map)] = 0
+    e_xx_map = scnd.gaussian_filter(e_xx_map,1)
+    e_xy_map[ROI] = e_xx_ROI
+    e_xy_map[np.isnan(e_xy_map)] = 0
+    e_xy_map = scnd.gaussian_filter(e_xy_map,1)
+    e_th_map[ROI] = e_th_ROI
+    e_th_map[np.isnan(e_th_map)] = 0
+    e_th_map = scnd.gaussian_filter(e_th_map,1)
+    e_yy_map[ROI] = e_yy_ROI
+    e_yy_map[np.isnan(e_yy_map)] = 0
+    e_yy_map = scnd.gaussian_filter(e_yy_map,1)
+    return e_xx_map,e_xy_map,e_th_map,e_yy_map,fit_std
 
 @numba.jit
 def strain_log(data4D_ROI,
