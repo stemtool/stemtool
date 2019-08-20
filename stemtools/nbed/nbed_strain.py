@@ -635,3 +635,11 @@ def log_sobel(data4D):
         for ii in range(data4D.shape[2]):
             data_lsb[:,:,ii,jj],_ = sc.sobel(iu.image_logarizer(data4D[:,:,ii,jj]))
     return data_lsb
+
+def spectra_finder(data4D,yvals,xvals):
+    spectra_data = np.ravel(np.mean(data4D[:,:,yvals[0]:yvals[1],xvals[0]:xvals[1]],axis=(-1,-2),dtype=np.float64))
+    data_im = np.sum(data4D,axis=(0,1))
+    data_im = (data_im - np.amin(data_im))/(np.amax(data_im) - np.amin(data_im))
+    overlay = np.zeros_like(data_im)
+    overlay[yvals[0]:yvals[1],xvals[0]:xvals[1]] = 1
+    return spectra_data,0.5*(data_im+overlay)
