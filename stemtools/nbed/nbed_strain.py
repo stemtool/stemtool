@@ -494,16 +494,91 @@ def fit_nbed_disks(corr_image,
     return fitted_disk_list,center_position,fit_deviation,lcbed
 
 @numba.jit
-def strain_in_ROI(data4D_ROI,
+def strain_in_ROI(data4D,
+                  ROI,
                   center_disk,
                   disk_list,
                   pos_list,
                   reference_axes=0,
-                  med_factor=10):
+                  med_factor=10,
+                  gauss_val=3,
+                  hybrid_cc=0.1,
+                  nan_cutoff=0.5):
+    """
+    Get strain from a region of interest
+    
+    Parameters
+    ----------
+    data4D:         ndarray
+                    This is a 4D dataset where the first two dimensions
+                    are the diffraction dimensions and the next two 
+                    dimensions are the scan dimensions
+    ROI:            ndarray of dtype bool
+                    Region of interest
+    center_disk:    ndarray
+                    The blank diffraction disk template where
+                    it is 1 inside the circle and 0 outside
+    disk_list:      ndarray of shape (n,2)
+                    X and Y positions where n is the number of positions.
+                    These are the initial guesses that will be refined
+    pos_list:       ndarray of shape (n,2)
+                    a and b Miller indices corresponding to the
+                    disk positions
+    reference_axes: ndarray
+                    The unit cell axes from the reference region. Strain is
+                    calculated by comapring the axes at a scan position with 
+                    the reference axes values. If it is 0, then the average 
+                    NBED axes will be calculated and will be used as the 
+                    reference axes.
+    med_factor:     float
+                    Due to detector noise, some stray pixels may often be brighter 
+                    than the background. This is used for damping any such pixels.
+                    Default is 30
+    gauss_val:      float
+                    The standard deviation of the Gaussian filter applied to the
+                    logarithm of the CBED pattern. Default is 3
+    hybrid_cc:      float
+                    Hybridization parameter to be used for cross-correlation.
+                    Default is 0.1
+    nan_cutoff:     float
+                    Optional parameter that is used for thresholding disk
+                    fits. If the intensity ratio is below the threshold 
+                    the position will not be fit. Default value is 0.5    
+    
+    Returns
+    -------
+    e_xx_ROI: ndarray
+              Strain in the xx direction in the region of interest
+    e_xy_ROI: ndarray
+              Strain in the xy direction in the region of interest
+    e_th_ROI: ndarray
+              Angular strain in the region of interest
+    e_yy_ROI: ndarray
+              Strain in the yy direction in the region of interest
+    fit_std: ndarray
+             x and y deviations in axes fitting for the scan points
+    
+    Notes
+    -----
+    At every scan position, the diffraction disk is filtered by first taking
+    the log of the CBED pattern, and then by applying a Gaussian filter. 
+    Following this the Sobel of the filtered dataset is calculated. 
+    The intensity of the Sobel, Gaussian and Log filtered CBED data is then
+    inspected for outlier pixels. If pixel intensities are higher or lower than
+    a threshold of the median pixel intensity, they are replaced by the threshold
+    value. This is then hybrid cross-correlated with the Sobel magnitude of the 
+    template disk. If the pattern axes return a numerical value, then the strain
+    is calculated for that scan position, else it is NaN
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
     warnings.filterwarnings('ignore')
     # Calculate needed values
+    scan_y,scan_x = np.mgrid[0:data4D.shape[2],0:data4D.shape[3]]
+    data4D_ROI = data4D[:,:,scan_y[ROI],scan_x[ROI]]
     no_of_disks = data4D_ROI.shape[-1]
-    disk_size = (np.sum(center_disk)/np.pi) ** 0.5
+    disk_size = (np.sum(iu.image_normalizer(center_disk))/np.pi) ** 0.5
     i_matrix = (np.eye(2)).astype(np.float64)
     sobel_center_disk,_ = sc.sobel(center_disk)
     # Initialize matrices
@@ -518,19 +593,19 @@ def strain_in_ROI(data4D_ROI,
         mean_cbed = np.mean(data4D_ROI,axis=-1)
         sobel_lm_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
         sobel_lm_cbed[sobel_lm_cbed > med_factor*np.median(sobel_lm_cbed)] = np.median(sobel_lm_cbed)
-        lsc_mean = iu.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=0.1)
+        lsc_mean = iu.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=hybrid_cc)
         _,_,_,mean_axes = fit_nbed_disks(lsc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
         pattern = data4D_ROI[:,:,ii]
-        sobel_log_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),3))
-        sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)
+        sobel_log_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),gauss_val))
+        sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)*med_factor
         sobel_log_pattern[sobel_log_pattern < np.median(sobel_log_pattern)/med_factor] = np.median(sobel_log_pattern)/med_factor
-        lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=0.1)
-        _,_,std,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list,0.5)
-        if ~np.isnan(pattern_axes):
+        lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=hybrid_cc)
+        _,_,std,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list,nan_cutoff)
+        if ~(np.isnan(np.ravel(pattern_axes))[0]):
             fit_std[ii,:] = std
             t_pattern = np.matmul(pattern_axes,inverse_axes)
             s_pattern = t_pattern - i_matrix
