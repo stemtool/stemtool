@@ -517,3 +517,114 @@ def sobel_circle(image):
     popt, _ = spo.curve_fit(gt.gaussian_1D_function, xdata=np.ravel(rr), ydata=np.ravel(sobel_image), p0=initial_guess)
     radius = popt[0]
     return center_x,center_y,radius
+
+def circle_function(xy,
+                    x0,
+                    y0,
+                    radius):
+    xx = xy[0] - x0
+    yy = xy[1] - y0
+    zz = ((xx ** 2) + (yy ** 2)) ** 0.5
+    zz[zz > radius] = 0
+    zz[zz > 0] = 1
+    return zz
+
+def fit_circle(image_data,
+               med_factor=50):
+    image_data = image_data.astype(np.float64)
+    image_data[image_data > (med_factor*np.median(image_data))] = med_factor*np.median(image_data)
+    image_data[image_data < (np.median(image_data)/med_factor)] = np.median(image_data)/med_factor
+    calc_image = (image_data - np.amin(image_data))/(np.amax(image_data) - np.amin(image_data))
+    image_size = (np.asarray(np.shape(image_data))).astype(np.float64)
+    initial_x = image_size[1]/2
+    initial_y = image_size[0]/2
+    initial_radius = (np.sum(calc_image)/np.pi) ** 0.5
+    initial_guess = (initial_x,initial_y,initial_radius)
+    yV, xV = np.mgrid[0:int(image_size[0]), 0:int(image_size[1])]
+    xy = (np.ravel(xV),np.ravel(yV))
+    popt, _ = spo.curve_fit(circle_function, xy, np.ravel(calc_image), initial_guess)
+    return popt
+
+@numba.jit
+def resizer(data,
+            N):
+    """
+    Downsample 1D array
+    
+    Parameters
+    ----------
+    data: ndarray
+    N:    int
+          New size of array
+                     
+    Returns
+    -------
+    res: ndarray of shape N
+         Data resampled
+    
+    Notes
+    -----
+    The data is resampled. Since this is a Numba
+    function, compile it once (you will get errors)
+    by calling %timeit
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    warnings.filterwarnings('ignore')
+    M = data.size
+    data = (data).astype(np.float64)
+    res=np.zeros(int(N),dtype=np.float64)
+    carry=0
+    m=0
+    for n in range(int(N)):
+        data_sum = carry
+        while m*N - n*M < M :
+            data_sum += data[m]
+            m += 1
+        carry = (m-(n+1)*M/N)*data[m-1]
+        data_sum -= carry
+        res[n] = data_sum*N/M
+    return res
+
+@numba.jit
+def resizer2D(data,
+              sampling):
+    """
+    Downsample 2D array
+    
+    Parameters
+    ----------
+    data:     ndarray
+              (2,2) shape
+    sampling: tuple
+              Downsampling factor in each axisa
+                     
+    Returns
+    -------
+    resampled: ndarray
+              Downsampled by the sampling factor
+              in each axis
+    
+    Notes
+    -----
+    The data is a 2D wrapper over the resizer function
+    
+    See Also
+    --------
+    resizer
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    warnings.filterwarnings('ignore')
+    sampling = np.asarray(sampling)
+    data_shape = np.asarray(np.shape(data))
+    sampled_shape = (np.round(data_shape/sampling)).astype(int)
+    resampled_x = np.zeros((data_shape[0],sampled_shape[1]),dtype=np.float64)
+    resampled = np.zeros(sampled_shape,dtype=np.float64)
+    for yy in range(int(data_shape[0])):
+        resampled_x[yy,:] = resizer(data[yy,:],sampled_shape[1])
+    for xx in range(int(sampled_shape[1])):
+        resampled[:,xx] = resizer(resampled_x[:,xx],sampled_shape[0])
+    return resampled

@@ -6,15 +6,15 @@ from ..proc import sobel_canny as sc
 
 def cart2pol(xx,
              yy):
-    rho = np.sqrt(xx**2 + yy**2)
+    rho = ((xx ** 2) + (yy ** 2)) ** 0.5
     phi = np.arctan2(yy, xx)
-    return(rho, phi)
+    return rho, phi
 
 def pol2cart(rho,
              phi):
     x = np.multiply(rho,np.cos(phi))
     y = np.multiply(rho,np.sin(phi))
-    return(x, y)
+    return x, y
 
 def angle_fun(angle,
               rho_dpc,
@@ -50,18 +50,12 @@ def data_rotator(cbed_pattern,
     return rotated_cbed
 
 def calculate_dpc(data4D):
-    data_size = (np.asarray(data4D.shape)).astype(int)
-    rho_shift = (np.zeros((data_size[2],data_size[3])))
-    phi_shift = (np.zeros((data_size[2],data_size[3])))
-    Mean_r = np.mean(np.mean(data4D,axis=3),axis=2)
-    center_x,center_y,data_radius = sc.circle_fit(sc.canny_edge(scnd.median_filter(Mean_r,2),0.2,0.8))
-    for jj in numba.prange(data_size[3]):
-        for ii in range(data_size[2]):
-            ronchigram = scnd.median_filter(data4D[:,:,ii,jj],2)
-            com_x,com_y = scnd.measurements.center_of_mass(ronchigram)
-            shift_x = com_x - center_x
-            shift_y = com_y - center_y
-            rho,phi = cart2pol(shift_x,shift_y)
-            rho_shift[ii,jj] = rho
-            phi_shift[ii,jj] = phi
-    return(rho_shift, phi_shift)
+    diff_y, diff_x = np.mgrid[0:data4D.shape[2],0:data4D.shape[3]]
+    avg_CBED = np.mean(data4D,axis=(0,1),dtype=np.float64)
+    center_x,center_y,cbed_radius = iu.fit_circle(np.log10(avg_CBED))
+    com_y = (np.sum(np.multiply(data4D,diff_y),axis=(2,3)))/np.sum(data4D,axis=(2,3))
+    com_x = (np.sum(np.multiply(data4D,diff_x),axis=(2,3)))/np.sum(data4D,axis=(2,3))
+    shift_y = com_y - center_y
+    shift_x = com_x - center_x
+    dpc_rho, dpc_phi = cart2pol(shift_x,shift_y)
+    return dpc_rho, dpc_phi

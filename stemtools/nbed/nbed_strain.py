@@ -138,89 +138,7 @@ def data4Dto2D(data4D):
     data2D.shape = (data_shape[0]*data_shape[1],data_shape[2]*data_shape[3])
     return data2D
 
-@numba.jit
-def resizer(data,
-            N):
-    """
-    Downsample 1D array
-    
-    Parameters
-    ----------
-    data: ndarray
-    N:    int
-          New size of array
-                     
-    Returns
-    -------
-    res: ndarray of shape N
-         Data resampled
-    
-    Notes
-    -----
-    The data is resampled. Since this is a Numba
-    function, compile it once (you will get errors)
-    by calling %timeit
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
-    """
-    warnings.filterwarnings('ignore')
-    M = data.size
-    data = (data).astype(np.float64)
-    res=np.zeros(int(N),dtype=np.float64)
-    carry=0
-    m=0
-    for n in range(int(N)):
-        data_sum = carry
-        while m*N - n*M < M :
-            data_sum += data[m]
-            m += 1
-        carry = (m-(n+1)*M/N)*data[m-1]
-        data_sum -= carry
-        res[n] = data_sum*N/M
-    return res
 
-@numba.jit
-def resizer2D(data,
-              sampling):
-    """
-    Downsample 2D array
-    
-    Parameters
-    ----------
-    data:     ndarray
-              (2,2) shape
-    sampling: tuple
-              Downsampling factor in each axisa
-                     
-    Returns
-    -------
-    resampled: ndarray
-              Downsampled by the sampling factor
-              in each axis
-    
-    Notes
-    -----
-    The data is a 2D wrapper over the resizer function
-    
-    See Also
-    --------
-    resizer
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
-    """
-    warnings.filterwarnings('ignore')
-    sampling = np.asarray(sampling)
-    data_shape = np.asarray(np.shape(data))
-    sampled_shape = (np.round(data_shape/sampling)).astype(int)
-    resampled_x = np.zeros((data_shape[0],sampled_shape[1]),dtype=np.float64)
-    resampled = np.zeros(sampled_shape,dtype=np.float64)
-    for yy in range(int(data_shape[0])):
-        resampled_x[yy,:] = resizer(data[yy,:],sampled_shape[1])
-    for xx in range(int(sampled_shape[1])):
-        resampled[:,xx] = resizer(resampled_x[:,xx],sampled_shape[0])
-    return resampled
 
 @numba.jit
 def bin4D(data4D,
@@ -257,11 +175,11 @@ def bin4D(data4D,
     """
     warnings.filterwarnings('ignore')
     mean_data = np.mean(data4D,axis=(-1,-2),dtype=np.float64)
-    mean_binned = resizer2D(mean_data,(bin_factor,bin_factor))
+    mean_binned = iu.resizer2D(mean_data,(bin_factor,bin_factor))
     binned_data = np.zeros((mean_binned.shape[0],mean_binned.shape[1],data4D.shape[2],data4D.shape[3]),dtype=data4D.dtype)
     for ii in range(data4D.shape[2]):
         for jj in range(data4D.shape[3]):
-            binned_data[:,:,ii,jj] = resizer2D(data4D[:,:,ii,jj],(bin_factor,bin_factor))
+            binned_data[:,:,ii,jj] = iu.resizer2D(data4D[:,:,ii,jj],(bin_factor,bin_factor))
     return binned_data
 
 def test_aperture(pattern,
