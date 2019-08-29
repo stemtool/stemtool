@@ -538,7 +538,7 @@ def strain_in_ROI(data4D,
     e_xx_map[ROI] = e_xx_ROI
     e_xx_map[np.isnan(e_xx_map)] = 0
     e_xx_map = scnd.gaussian_filter(e_xx_map,1)
-    e_xy_map[ROI] = e_xx_ROI
+    e_xy_map[ROI] = e_xy_ROI
     e_xy_map[np.isnan(e_xy_map)] = 0
     e_xy_map = scnd.gaussian_filter(e_xy_map,1)
     e_th_map[ROI] = e_th_ROI
