@@ -4,6 +4,7 @@ import numpy as np
 import numba
 from scipy import ndimage as scnd
 from scipy import optimize as spo
+from scipy import interpolate as scinterp
 import pyfftw
 import warnings
 from ..util import gauss_utils as gt
@@ -87,8 +88,9 @@ def fourier_mask(original_image,
     size_image = np.asarray(np.shape(image_fourier),dtype=int)
     yV, xV = np.mgrid[0:size_image[0], 0:size_image[1]]
     sub = ((((yV - new_y) ** 2) + ((xV - new_x) ** 2)) ** 0.5) < radius
-    circle = (np.asarray(sub)).astype('float')
-    filtered_circ = scnd.filters.gaussian_filter(circle,3)
+    circle = np.copy(sub)
+    circle = circle.astype(np.float64)
+    filtered_circ = scnd.filters.gaussian_filter(circle,1)
     masked_image = np.multiply(image_fourier,filtered_circ)
     SAED_image = pyfftw.interfaces.scipy_fftpack.ifft2(masked_image)
     mag_SAED = np.abs(SAED_image)
@@ -96,6 +98,8 @@ def fourier_mask(original_image,
     mag_SAED[mag_SAED < threshold] = 0
     mag_SAED[mag_SAED > threshold] = 1
     filtered_SAED = scnd.filters.gaussian_filter(mag_SAED,3)
+    filtered_SAED[filtered_SAED < threshold] = 0
+    filtered_SAED[filtered_SAED > threshold] = 1
     fourier_selected_image = np.multiply(original_image,filtered_SAED)
     return fourier_selected_image, SAED_image, new_center, filtered_SAED
 
@@ -381,7 +385,45 @@ def relative_strain(n_list,
         e_th[ii] = 0.5*(t_cc[0,1] - t_cc[1,0])
         cell_center[ii,0] = 0.25*(n_list[ii,0] + n_list[ii,2] + n_list[ii,4] + n_list[ii,6])
         cell_center[ii,1] = 0.25*(n_list[ii,1] + n_list[ii,3] + n_list[ii,5] + n_list[ii,7])
-    return cell_center, e_xx, e_xy, e_yy, e_th
+    return cell_center, e_yy, e_xx, e_xy, e_th
+
+
+def strain_map(centers,
+               e_yy, 
+               e_xx, 
+               e_xy, 
+               e_th,
+               mask):
+    yr, xr = np.mgrid[0:mask.shape[0], 0:mask.shape[1]]
+    cartcoord = list(zip(centers[:,1], centers[:,0]))
+
+    e_yy[np.abs(e_yy) > 3*np.median(np.abs(e_yy))] = 0
+    e_xx[np.abs(e_xx) > 3*np.median(np.abs(e_xx))] = 0
+    e_xy[np.abs(e_xy) > 3*np.median(np.abs(e_xy))] = 0
+    e_th[np.abs(e_th) > 3*np.median(np.abs(e_th))] = 0
+
+    f_yy = scinterp.LinearNDInterpolator(cartcoord, e_yy)
+    f_xx = scinterp.LinearNDInterpolator(cartcoord, e_xx)
+    f_xy = scinterp.LinearNDInterpolator(cartcoord, e_xy)
+    f_th = scinterp.LinearNDInterpolator(cartcoord, e_th)
+
+    map_yy = f_yy(xr,yr)
+    map_yy[np.isnan(map_yy)] = 0
+    map_yy = np.multiply(map_yy,mask)
+    
+    map_xx = f_xx(xr,yr)
+    map_xx[np.isnan(map_xx)] = 0
+    map_xx = np.multiply(map_xx,mask)
+    
+    map_xy = f_xy(xr,yr)
+    map_xy[np.isnan(map_xy)] = 0
+    map_xy = np.multiply(map_xy,mask)
+    
+    map_th = f_th(xr,yr)
+    map_th[np.isnan(map_th)] = 0
+    map_th = np.multiply(map_th,mask)
+    
+    return map_yy, map_xx, map_xy, map_th
 
 @numba.jit
 def image_stacker(image_stack,cc_fac=100):
