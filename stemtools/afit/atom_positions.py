@@ -20,7 +20,7 @@ def peaks_vis(data_image,
     ----------
     data_image: ndarray
                 Original atomic resolution image
-    distance:   float
+    distance:   int
                 Average distance between neighboring peaks
     threshold:  float
                 The cutoff intensity value below which a peak 
@@ -48,7 +48,6 @@ def peaks_vis(data_image,
     """
     data_image = data_image - np.amin(data_image)
     data_image = data_image / np.amax(data_image)
-    data_image[data_image < (0.25*threshold)] = 0
     peaks = skf.peak_local_max(data_image,min_distance=distance,threshold_abs=threshold)
     plt.figure(figsize=imsize)
     plt.imshow(data_image)
