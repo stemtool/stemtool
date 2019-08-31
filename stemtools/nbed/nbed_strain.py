@@ -377,7 +377,7 @@ def fit_nbed_disks(corr_image,
         if peak_ratio < (1+nan_cutoff):
             fitted_disk_list[ii,0:2] = np.nan
         else:
-            par = st.util.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
+            par = gt.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
             fitted_disk_list[ii,0:2] = par[0:2]
     nancount = np.int(np.sum(np.isnan(fitted_disk_list))/2)
     if nancount == no_pos:
@@ -393,15 +393,17 @@ def fit_nbed_disks(corr_image,
         if center.shape[0] > 0:
             cx = center[0,0]
             cy = center[0,1]
+            center_position = np.asarray((cx,-cy),dtype=np.float64)
             if (nancount/no_pos) < 0.5: 
                 disk_locations[:,0:2] = disk_locations[:,0:2] - np.asarray((cx,cy),dtype=np.float64)
                 lcbed,_,_,_ = np.linalg.lstsq(diff_spots,disk_locations,rcond=None)
                 calc_points = np.matmul(diff_spots,lcbed)
                 stdx = np.std(np.divide(disk_locations[np.where(calc_points[:,0] != 0),0],calc_points[np.where(calc_points[:,0] != 0),0]))
                 stdy = np.std(np.divide(disk_locations[np.where(calc_points[:,1] != 0),1],calc_points[np.where(calc_points[:,1] != 0),1]))
-                cy = (-1)*cy
-                center_position = np.asarray((cx,cy),dtype=np.float64)
                 fit_deviation = np.asarray((stdx,stdy),dtype=np.float64)
+            else:
+                fit_deviation = np.nan
+                lcbed = np.nan
         else:
             center_position = np.nan
             fit_deviation = np.nan
