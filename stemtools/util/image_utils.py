@@ -628,3 +628,6 @@ def resizer2D(data,
     for xx in range(int(sampled_shape[1])):
         resampled[:,xx] = resizer(resampled_x[:,xx],sampled_shape[0])
     return resampled
+
+def is_odd(num):
+   return num % 2 != 0

@@ -652,7 +652,7 @@ def spectra_finder(data4D,yvals,xvals):
     overlay[yvals[0]:yvals[1],xvals[0]:xvals[1]] = 1
     return spectra_data,0.5*(data_im+overlay)
 
-def find_edges(edge_map,edge_distance=5):
+def sort_edges(edge_map,edge_distance=5):
     yV, xV = np.mgrid[0:np.shape(edge_map)[0],0:np.shape(edge_map)[1]]
     dist_points = np.zeros_like(yV)
     yy = yV[edge_map]
@@ -694,3 +694,24 @@ def find_edges(edge_map,edge_distance=5):
         outer_edge = np.copy(edge2)
         inner_edge = np.copy(edge1)
     return outer_edge,inner_edge
+
+@numba.jit
+def get_inside(edges):
+    aa = edges.astype(float)
+    inside = np.zeros(aa.shape)
+    for ii in np.arange(aa.shape[0]):
+        for jj in np.arange(aa.shape[1]):
+            ytest = False
+            xtest = False
+            ysum = np.sum(aa[ii:-1,jj])
+            xsum = np.sum(aa[ii,jj:-1])
+            if (ysum < 3):
+                ytest = iu.is_odd(ysum)
+            if (xsum < 3):
+                xtest = iu.is_odd(xsum)
+            inside[ii,jj] = np.logical_or(ytest,xtest)
+    inside = inside.astype(float)
+    inside = scnd.gaussian_filter(inside,3)
+    inside[inside < 0.1] = 0
+    inside[inside > 0] = 1
+    return inside.astype(bool)
