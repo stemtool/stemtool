@@ -651,3 +651,46 @@ def spectra_finder(data4D,yvals,xvals):
     overlay = np.zeros_like(data_im)
     overlay[yvals[0]:yvals[1],xvals[0]:xvals[1]] = 1
     return spectra_data,0.5*(data_im+overlay)
+
+def find_edges(edge_map,edge_distance=5):
+    yV, xV = np.mgrid[0:np.shape(edge_map)[0],0:np.shape(edge_map)[1]]
+    dist_points = np.zeros_like(yV)
+    yy = yV[edge_map]
+    xx = xV[edge_map]
+    no_points = np.size(yy)
+    points = np.arange(no_points)
+    point_list = np.transpose(np.asarray((yV[edge_map],xV[edge_map])))
+    truth_list = np.zeros((no_points,2),dtype=bool)
+    edge_list_1 = np.zeros((no_points,2))
+    point_number = 0
+    edge_list_1[int(point_number),0:2] = np.asarray((yy[0],xx[0]))
+    truth_list[int(point_number),0:2] = True
+    edge_points = 1
+    for ii in np.arange(no_points):
+        last_yy = edge_list_1[int(edge_points - 1),0]
+        last_xx = edge_list_1[int(edge_points - 1),1]
+        other_points = np.reshape(point_list[~truth_list],(int(no_points-edge_points),2))
+        dist_vals = (((other_points[:,0] - last_yy) ** 2) + ((other_points[:,1] - last_xx) ** 2)) ** 0.5
+        min_dist = np.amin(dist_vals)
+        if (min_dist < edge_distance):
+            n_yy = other_points[dist_vals == min_dist,0][0]
+            n_xx = other_points[dist_vals == min_dist,1][0]
+            point_number = points[(point_list[:,0] == n_yy) & (point_list[:,1] == n_xx)][0]
+            edge_list_1[int(edge_points),0:2] = np.asarray((n_yy,n_xx))
+            truth_list[int(point_number),0:2] = True
+            edge_points = edge_points + 1.
+    list_1 = np.reshape(point_list[truth_list],(int(edge_points),2))
+    list_2 = np.reshape(point_list[~truth_list],(int(no_points-edge_points),2))
+    edge1 = np.zeros_like(edge_map)
+    edge1[list_1[:,0],list_1[:,1]] = 1
+    edge2 = np.zeros_like(edge_map)
+    edge2[list_2[:,0],list_2[:,1]] = 1
+    edge1_sum = np.sum(edge1)
+    edge2_sum = np.sum(edge2)
+    if (edge1_sum > edge2_sum):
+        outer_edge = np.copy(edge1)
+        inner_edge = np.copy(edge2)
+    else:
+        outer_edge = np.copy(edge2)
+        inner_edge = np.copy(edge1)
+    return outer_edge,inner_edge
