@@ -631,3 +631,42 @@ def resizer2D(data,
 
 def is_odd(num):
    return num % 2 != 0
+
+def get_mean_std(xlist,ylist,resolution=25,style='median'):
+    """
+    Get mean and standard deviation of a list of x and y values
+    
+    Parameters
+    ----------
+    xlist:      ndarray
+                (n,1) shape of x values
+    ylist:      ndarray
+                (n,1) shape of x values
+    resolution: float
+                Optional value, default if 50
+                How finely sampled the final list is
+                     
+    Returns
+    -------
+    stdvals: ndarray
+             First column is x values sampled at resolution
+             Second Column is mean or median of corresponding y values
+             Third column is the standard deviation
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    xround = np.copy(xlist)
+    xround = np.round(resolution*xround)/resolution
+    x_points = int((np.amax(xround) - np.amin(xround))/(1/resolution))
+    stdvals = np.zeros((x_points,3),dtype=np.float64)
+    for ii in np.arange(x_points):
+        ccval = np.amin(xround) + ii/resolution
+        stdvals[ii,0] = ccval
+        if (style == 'median'):
+            stdvals[ii,1] = np.median(ylist[xround == ccval])
+        else:
+            stdvals[ii,1] = np.mean(ylist[xround == ccval])
+        stdvals[ii,2] = np.std(ylist[xround == ccval])
+    stdvals = stdvals[~np.isnan(stdvals[:,2]),:]
+    return stdvals
