@@ -423,44 +423,31 @@ def make_circle(size_circ,
     circle = np.asarray(sub,dtype=np.float64)
     return circle
 
+@numba.jit
 def image_tiler(dataset_4D,
-                reducer=3,
+                reducer=4,
                 bit_depth=8):
     """
     Generate a tiled pattern of the 4D-STEM dataset
     
     """
     size_data = (np.asarray(dataset_4D.shape)).astype(int)
-    normalized_4D = dataset_4D - np.amin(dataset_4D)
-    normalized_4D = 2 * (normalized_4D/(np.amax(normalized_4D)))
-    normalized_4D = normalized_4D - 1 #make the data values lie from -1 to +1
-    reduced_size = (np.zeros(2)).astype(int)
-    reduced_size[0] = int(round(size_data[0]*(1/reducer)))
-    reduced_size[1] = int(round(size_data[1]*(1/reducer)))
+    normalized_4D = (dataset_4D - np.amin(dataset_4D))/(np.amax(dataset_4D) - np.amin(dataset_4D))
+    reduced_size = np.zeros(2)
+    reduced_size[0:2] = np.round(size_data[0:2]*(1/reducer))
+    reduced_size = reduced_size.astype(int)
     tile_size = np.multiply(reduced_size,(size_data[2],size_data[3]))
     image_tile = np.zeros(tile_size)
     for jj in range(size_data[3]):
         for ii in range(size_data[2]):
             ronchi = normalized_4D[:,:,ii,jj]
-            reduced_shape = np.round(np.asarray(np.shape(ronchi))/reducer)
-            reduced_shape = reduced_shape.astype(int)
             xRange = (ii * reduced_size[0]) + np.arange(reduced_size[0])
             xStart = int(xRange[0])
-            xEnd = int(xRange[-1])
+            xEnd = 1 + int(xRange[-1])
             yRange = (jj * reduced_size[1]) + np.arange(reduced_size[1])
             yStart = int(yRange[0])
-            yEnd = int(yRange[-1])
-            reduced_ronchi = scm.imresize(ronchi,reduced_shape,interp='lanczos')
-            resized_shape = (np.asarray(reduced_ronchi.shape)).astype(int)
-            if (np.mean(reduced_ronchi[-1,:]) == 0):
-                reduced_ronchi = reduced_ronchi[0:(resized_shape[0] - 1),:]
-            if (np.mean(reduced_ronchi[:,-1]) == 0):
-                reduced_ronchi = reduced_ronchi[:,0:(resized_shape[1] - 1)]
-            if (np.mean(reduced_ronchi[0,:]) == 0):
-                reduced_ronchi = reduced_ronchi[1:resized_shape[0],:]
-            if (np.mean(reduced_ronchi[:,0]) == 0):
-                reduced_ronchi = reduced_ronchi[:,1:resized_shape[1]]
-            image_tile[xStart:xEnd,yStart:yEnd] = reduced_ronchi
+            yEnd = 1 + int(yRange[-1])
+            image_tile[xStart:xEnd,yStart:yEnd] = resizer2D((ronchi + 1),reducer) - 1
     image_tile = image_tile - np.amin(image_tile)
     image_tile = (2 ** bit_depth)*(image_tile/(np.amax(image_tile)))
     image_tile = image_tile.astype(int)
