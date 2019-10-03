@@ -8,6 +8,7 @@ from . import eels
 from . import gpa
 from . import nbed
 from . import proc
+from . import pty
 from . import util
 from . import dpc
 from . import sim
