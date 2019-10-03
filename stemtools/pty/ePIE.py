@@ -184,6 +184,8 @@ def update_function(objec_func,
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     pyfftw.interfaces.cache.enable()
+    objec_func[np.isnan(objec_func)] = 0
+    probe_func[np.isnan(probe_func)] = 0
     square_root_ronchi = data4D_sqrt[pos_y,pos_x,:,:]
     data_shape = np.asarray(np.shape(data4D_sqrt))
     moved_probe = move_probe(probe_func,(pos_y - (data_shape[0]/2)),(pos_x - (data_shape[1]/2)))
