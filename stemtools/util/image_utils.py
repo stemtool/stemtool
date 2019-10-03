@@ -10,6 +10,7 @@ from scipy import misc as scm
 from scipy import optimize as spo
 from scipy import ndimage as scnd
 from scipy import signal as scsig
+from skimage import color as skc
 from ..proc import sobel_canny as sc
 from ..util import gauss_utils as gt
 
@@ -657,3 +658,29 @@ def get_mean_std(xlist,ylist,resolution=25,style='median'):
         stdvals[ii,2] = np.std(ylist[xround == ccval])
     stdvals = stdvals[~np.isnan(stdvals[:,2]),:]
     return stdvals
+
+def cp_image_sat(comp_image):
+    img_size = (np.asarray(comp_image.shape)).astype(int)
+    hsv_image = np.ones((img_size[0],img_size[1],3))
+    real_image = np.abs(comp_image)
+    angle_image = (180 + np.angle(comp_image, deg=True))/360
+    angle_image = angle_image - np.floor(angle_image)
+    max_val = np.amax(real_image)
+    real_image = real_image / max_val
+    hsv_image[:,:,0] = angle_image
+    hsv_image[:,:,1] = real_image
+    colored_image = skc.hsv2rgb(hsv_image)
+    return colored_image
+
+def cp_image_val(comp_image):
+    img_size = (np.asarray(comp_image.shape)).astype(int)
+    hsv_image = np.ones((img_size[0],img_size[1],3))
+    real_image = np.abs(comp_image)
+    angle_image = (180 + np.angle(comp_image, deg=True))/360
+    angle_image = angle_image - np.floor(angle_image)
+    max_val = np.amax(real_image)
+    real_image = real_image / max_val
+    hsv_image[:,:,0] = angle_image
+    hsv_image[:,:,2] = real_image
+    colored_image = skc.hsv2rgb(hsv_image)
+    return colored_image

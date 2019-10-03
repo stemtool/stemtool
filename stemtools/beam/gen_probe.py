@@ -44,6 +44,20 @@ def FourierCoords(calibration,
     dL = Lx[1] - Lx[0]
     return dL,L1
 
+def FourierCalib(calibration,
+                 sizebeam):
+    FOV_y = sizebeam[0]*calibration
+    FOV_x = sizebeam[1]*calibration
+    qy = (np.arange((-sizebeam[0]/2),((sizebeam[0]/2)),1))/FOV_y
+    qx = (np.arange((-sizebeam[1]/2),((sizebeam[1]/2)),1))/FOV_x
+    shifter_y = int(sizebeam[0]/2)
+    shifter_x = int(sizebeam[1]/2)
+    Ly = np.roll(qy,shifter_y)
+    Lx = np.roll(qx,shifter_x)
+    dL_y = Ly[1] - Ly[0]
+    dL_x = Lx[1] - Lx[0]
+    return np.asarray((dL_y,dL_x))
+
 def make_probe(aperture,
                voltage,
                image_size,
@@ -61,6 +75,8 @@ def make_probe(aperture,
     aperture = aperture / 1000
     wavelength = wavelength_ang(voltage)
     LMax = aperture / wavelength
+    image_y = image_size[0]
+    image_x = image_size[1]
     x_FOV = image_x * 0.01 * calibration_pm
     y_FOV = image_y * 0.01 * calibration_pm
     qx = (np.arange((-image_x / 2),(image_x / 2), 1)) / x_FOV
@@ -85,6 +101,6 @@ def aberration(fourier_coord,
                c3=0,
                c5=0):
     p_matrix = wavelength_ang*fourier_coord
-    chi = ((defocus*np.power(p_matrix,2))/2) + ((C3*(1e7)*np.power(p_matrix,4))/4) + ((C5*(1e7)*np.power(p_matrix,6))/6)
+    chi = ((defocus*np.power(p_matrix,2))/2) + ((c3*(1e7)*np.power(p_matrix,4))/4) + ((c5*(1e7)*np.power(p_matrix,6))/6)
     chi_probe = (2*np.pi*chi)/wavelength_ang
     return chi_probe
