@@ -1,2 +1,2 @@
 from .ePIE import *
-from .WDD import *
+from .wigner_dd import *
