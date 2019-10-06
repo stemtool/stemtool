@@ -128,7 +128,7 @@ def sparse4D(numer4D,
 @numba.jit(parallel=True)
 def fft_wigner_probe(aperture_mrad,
                      voltage,
-                     image_size
+                     image_size,
                      calibration_pm,
                      intensity_param=1):
     """
@@ -177,6 +177,8 @@ def fft_wigner_probe(aperture_mrad,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    image_y = image_size[0]
+    image_x = image_size[1]
     tb = gp.make_probe(aperture_mrad,voltage,image_x,image_y,calibration_pm)
     fourier_beam = tb/intensity_param
     wigner_beam = np.zeros((image_x,image_y,image_x,image_y)).astype(complex)
@@ -192,23 +194,23 @@ def fft_wigner_probe(aperture_mrad,
 def SSB(data4D,
         aperture_mrad,
         voltage,
-        (image_x,image_y),
+        image_size,
         calibration_pm):
     """
     Perform single side band ptychography
     
     Parameters
     ----------
-    data4D:            ndarray
-                       Four dimensional resized dataset
-    aperture_mrad:     float
-                       Probe forming aperture in milliradians
-    voltage:           float
-                       Electron accelerating voltage in kilovolts
-    (image_x,image_y): tuple
-                       Size of the beam matrix
-    calibration_pm:    float
-                       Real-space pixel size
+    data4D:         ndarray
+                    Four dimensional resized dataset
+    aperture_mrad:  float
+                    Probe forming aperture in milliradians
+    voltage:        float
+                    Electron accelerating voltage in kilovolts
+    image_size:     tuple
+                    Size of the beam matrix
+    calibration_pm: float
+                    Real-space pixel size
     
     Returns
     -------
@@ -238,6 +240,8 @@ def SSB(data4D,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    image_y = image_size[0]
+    image_x = image_size[1]
     electron_beam = gp.make_probe(aperture_mrad,voltage,(image_x,image_y),calibration_pm)
     diffractogram_intensity = np.sum(np.mean(data4D,axis=(2,3)))
     mainbeam_intensity = (np.abs(electron_beam) ** 2).sum()
