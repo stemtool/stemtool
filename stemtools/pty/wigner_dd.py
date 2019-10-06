@@ -128,7 +128,7 @@ def sparse4D(numer4D,
 @numba.jit(parallel=True)
 def fft_wigner_probe(aperture_mrad,
                      voltage,
-                     (image_x,image_y),
+                     image_size
                      calibration_pm,
                      intensity_param=1):
     """
@@ -137,18 +137,18 @@ def fft_wigner_probe(aperture_mrad,
     
     Parameters
     ----------
-    aperture_mrad:     float
-                       Probe forming aperture in milliradians
-    voltage:           float
-                       Electron accelerating voltage in kilovolts
-    (image_x,image_y): tuple
-                       Size of the beam matrix
-    calibration_pm:    float
-                       Real-space pixel size
-    intensity_param:   float
-                       Normalization of the Wigner intensity to compare
-                       with experimental data. 
-                       Default is 1
+    aperture_mrad:   float
+                     Probe forming aperture in milliradians
+    voltage:         float
+                     Electron accelerating voltage in kilovolts
+    image_size:      tuple
+                     Size of the beam matrix
+    calibration_pm:  float
+                     Real-space pixel size
+    intensity_param: float
+                     Normalization of the Wigner intensity to compare
+                     with experimental data. 
+                     Default is 1
     
     Returns
     -------
