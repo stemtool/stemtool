@@ -1,5 +1,8 @@
 import numpy as np
 import numba
+from skimage import io, measure, draw, img_as_bool
+from scipy import optimize
+import skimage.filters as skf
 from ..util import image_utils as iu
 from ..dpc import atomic_dpc as ad
 
@@ -33,6 +36,36 @@ def wavelength_pm(voltage_kV):
     denominator = (e * voltage) * ((2*m*(c ** 2)) + (e * voltage))
     wavelength = (10 ** 12) *((numerator/denominator) ** 0.5) #in angstroms
     return wavelength
+
+@numba.jit(parallel=True)
+def get_probe(aperture,
+               voltage,
+               image_x,
+               image_y,
+               calibration_pm):
+    """
+    This calculates an ideal aberration free probe based on the size and the estimated Fourier co-ordinates
+    """ 
+    aperture = aperture / 1000
+    wavelength = wavelength_pm(voltage)
+    LMax = aperture / wavelength
+    x_FOV = image_x * calibration_pm
+    y_FOV = image_y * calibration_pm
+    qx = (np.arange((-image_x / 2),(image_x / 2), 1)) / x_FOV
+    x_shifter = (round(image_x / 2))
+    qy = (np.arange((-image_y / 2),(image_y / 2), 1)) / y_FOV
+    y_shifter = (round(image_y / 2))
+    Lx = np.roll(qx, x_shifter)
+    Ly = np.roll(qy, y_shifter)
+    Lya, Lxa = np.meshgrid(Lx, Ly)
+    L2 = np.multiply(Lxa, Lxa) + np.multiply(Lya, Lya)
+    inverse_real_matrix = L2 ** 0.5
+    fourier_scan_coordinate = Lx[1] - Lx[0]
+    Adist = ((LMax - inverse_real_matrix) /
+             fourier_scan_coordinate) + 0.5
+    Adist[Adist < 0] = 0
+    Adist[Adist > 1] = 1
+    return (np.fft.fftshift(Adist),fourier_scan_coordinate)
 
 def fourier_calib(realspace_calibration,
                   image_size):
@@ -74,6 +107,17 @@ def fourier_coords_1D(real_size,
         qxn = np.fft.fftshift(qxn)
         qyn = np.fft.fftshift(qyn)
     return qxn, qyn
+
+@numba.jit
+def flip_corrector(data4D):
+    datasize = (np.asarray(data4D.shape)).astype(int)
+    flipped4D = np.zeros((datasize[0],datasize[1],datasize[2],datasize[3]))
+    for jj in range(datasize[3]):
+        for ii in range(datasize[2]):
+            ronchi = data4D[:,:,ii,jj]
+            ronchi_flip = np.fliplr(ronchi)
+            flipped4D[:,:,ii,jj] = ronchi_flip
+    return flipped4D
 
 @numba.jit
 def sample_4D(original_4D,
@@ -162,3 +206,38 @@ def sparse4D(numer4D,
         for ii in range(data_size[2]):
             sparse_divided[:,:,ii,jj] = iu.sparse_division(numer4D[:,:,ii,jj],denom4D[:,:,ii,jj],bit_depth)
     return sparse_divided
+
+def make_consistent_data(data4D,
+                         aperture_size,
+                         voltage,
+                         real_calib_pm,
+                         transpose=True,
+                         flip=True):
+    if transpose:
+        data4D = np.transpose(data4D,(2,3,0,1))
+    if flip:
+        data4D = flip_corrector(data4D)
+    data_size = np.asarray(np.shape(data4D),dtype=int)
+    Mean_Ronchigram = np.mean(data4D,axis=(2,3))
+    upper_thresh = skf.threshold_otsu(Mean_Ronchigram)
+    lower_thresh = (-1)*(skf.threshold_otsu(-Mean_Ronchigram))
+    canny_ronchi = skf.apply_hysteresis_threshold(Mean_Ronchigram, lower_thresh, upper_thresh)
+    rad_image = canny_ronchi.astype(int)
+    regions = measure.regionprops(rad_image)
+    bubble = regions[0]
+    y_center, x_center = bubble.centroid
+    radius = bubble.major_axis_length / 2.
+
+    def cost(params):
+        x0, y0, r = params
+        coords = draw.circle(y0, x0, r, shape=image.shape)
+        template = np.zeros_like(image)
+        template[coords] = 1
+        return -np.sum(template == image)
+
+    x_center, y_center, radius = optimize.fmin(cost, (x_center, y_center, radius))
+    fourier_calibration_pm = (aperture_size/(1000*wavelength_pm(voltage)))/radius
+    _,fourier_pixel = get_probe(aperture_size,voltage,data_size[2],data_size[3],real_calib_pm)
+    sampling_ratio = fourier_calibration_pm/fourier_pixel
+    resized_data = sample_4D(data4D,sampling_ratio)
+    return resized_data
