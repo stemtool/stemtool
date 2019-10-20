@@ -3,51 +3,7 @@ import numba
 from scipy import ndimage as scnd
 from ..util import image_utils as iu
 from ..beam import gen_probe as gp
-
-@numba.jit
-def sample_4D(original_4D,
-              sampling_ratio=2):
-    """
-    Resize the 4D-STEM CBED pattern
-    
-    Parameters
-    ----------
-    original_4D:    ndarray
-                    Experimental 4D dataset
-    sampling_ratio: float
-                    Value by which to resample the CBED pattern
-    
-    Returns
-    -------
-    processed_4D: ndarray
-                  4D-STEM dataset where every CBED pattern
-                  has been resampled
-    
-    Notes
-    -----
-    To maintain consistency and faster processing of ptychography, 
-    make the real space and Fourier space pixels consistent
-    
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
-    """
-    data_size = (np.asarray(original_4D.shape)).astype(int)
-    processed_4D = (np.zeros((data_size[2],data_size[3],data_size[2],data_size[3])))
-    for jj in range(data_size[3]):
-        for ii in range(data_size[2]):
-            ronchigram = original_4D[:,:,ii,jj]
-            ronchi_size = (np.asarray(ronchigram.shape)).astype(int)
-            resized_ronchigram = iu.resizer2D((ronchigram + 1),(1/sampling_ratio)) - 1
-            resized_shape = (np.asarray(resized_ronchigram.shape)).astype(int)
-            cut_shape = (np.asarray(resized_ronchigram.shape)).astype(int)
-            BeforePadSize = ((0.5 * ((data_size[2],data_size[3]) - cut_shape)) - 0.25).astype(int)
-            padCorrect = (data_size[2],data_size[3]) - (cut_shape + (2*BeforePadSize))
-            AfterPadSize = BeforePadSize + padCorrect
-            FullPadSize = ((BeforePadSize[0],AfterPadSize[0]),(BeforePadSize[1],AfterPadSize[1]))
-            padValue = np.amin(resized_ronchigram)
-            padded_ronchi = np.pad(resized_ronchigram, FullPadSize, 'constant', constant_values=(padValue, padValue))
-            processed_4D[:,:,ii,jj] = padded_ronchi
-    return processed_4D
+from ..pty import pty_utils as pu
 
 @numba.jit
 def psi_multiply(data_1,
@@ -81,49 +37,6 @@ def psi_multiply(data_1,
         for ii in range(data_size[2]):
             multiplied_data[:,:,ii,jj] = np.multiply(data_1[:,:,ii,jj],np.conj(data_2[:,:,ii,jj]))
     return multiplied_data
-
-@numba.jit
-def sparse4D(numer4D,
-             denom4D,
-             bit_depth=32):
-    """
-    Divide one 4D dataset from the other,
-    so that zeros don't overflow
-    
-    Parameters
-    ----------
-    numer4D:   ndarray
-               Numerator
-    denom4D:   ndarray
-               Denominator
-    bit_depth: int
-               Highest power of 2 that will be tolerated
-               before truncation 
-    
-    Returns
-    -------
-    sparse_divided: ndarray
-                    Numerator divided by the denominator
-    
-    Notes
-    -----
-    Wrapper around the sparse_division in the utils module
-    for dividing one 4D matrix by another, where there are
-    zeros, or very close to zero values in the denominator
-    
-    See Also
-    --------
-    sparse_division
-    
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
-    """
-    data_size = (np.asarray(numer4D.shape)).astype(int)
-    sparse_divided = (np.zeros((data_size[0],data_size[1],data_size[2],data_size[3]))).astype('complex')
-    for jj in range(data_size[3]):
-        for ii in range(data_size[2]):
-            sparse_divided[:,:,ii,jj] = iu.sparse_division(numer4D[:,:,ii,jj],denom4D[:,:,ii,jj],bit_depth)
-    return sparse_divided
 
 @numba.jit(parallel=True)
 def fft_wigner_probe(aperture_mrad,
@@ -191,7 +104,7 @@ def fft_wigner_probe(aperture_mrad,
             wigner_beam[:,:,rows_x,rows_y] = convolved_beam
     return wigner_beam
 
-def SSB(data4D,
+def wdd(data4D,
         aperture_mrad,
         voltage,
         image_size,
@@ -250,7 +163,7 @@ def SSB(data4D,
     dataFT = np.fft.fftshift((np.fft.fft2(data4D,axes=(2,3))),axes=(2,3))
     dataIFT = np.fft.ifftshift((np.fft.ifft2(dataFT,axes=(0,1))),axes=(0,1))
     inverse_wigner = np.fft.ifftshift((np.fft.ifft2(wigner_beam,axes=(0,1))),axes=(0,1))
-    Psi_Wigner = sparse4D(psi_multiply(dataIFT,np.conj(inverse_wigner)),(np.abs(inverse_wigner) ** 2))
+    Psi_Wigner = pu.sparse4D(psi_multiply(dataIFT,np.conj(inverse_wigner)),(np.abs(inverse_wigner) ** 2))
     wig_shape = np.asarray(np.shape(Psi_Wigner))
-    single_side_band = np.fft.fft2(np.multiply((Psi_Wigner[1 + int(wig_shape[0]/2),1 + int(wig_shape[1]/2),:,:]),test_beam))
-    return single_side_band
+    wigner_deconv = np.fft.fft2(np.multiply((Psi_Wigner[1 + int(wig_shape[0]/2),1 + int(wig_shape[1]/2),:,:]),test_beam))
+    return wigner_deconv
