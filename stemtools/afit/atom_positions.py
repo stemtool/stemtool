@@ -59,6 +59,34 @@ def peaks_vis(data_image,
 def refine_atoms(image_data,
                  positions,
                  distance):
+    """
+    Single Gaussian Peak Atom Refinement
+    
+    Parameters
+    ----------
+    image_data: ndarray
+                Original atomic resolution image
+    positions:  ndarray
+                Intensity minima/maxima list
+    distance:   float
+                Average distance between neighboring peaks
+    
+    
+    Returns
+    -------
+    refined_pos: ndarray
+                 List of refined peak positions as y, x
+    
+    Notes
+    -----
+    This is the single Gaussian peak fitting technique
+    where the initial atom positions are fitted with a 
+    single 2D Gaussian function. The center of the Gaussian
+    is returned as the refined atom position
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
     warnings.filterwarnings('ignore')
     no_of_points = positions.shape[0]
     refined_pos = (np.zeros((no_of_points,6))).astype(float)

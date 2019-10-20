@@ -1,30 +1,36 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-adf/__pycache__/
-afit/__pycache__/
-beam/__pycache__/
-dpc/__pycache__/
-eels/__pycache__/
-nbed/__pycache__/
-proc/__pycache__/
-sim/__pycache__/
-util/__pycache__/
-dpc/__pycache__/
+stemtools/__pycache__/
+notebooks/__pycache__/
+stemtools/adf/__pycache__/
+stemtools/afit/__pycache__/
+stemtools/beam/__pycache__/
+stemtools/dpc/__pycache__/
+stemtools/eels/__pycache__/
+stemtools/nbed/__pycache__/
+stemtools/proc/__pycache__/
+stemtools/sim/__pycache__/
+stemtools/util/__pycache__/
+stemtools/dpc/__pycache__/
+stemtools/pty/__pycache__/
 *.py[cod]
 *$py.class
 *.pyc
 
 .ipynb_checkpoints/
-adf/.ipynb_checkpoints/
-afit/.ipynb_checkpoints/
-beam/.ipynb_checkpoints/
-dpc/.ipynb_checkpoints/
-eels/.ipynb_checkpoints/
-nbed/.ipynb_checkpoints/
-proc/.ipynb_checkpoints/
-sim/.ipynb_checkpoints/
-util/.ipynb_checkpoints/
-dpc/.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+stemtools/.ipynb_checkpoints/
+stemtools/adf/.ipynb_checkpoints/
+stemtools/afit/.ipynb_checkpoints/
+stemtools/beam/.ipynb_checkpoints/
+stemtools/dpc/.ipynb_checkpoints/
+stemtools/eels/.ipynb_checkpoints/
+stemtools/nbed/.ipynb_checkpoints/
+stemtools/proc/.ipynb_checkpoints/
+stemtools/sim/.ipynb_checkpoints/
+stemtools/util/.ipynb_checkpoints/
+stemtools/dpc/.ipynb_checkpoints/
+stemtools/pty/.ipynb_checkpoints/
 
 # Mac OSX folder files
 *.DS_Store

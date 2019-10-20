@@ -17,7 +17,7 @@ def wavelength_ang(voltage_kV):
     -------
     wavelength: float
                 relativistic electron wavelength in 
-                picometers
+                angstroms
     
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
