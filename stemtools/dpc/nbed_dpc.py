@@ -89,3 +89,102 @@ def strain_and_disk(data4D,
         COM_x[ii,jj] = pattern_x - mean_center[0]
         COM_y[ii,jj] = pattern_y - mean_center[1]
     return e_xx,e_xy,e_th,e_yy,disk_x,disk_y,COM_x,COM_y
+
+@numba.jit
+def dpc_central_disk(data4D,
+                     disk_size,
+                     position,
+                     ROI=1,
+                     med_val=20):
+    """
+    DPC routine on only the central disk
+    
+    Parameters
+    ----------
+    data4D:     ndarray 
+                The 4 dimensional dataset that will be analyzed
+                The first two dimensions are the Fourier space
+                diffraction dimensions and the last two dimensions
+                are the real space scanning dimensions
+    disk_size:  float
+                Size of the central disk
+    position:   ndarray
+                X and Y positions
+                This is the initial guess that will be refined
+    ROI:        ndarray
+                The region of interest for the scanning region 
+                that will be analyzed. If no ROI is given then
+                the entire scanned area will be analyzed
+    med_val:    float
+                Sometimes some pixels are either too bright in
+                the diifraction patterns due to stray muons or
+                are zero due to dead detector pixels. This removes
+                the effect of such pixels before Sobel filtering
+    
+    Returns
+    -------
+    p_cen: ndarray
+           P positions of the central disk
+    q_cen: ndarray
+           Q positions of the central disk
+    p_com: ndarray
+           P positions of the center of mass 
+           of the central disk
+    q_com: ndarray
+           Q positions of the center of mass 
+           of the central disk
+    
+    Notes
+    -----
+    Only the region of interest of the  
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    warnings.filterwarnings('ignore')
+    
+    if np.size(ROI) < 2:
+        ROI = np.ones((data4D.shape[2],data4D.shape[3]),dtype=bool)
+    
+    yy,xx = np.mgrid[0:data4D.shape[2],0:data4D.shape[3]]
+    data4D_ROI = data4D[:,:,yy[ROI],xx[ROI]]
+    pp,qq = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
+    no_points = np.sum(ROI)
+    fitted_pos = np.zeros((2,no_points),dtype=np.float64)
+    fitted_com = np.zeros((2,no_points),dtype=np.float64)
+    
+    pos_p = position[0]
+    pos_q = position[1]
+    corr_disk = iu.make_circle(np.asarray(data4D.shape[0:2]),pos_p,pos_q,disk_size)
+    sobel_corr_disk,_ = sc.sobel(corr_disk)
+        
+    p_cen = np.zeros((data4D.shape[2],data4D.shape[3]),dtype=np.float64)
+    q_cen = np.zeros((data4D.shape[2],data4D.shape[3]),dtype=np.float64)
+    p_com = np.zeros((data4D.shape[2],data4D.shape[3]),dtype=np.float64)
+    q_com = np.zeros((data4D.shape[2],data4D.shape[3]),dtype=np.float64)
+    
+    for ii in numba.prange(int(no_points)):
+        cbed_image = data4D_ROI[:,:,ii]
+        slm_image,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(cbed_image),3))
+        slm_image[slm_image > med_val*np.median(slm_image)] = med_val*np.median(slm_image)
+        slm_image[slm_image < np.median(slm_image)/med_val] = np.median(slm_image)/med_val
+        corr_image = iu.cross_corr(slm_image,sobel_corr_disk,hybridizer=0.25)
+
+        fitted_disk_list = gt.fit_gaussian2D_mask(corr_image,pos_p,pos_q,disk_size)
+        fitted_center = fitted_disk_list[0:2] + (np.asarray((pos_p,pos_q)) - 0.5*(np.flip(np.asarray(np.shape(cbed_image)))))
+        fitted_pos[0:2,ii] = fitted_center
+        
+        fitted_circle = iu.make_circle(np.asarray(cbed_image.shape),fitted_center[0],fitted_center[1],disk_size)
+        fitted_circle = fitted_circle.astype(bool)
+        image_sum = np.sum(cbed_image[fitted_circle])
+        com_pos_p = np.sum(cbed_image[fitted_circle] * pp[fitted_circle])/image_sum
+        com_pos_q = np.sum(cbed_image[fitted_circle] * qq[fitted_circle])/image_sum
+        
+        fitted_com[0:2,ii] = np.asarray((com_pos_p,com_pos_q))
+    
+    p_cen[yy[ROI],xx[ROI]] = fitted_pos[0,:]
+    q_cen[yy[ROI],xx[ROI]] = fitted_pos[1,:]
+    p_com[yy[ROI],xx[ROI]] = fitted_com[0,:]
+    q_com[yy[ROI],xx[ROI]] = fitted_com[1,:]
+    
+    return p_cen,q_cen,p_com,q_com
