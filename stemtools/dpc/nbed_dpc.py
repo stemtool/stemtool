@@ -266,10 +266,10 @@ def integrate_dpc(xshift,
     y_mirr_ft = np.fft.fft2(y_mirrored)
     
     #Calculated inverse Fourier space calibration
-    qx = np.mean(np.diff((np.arange((-size_array[1] / 2),(size_array[1] / 2), 1))/
-                         (fourier_calibration*size_array[1])))
-    qy = np.mean(np.diff((np.arange((-size_array[0] / 2),(size_array[0] / 2), 1))/
-                         (fourier_calibration*size_array[0])))
+    qx = np.mean(np.diff((np.arange(-size_array[1],size_array[1], 1))/
+                         (2*fourier_calibration*size_array[1])))
+    qy = np.mean(np.diff((np.arange(-size_array[0],size_array[0], 1))/
+                         (2*fourier_calibration*size_array[0])))
     
     #Calculate mirrored CPM integrand
     mirr_ft = (x_mirr_ft + ((1j)*y_mirr_ft))/(qx + ((1j)*qy))
