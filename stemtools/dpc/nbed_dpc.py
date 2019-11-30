@@ -33,6 +33,13 @@ def fit_nbed_disks(corr_image,
     cy = (-1)*cy
     return fitted_disk_list,np.asarray((cx,cy),dtype=np.float64),lcbed
 
+def sobel_filter(image,
+                 med_filter=50):
+    ls_image,_ = sc.sobel(iu.image_logarizer(image))
+    ls_image[ls_image > med_factor*np.median(ls_image)] = med_factor*np.median(ls_image)
+    ls_image[ls_image < np.median(ls_image)/med_val] = np.median(ls_image)/med_val
+    return ls_image
+
 @numba.jit
 def strain_and_disk(data4D,
                     disk_size,
@@ -68,7 +75,8 @@ def strain_and_disk(data4D,
     #Calculate for mean CBED if no reference
     mean_cbed = np.mean(data4D,axis=(-1,-2),dtype=np.float64)
     mean_ls_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
-    mean_ls_cbed[mean_ls_cbed > med_factor*np.median(mean_ls_cbed)] = np.median(mean_ls_cbed)
+    mean_ls_cbed[mean_ls_cbed > med_factor*np.median(mean_ls_cbed)] = med_factor*np.median(mean_ls_cbed)
+    mean_ls_cbed[mean_ls_cbed < np.median(mean_ls_cbed)/med_factor] = np.median(mean_ls_cbed)/med_factor
     mean_lsc = iu.cross_corr_unpadded(mean_ls_cbed,sobel_center_disk)
     _,mean_center,mean_axes = fit_nbed_disks(mean_lsc,disk_size,pixel_list_xy,disk_list)
     axes_lengths = ((mean_axes[:,0]**2) + (mean_axes[:,1]**2))**0.5

@@ -715,3 +715,10 @@ def get_inside(edges):
     inside[inside < 0.1] = 0
     inside[inside > 0] = 1
     return inside.astype(bool)
+
+def sobel_filter(image,
+                 med_filter=50):
+    ls_image,_ = sc.sobel(iu.image_logarizer(image))
+    ls_image[ls_image > med_factor*np.median(ls_image)] = med_factor*np.median(ls_image)
+    ls_image[ls_image < np.median(ls_image)/med_val] = np.median(ls_image)/med_val
+    return ls_image
