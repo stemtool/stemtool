@@ -36,8 +36,8 @@ def fit_nbed_disks(corr_image,
 def sobel_filter(image,
                  med_filter=50):
     ls_image,_ = sc.sobel(iu.image_logarizer(image))
-    ls_image[ls_image > med_factor*np.median(ls_image)] = med_factor*np.median(ls_image)
-    ls_image[ls_image < np.median(ls_image)/med_val] = np.median(ls_image)/med_val
+    ls_image[ls_image > (med_filter*np.median(ls_image))] = med_filter*np.median(ls_image)
+    ls_image[ls_image < (np.median(ls_image)/med_filter)] = np.median(ls_image)/med_filter
     return ls_image
 
 @numba.jit
