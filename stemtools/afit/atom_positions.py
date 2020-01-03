@@ -1,4 +1,4 @@
-from skimage import feature as skf
+from skimage import feature as skfeat
 import matplotlib.pyplot as plt
 import numpy as np
 import numba
@@ -10,9 +10,22 @@ import warnings
 from ..util import gauss_utils as gt
 from ..util import fourier_reg as fr
 
+def remove_close_vals(input_arr,limit):
+    result = np.copy(input_arr) 
+    ii = 0
+    newlen = len(result)
+    while(ii < newlen): 
+        dist = (np.sum(((result[:,0:2] - result[ii,0:2]) ** 2),axis=1)) ** 0.5
+        distbool = (dist > limit)
+        distbool[ii] = True
+        result = np.copy(result[distbool,:])
+        ii = ii + 1
+        newlen = len(result)
+    return result
+
 def peaks_vis(data_image,
-              distance=1,
-              threshold=0.1,
+              dist = 10,
+              thresh=0.1,
               imsize=(20,20)):
     """
     Find atom maxima pixels in images
@@ -21,13 +34,16 @@ def peaks_vis(data_image,
     ----------
     data_image: ndarray
                 Original atomic resolution image
-    distance:   int
+    dist:       int
                 Average distance between neighboring peaks
-    threshold:  float
+                Default is 10
+    thresh:     float
                 The cutoff intensity value below which a peak 
                 will not be detected
+                Default is 0.1
     imsize:     ndarray
                 Size of the display image
+                Default is (20,20)
     
     Returns
     -------
@@ -47,12 +63,19 @@ def peaks_vis(data_image,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    data_image = data_image - np.amin(data_image)
-    data_image = data_image / np.amax(data_image)
-    peaks = skf.peak_local_max(data_image,min_distance=distance,threshold_abs=threshold)
+    data_image = (data_image - np.amin(data_image))/(np.amax(data_image) - np.amin(data_image))
+    thresh_arr = np.array(data_image > thresh,dtype=np.float)
+    data_thresh = (data_image * thresh_arr) - thresh
+    data_thresh[data_thresh < 0] = 0
+    data_thresh = data_thresh/(1 - thresh)
+    data_peaks = skfeat.peak_local_max(data_thresh,min_distance=int(dist/3),indices=False)
+    peak_labels = scnd.measurements.label(data_peaks)[0]
+    merged_peaks = scnd.measurements.center_of_mass(data_peaks, peak_labels, range(1, np.max(peak_labels)+1))
+    peaks = np.array(merged_peaks)
+    peaks = remove_close_vals(peaks,dist)
     plt.figure(figsize=imsize)
     plt.imshow(data_image)
-    plt.scatter(peaks[:,1],peaks[:,0],c='g', s=15)
+    plt.scatter(peaks[:,1],peaks[:,0],c='b', s=15)
     return peaks
 
 @numba.jit
