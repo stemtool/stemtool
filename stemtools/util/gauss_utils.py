@@ -47,9 +47,9 @@ def initialize_gauss(xx,
         x_com = xx[zz == np.amax(zz)]
         y_com = yy[zz == np.amax(zz)]
     elif (center_type == 'COM'):
-        total = zz.sum()
-        x_com = ((xx*zz).sum())/total
-        y_com = ((yy*zz).sum())/total
+        total = np.sum(zz)
+        x_com = np.sum(xx * zz)/total
+        y_com = np.sum(yy * zz)/total
     zz_norm = iu.image_normalizer(zz)
     x_fwhm = xx[zz_norm > 0.5]
     x_fwhm = np.abs(x_fwhm - x_com)
@@ -58,7 +58,7 @@ def initialize_gauss(xx,
     sigma_x = np.amax(x_fwhm)/(2*((2*np.log(2)) ** 0.5))
     sigma_y = np.amax(y_fwhm)/(2*((2*np.log(2)) ** 0.5))
     height = np.amax(zz)
-    return x_com, y_com, 0, sigma_x, sigma_y, height
+    return (x_com, y_com, 0, sigma_x, sigma_y, height)
 
 def process_circul_mask(image_data,
                         mask_x,
