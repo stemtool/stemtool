@@ -127,7 +127,8 @@ def refine_atoms(image_data,
 def mpfit(main_image,
           initial_peaks,
           peak_runs = 16,
-          cut_point = 2/3):
+          cut_point = 2/3,
+          tol_val = 0.01):
     """
     Multi-Gaussian Peak Refinement (mpfit) 
     
@@ -145,6 +146,9 @@ def mpfit(main_image,
                     distance. Only Gaussian peaks below this are
                     used for the final estimation
                     Default is 2/3
+    tol_val:        float
+                    The tolerance value to use for a gaussian estimation
+                    Default is 0.01
     
     Returns
     -------
@@ -174,34 +178,39 @@ def mpfit(main_image,
     for ii in np.arange(len(initial_peaks)):
         ccd = np.sum(((initial_peaks[:,0:2] - initial_peaks[ii,0:2]) ** 2),axis=1)
         dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
-    del ccd
     med_dist = np.median(dist)
     mpfit_peaks = np.zeros_like(initial_peaks,dtype=np.float)
     yy,xx = np.mgrid[0:main_image.shape[0],0:main_image.shape[1]]
     for jj in np.arange(len(initial_peaks)):
         ystart = initial_peaks[jj,0]
         xstart = initial_peaks[jj,1]
-        sub_y = (yy - ystart) < med_dist
-        sub_x = (xx - xstart) < med_dist
+        sub_y = np.abs(yy - ystart) < med_dist
+        sub_x = np.abs(xx - xstart) < med_dist
         sub = np.logical_and(sub_x,sub_y)
         xvals = xx[sub]
         yvals = yy[sub]
         zvals = main_image[sub]
-        initial_guess = st.util.initialize_gauss(xvals,yvals,zvals)
         zcalc = np.zeros_like(zvals)
         cvals = np.zeros((peak_runs,4),dtype=np.float)
         for ii in np.arange(peak_runs):
             zvals = zvals - zcalc
-            zmin = np.amin(zvals)
+            zgaus = (zvals - np.amin(zvals))/(np.amax(zvals) - np.amin(zvals))
             mask_radius = med_dist
             xy = (xvals,yvals)
-            popt, _ = spo.curve_fit(gt.gaussian_2D_function, xy, zvals, ftol=0.01, xtol=0.01)
+            initial_guess = gt.initialize_gauss(xvals,yvals,zgaus)
+            lower_bound = ((initial_guess[0]-med_dist),(initial_guess[1]-med_dist),
+                           -180,0,0,((-2.5)*initial_guess[5]))
+            upper_bound = ((initial_guess[0]+med_dist),(initial_guess[1]+med_dist),
+                           180,(2.5*mask_radius),(2.5*mask_radius),(2.5*initial_guess[5]))
+            popt, _ = spo.curve_fit(gt.gaussian_2D_function, xy, zgaus, initial_guess,
+                                    bounds=(lower_bound,upper_bound),ftol=tol_val, xtol=tol_val)
             cvals[ii,1] = popt[0]
             cvals[ii,0] = popt[1]
-            cvals[ii,-1] = popt[-1]
+            cvals[ii,-1] = popt[-1] * (np.amax(zvals) - np.amin(zvals))
             cvals[ii,2] = (((popt[0] - xstart) ** 2) + ((popt[1] - ystart) ** 2)) ** 0.5
             zcalc = gt.gaussian_2D_function(xy,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5])
-        required_cvals = cvals[:,2] < cut_point*med_dist
+            zcalc = (zcalc * (np.amax(zvals) - np.amin(zvals))) + np.amin(zvals)
+        required_cvals = cvals[:,2] < (cut_point*med_dist)
         total = np.sum(cvals[required_cvals,3])
         y_mpfit = np.sum(cvals[required_cvals,0] * cvals[required_cvals,3])/total
         x_mpfit = np.sum(cvals[required_cvals,1] * cvals[required_cvals,3])/total
