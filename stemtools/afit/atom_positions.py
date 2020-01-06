@@ -1,4 +1,4 @@
-from skimage import feature as skf
+from skimage import feature as skfeat
 import matplotlib.pyplot as plt
 import numpy as np
 import numba
@@ -10,9 +10,22 @@ import warnings
 from ..util import gauss_utils as gt
 from ..util import fourier_reg as fr
 
+def remove_close_vals(input_arr,limit):
+    result = np.copy(input_arr) 
+    ii = 0
+    newlen = len(result)
+    while(ii < newlen): 
+        dist = (np.sum(((result[:,0:2] - result[ii,0:2]) ** 2),axis=1)) ** 0.5
+        distbool = (dist > limit)
+        distbool[ii] = True
+        result = np.copy(result[distbool,:])
+        ii = ii + 1
+        newlen = len(result)
+    return result
+
 def peaks_vis(data_image,
-              distance=1,
-              threshold=0.1,
+              dist = 10,
+              thresh=0.1,
               imsize=(20,20)):
     """
     Find atom maxima pixels in images
@@ -21,13 +34,16 @@ def peaks_vis(data_image,
     ----------
     data_image: ndarray
                 Original atomic resolution image
-    distance:   int
+    dist:       int
                 Average distance between neighboring peaks
-    threshold:  float
+                Default is 10
+    thresh:     float
                 The cutoff intensity value below which a peak 
                 will not be detected
+                Default is 0.1
     imsize:     ndarray
                 Size of the display image
+                Default is (20,20)
     
     Returns
     -------
@@ -47,12 +63,19 @@ def peaks_vis(data_image,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    data_image = data_image - np.amin(data_image)
-    data_image = data_image / np.amax(data_image)
-    peaks = skf.peak_local_max(data_image,min_distance=distance,threshold_abs=threshold)
+    data_image = (data_image - np.amin(data_image))/(np.amax(data_image) - np.amin(data_image))
+    thresh_arr = np.array(data_image > thresh,dtype=np.float)
+    data_thresh = (data_image * thresh_arr) - thresh
+    data_thresh[data_thresh < 0] = 0
+    data_thresh = data_thresh/(1 - thresh)
+    data_peaks = skfeat.peak_local_max(data_thresh,min_distance=int(dist/3),indices=False)
+    peak_labels = scnd.measurements.label(data_peaks)[0]
+    merged_peaks = scnd.measurements.center_of_mass(data_peaks, peak_labels, range(1, np.max(peak_labels)+1))
+    peaks = np.array(merged_peaks)
+    peaks = remove_close_vals(peaks,dist)
     plt.figure(figsize=imsize)
     plt.imshow(data_image)
-    plt.scatter(peaks[:,1],peaks[:,0],c='g', s=15)
+    plt.scatter(peaks[:,1],peaks[:,0],c='b', s=15)
     return peaks
 
 @numba.jit
@@ -99,6 +122,205 @@ def refine_atoms(image_data,
         refined_pos[ii,2:6] = fitted_diff[2:6]
         refined_pos[ii,-1] = fitted_diff[-1] - 1
     return refined_pos
+
+@numba.jit
+def mpfit(main_image,
+          initial_peaks,
+          peak_runs = 16,
+          cut_point = 2/3,
+          tol_val = 0.01):
+    """
+    Multi-Gaussian Peak Refinement (mpfit) 
+    
+    Parameters
+    ----------
+    main_image:     ndarray
+                    Original atomic resolution image
+    initial_peaks:  ndarray
+                    Y and X position of maxima/minima
+    peak_runs:      int
+                    Number of multi-Gaussian steps to run
+                    Default is 16
+    cut_point:      float
+                    Ratio of distance to the median inter-peak
+                    distance. Only Gaussian peaks below this are
+                    used for the final estimation
+                    Default is 2/3
+    tol_val:        float
+                    The tolerance value to use for a gaussian estimation
+                    Default is 0.01
+    
+    Returns
+    -------
+    mpfit_peaks: ndarray
+                 List of refined peak positions as y, x
+    
+    Notes
+    -----
+    This is the multiple Gaussian peak fitting technique
+    where the initial atom positions are fitted with a 
+    single 2D Gaussian function. The calculated Gaussian is
+    then subsequently subtracted and refined again. The final
+    refined position is the sum of all the positions scaled 
+    with the amplitude
+    
+    References:
+    -----------
+    Mukherjee, D., Miao, L., Stone, G. and Alem, N., 2019. 
+    MPFit: A robust method for fitting atomic resolution 
+    images with multiple Gaussian peaks. 
+    arXiv preprint arXiv:1910.11948.
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    dist = np.zeros(len(initial_peaks))
+    for ii in np.arange(len(initial_peaks)):
+        ccd = np.sum(((initial_peaks[:,0:2] - initial_peaks[ii,0:2]) ** 2),axis=1)
+        dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
+    med_dist = np.median(dist)
+    mpfit_peaks = np.zeros_like(initial_peaks,dtype=np.float)
+    yy,xx = np.mgrid[0:main_image.shape[0],0:main_image.shape[1]]
+    for jj in np.arange(len(initial_peaks)):
+        ystart = initial_peaks[jj,0]
+        xstart = initial_peaks[jj,1]
+        sub_y = np.abs(yy - ystart) < med_dist
+        sub_x = np.abs(xx - xstart) < med_dist
+        sub = np.logical_and(sub_x,sub_y)
+        xvals = xx[sub]
+        yvals = yy[sub]
+        zvals = main_image[sub]
+        zcalc = np.zeros_like(zvals)
+        cvals = np.zeros((peak_runs,4),dtype=np.float)
+        for ii in np.arange(peak_runs):
+            zvals = zvals - zcalc
+            zgaus = (zvals - np.amin(zvals))/(np.amax(zvals) - np.amin(zvals))
+            mask_radius = med_dist
+            xy = (xvals,yvals)
+            initial_guess = gt.initialize_gauss(xvals,yvals,zgaus)
+            lower_bound = ((initial_guess[0]-med_dist),(initial_guess[1]-med_dist),
+                           -180,0,0,((-2.5)*initial_guess[5]))
+            upper_bound = ((initial_guess[0]+med_dist),(initial_guess[1]+med_dist),
+                           180,(2.5*mask_radius),(2.5*mask_radius),(2.5*initial_guess[5]))
+            popt, _ = spo.curve_fit(gt.gaussian_2D_function, xy, zgaus, initial_guess,
+                                    bounds=(lower_bound,upper_bound),ftol=tol_val, xtol=tol_val)
+            cvals[ii,1] = popt[0]
+            cvals[ii,0] = popt[1]
+            cvals[ii,-1] = popt[-1] * (np.amax(zvals) - np.amin(zvals))
+            cvals[ii,2] = (((popt[0] - xstart) ** 2) + ((popt[1] - ystart) ** 2)) ** 0.5
+            zcalc = gt.gaussian_2D_function(xy,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5])
+            zcalc = (zcalc * (np.amax(zvals) - np.amin(zvals))) + np.amin(zvals)
+        required_cvals = cvals[:,2] < (cut_point*med_dist)
+        total = np.sum(cvals[required_cvals,3])
+        y_mpfit = np.sum(cvals[required_cvals,0] * cvals[required_cvals,3])/total
+        x_mpfit = np.sum(cvals[required_cvals,1] * cvals[required_cvals,3])/total
+        mpfit_peaks[jj,0:2] = np.asarray((y_mpfit,x_mpfit))
+    return mpfit_peaks
+
+@numba.jit
+def mpfit_voronoi(main_image,
+                  initial_peaks,
+                  peak_runs = 16,
+                  cut_point = 2/3,
+                  tol_val = 0.01):
+    """
+    Multi-Gaussian Peak Refinement (mpfit) 
+    
+    Parameters
+    ----------
+    main_image:     ndarray
+                    Original atomic resolution image
+    initial_peaks:  ndarray
+                    Y and X position of maxima/minima
+    peak_runs:      int
+                    Number of multi-Gaussian steps to run
+                    Default is 16
+    cut_point:      float
+                    Ratio of distance to the median inter-peak
+                    distance. Only Gaussian peaks below this are
+                    used for the final estimation
+                    Default is 2/3
+    tol_val:        float
+                    The tolerance value to use for a gaussian estimation
+                    Default is 0.01
+    
+    Returns
+    -------
+    mpfit_peaks: ndarray
+                 List of refined peak positions as y, x
+    
+    Notes
+    -----
+    This is the multiple Gaussian peak fitting technique
+    where the initial atom positions are fitted with a 
+    single 2D Gaussian function. The calculated Gaussian is
+    then subsequently subtracted and refined again. The final
+    refined position is the sum of all the positions scaled 
+    with the amplitude. The difference with the standard mpfit
+    code is that the masking region is actually chosen as a 
+    Voronoi region from the nearest neighbors
+    
+    References:
+    -----------
+    Mukherjee, D., Miao, L., Stone, G. and Alem, N., 2019. 
+    MPFit: A robust method for fitting atomic resolution 
+    images with multiple Gaussian peaks. 
+    arXiv preprint arXiv:1910.11948.
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    distm = np.zeros(len(initial_peaks))
+    for ii in np.arange(len(initial_peaks)):
+        ccd = np.sum(((initial_peaks[:,0:2] - initial_peaks[ii,0:2]) ** 2),axis=1)
+        distm[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
+    med_dist = np.median(distm)
+    mpfit_peaks = np.zeros_like(initial_peaks,dtype=np.float)
+    yy,xx = np.mgrid[0:main_image.shape[0],0:main_image.shape[1]]
+    cutoff = med_dist*2.5
+    for jj in np.arange(len(initial_peaks)):
+        ypos,xpos = initial_peaks[jj,:]
+        dist = (np.sum(((initial_peaks[:,0:2] - sim_peaks[jj,0:2]) ** 2),axis=1)) ** 0.5
+        distn = dist < cutoff
+        distn[dist < 0.1] = False
+        neigh = initial_peaks[distn,0:2]
+        sub = (((yy - ypos)**2) + ((xx - xpos)**2)) < (cutoff**2)
+        xvals = xx[sub]
+        yvals = yy[sub]
+        zvals = main_image[sub]
+        maindist = ((xvals - xpos)**2) + ((yvals - ypos)**2)
+        dist_mat = np.zeros((len(xvals),len(neigh)))
+        for ii in np.arange(len(neigh)):
+            dist_mat[:,ii] = ((xvals - neigh[ii,1])**2) + ((yvals - neigh[ii,0])**2)
+        neigh_dist = np.amin(dist_mat,axis=1)
+        voronoi = maindist < ((1+blur_factor)*neigh_dist)
+        xvor = xvals[voronoi]
+        yvor = yvals[voronoi]
+        zvor = zvals[voronoi]
+        vor_dist = np.amax((((xvor - xpos)**2) + ((yvor - ypos)**2))**0.5)
+        zcalc = np.zeros_like(zvor)
+        xy = (xvor,yvor)
+        cvals = np.zeros((peak_runs,4),dtype=np.float)
+        for ii in np.arange(peak_runs):
+            zvor = zvor - zcalc
+            zgaus = (zvor - np.amin(zvor))/(np.amax(zvor) - np.amin(zvor))
+            initial_guess = gt.initialize_gauss(xvor,yvor,zgaus)
+            lower_bound = (np.amin(xvor),np.amin(yvor),-180,0,0,((-2.5)*initial_guess[5]))
+            upper_bound = (np.amax(xvor),np.amax(yvor),180,vor_dist,vor_dist,(2.5*initial_guess[5]))
+            popt, _ = spo.curve_fit(gt.gaussian_2D_function, xy, zgaus, initial_guess,
+                                    bounds=(lower_bound,upper_bound),ftol=tol_val, xtol=tol_val)
+            cvals[ii,1] = popt[0]
+            cvals[ii,0] = popt[1]
+            cvals[ii,-1] = popt[-1] * (np.amax(zvor) - np.amin(zvor))
+            cvals[ii,2] = (((popt[0] - xpos) ** 2) + ((popt[1] - ypos) ** 2)) ** 0.5
+            zcalc = gt.gaussian_2D_function(xy,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5])
+            zcalc = (zcalc * (np.amax(zvor) - np.amin(zvor))) + np.amin(zvor)
+        required_cvals = cvals[:,2] < (cut_point*vor_dist)
+        total = np.sum(cvals[required_cvals,3])
+        y_mpfit = np.sum(cvals[required_cvals,0] * cvals[required_cvals,3])/total
+        x_mpfit = np.sum(cvals[required_cvals,1] * cvals[required_cvals,3])/total
+        mpfit_peaks[jj,0:2] = np.asarray((y_mpfit,x_mpfit))
+    return mpfit_peaks
 
 def fourier_mask(original_image,
                  center,

@@ -77,7 +77,7 @@ def define_reference(image,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    xx,yy = np.meshgrid(np.arange(imageDC.shape[1]),np.arange(imageDC.shape[0]))
+    xx,yy = np.meshgrid(np.arange(image.shape[1]),np.arange(image.shape[0]))
     m_AB = (A[1] - B[1])/(A[0] - B[0])
     c_AB = A[1] - (m_AB*A[0])
     m_BC = (B[1] - C[1])/(B[0] - C[0])
@@ -90,10 +90,10 @@ def define_reference(image,
                              np.logical_and((yy < (m_CD*xx) + c_CD),((yy - c_DA)/m_DA < xx)))
     plt.figure(figsize=(15,15))
     plt.imshow(iu.image_normalizer(image)+0.33*ref_reg)
-    plt.annotate(A, (A[0]/image.shape[0], (1 - A[1]/imageDC.shape[1])), textcoords='axes fraction', size=15,color='w')
-    plt.annotate(B, (B[0]/image.shape[0], (1 - B[1]/imageDC.shape[1])), textcoords='axes fraction', size=15,color='w')
-    plt.annotate(C, (C[0]/image.shape[0], (1 - C[1]/imageDC.shape[1])), textcoords='axes fraction', size=15,color='w')
-    plt.annotate(D, (D[0]/image.shape[0], (1 - D[1]/imageDC.shape[1])), textcoords='axes fraction', size=15,color='w')
+    plt.annotate(A, (A[0]/image.shape[0], (1 - A[1]/image.shape[1])), textcoords='axes fraction', size=15,color='w')
+    plt.annotate(B, (B[0]/image.shape[0], (1 - B[1]/image.shape[1])), textcoords='axes fraction', size=15,color='w')
+    plt.annotate(C, (C[0]/image.shape[0], (1 - C[1]/image.shape[1])), textcoords='axes fraction', size=15,color='w')
+    plt.annotate(D, (D[0]/image.shape[0], (1 - D[1]/image.shape[1])), textcoords='axes fraction', size=15,color='w')
     plt.scatter(A[0],A[1])
     plt.scatter(B[0],B[1])
     plt.scatter(C[0],C[1])
@@ -186,9 +186,9 @@ def g_diff(P_matrix,ref_matrix):
 def refined_P(P_matrix,old_g,ref_matrix,image,iter_count=10):
     new_g = old_g
     new_p = P_matrix
-    for _ in range(iter_count): 
+    for _ in range(int(iter_count)): 
         g_delta = g_diff(new_p,ref_matrix)
-        new_g = new_g - g_delta
+        new_g = new_g + g_delta
         new_p = p_matrix(new_g,image)
     return new_g,new_p
 

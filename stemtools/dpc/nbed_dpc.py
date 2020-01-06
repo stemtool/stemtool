@@ -33,13 +33,25 @@ def fit_nbed_disks(corr_image,
     cy = (-1)*cy
     return fitted_disk_list,np.asarray((cx,cy),dtype=np.float64),lcbed
 
+def sobel_filter(image,
+                 med_filter=50):
+    ls_image,_ = sc.sobel(iu.image_logarizer(image))
+    ls_image[ls_image > (med_filter*np.median(ls_image))] = med_filter*np.median(ls_image)
+    ls_image[ls_image < (np.median(ls_image)/med_filter)] = np.median(ls_image)/med_filter
+    return ls_image
+
 @numba.jit
 def strain_and_disk(data4D,
                     disk_size,
                     pixel_list_xy,
                     disk_list,
+                    ROI=1,
                     med_factor=50):
     warnings.filterwarnings('ignore')
+    
+    if np.size(ROI) < 2:
+        ROI = np.ones((data4D.shape[2],data4D.shape[3]),dtype=bool)
+    
     # Calculate needed values
     scan_size = np.asarray(data4D.shape)[2:4]
     sy,sx = np.mgrid[0:scan_size[0],0:scan_size[1]]
@@ -49,6 +61,7 @@ def strain_and_disk(data4D,
     center_disk = (iu.make_circle(cbed_size,cbed_size[1]/2,cbed_size[0]/2,disk_size)).astype(np.float64)
     i_matrix = (np.eye(2)).astype(np.float64)
     sobel_center_disk,_ = sc.sobel(center_disk)
+    
     # Initialize matrices
     e_xx = np.zeros(scan_size,dtype=np.float64)
     e_xy = np.zeros(scan_size,dtype=np.float64)
@@ -58,15 +71,18 @@ def strain_and_disk(data4D,
     disk_y = np.zeros(scan_size,dtype=np.float64)
     COM_x = np.zeros(scan_size,dtype=np.float64)
     COM_y = np.zeros(scan_size,dtype=np.float64)
+    
     #Calculate for mean CBED if no reference
     mean_cbed = np.mean(data4D,axis=(-1,-2),dtype=np.float64)
     mean_ls_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
-    mean_ls_cbed[mean_ls_cbed > med_factor*np.median(mean_ls_cbed)] = np.median(mean_ls_cbed)
+    mean_ls_cbed[mean_ls_cbed > med_factor*np.median(mean_ls_cbed)] = med_factor*np.median(mean_ls_cbed)
+    mean_ls_cbed[mean_ls_cbed < np.median(mean_ls_cbed)/med_factor] = np.median(mean_ls_cbed)/med_factor
     mean_lsc = iu.cross_corr_unpadded(mean_ls_cbed,sobel_center_disk)
     _,mean_center,mean_axes = fit_nbed_disks(mean_lsc,disk_size,pixel_list_xy,disk_list)
     axes_lengths = ((mean_axes[:,0]**2) + (mean_axes[:,1]**2))**0.5
     beam_r = axes_lengths[1]
     inverse_axes = np.linalg.inv(mean_axes)
+    
     for pp in range(np.size(sy)):
         ii = scan_positions[0,pp]
         jj = scan_positions[1,pp]
@@ -136,7 +152,12 @@ def dpc_central_disk(data4D,
     
     Notes
     -----
-    Only the region of interest of the  
+    This is when we want to perform DPC without bothering
+    about the higher order disks. The ROI of the 4D dataset
+    is calculated, and the central disk is fitted in each ROI
+    point, and then a disk is calculated centered on the edge
+    fitted center and then the COM inside that disk is also
+    calculated.
                  
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
@@ -188,3 +209,81 @@ def dpc_central_disk(data4D,
     q_com[yy[ROI],xx[ROI]] = fitted_com[1,:]
     
     return p_cen,q_cen,p_com,q_com
+
+def integrate_dpc(xshift,
+                  yshift,
+                  fourier_calibration=1):
+    """
+    Integrate DPC shifts using Fourier transforms and 
+    preventing edge effects
+    
+    Parameters
+    ----------
+    xshift:              ndarray 
+                         Beam shift in the X dimension
+    yshift:              ndarray
+                         Beam shift in the X dimensions
+    fourier_calibration: float
+                         Pixel size of the Fourier space
+    
+    Returns
+    -------
+    integrand: ndarray
+               Integrated DPC
+    
+    Notes
+    -----
+    This is based on two ideas - noniterative complex plane 
+    integration and antisymmetric mirror integration. First 
+    two antisymmetric matrices are generated for each of the
+    x shift and y shifts. Then they are integrated in Fourier
+    space as per the idea of complex integration. Finally, a
+    sub-matrix is taken out from the antisymmetric integrand
+    matrix to give the dpc integrand
+    
+    References
+    ----------
+    Bon, Pierre, Serge Monneret, and Benoit Wattellier. 
+    "Noniterative boundary-artifact-free wavefront 
+    reconstruction from its derivatives." Applied optics 
+    51, no. 23 (2012): 5698-5704.
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    
+    #Initialize matrices
+    size_array = np.asarray(np.shape(xshift))
+    x_mirrored = np.zeros(2*size_array,dtype=np.float64)
+    y_mirrored = np.zeros(2*size_array,dtype=np.float64)
+    
+    #Generate antisymmetric X arrays
+    x_mirrored[0:size_array[0],0:size_array[1]] = np.fliplr(np.flipud(0 - xshift))
+    x_mirrored[0:size_array[0],size_array[1]:(2*size_array[1])] = np.fliplr(0 - xshift)
+    x_mirrored[size_array[0]:(2*size_array[0]),0:size_array[1]] = np.flipud(xshift)
+    x_mirrored[size_array[0]:(2*size_array[0]),size_array[1]:(2*size_array[1])] = xshift
+    
+    #Generate antisymmetric Y arrays
+    y_mirrored[0:size_array[0],0:size_array[1]] = np.fliplr(np.flipud(0 - yshift))
+    y_mirrored[0:size_array[0],size_array[1]:(2*size_array[1])] = np.fliplr(yshift)
+    y_mirrored[size_array[0]:(2*size_array[0]),0:size_array[1]] = np.flipud(0 - yshift)
+    y_mirrored[size_array[0]:(2*size_array[0]),size_array[1]:(2*size_array[1])] = yshift
+    
+    #Calculated Fourier transform of antisymmetric matrices
+    x_mirr_ft = np.fft.fft2(x_mirrored)
+    y_mirr_ft = np.fft.fft2(y_mirrored)
+    
+    #Calculated inverse Fourier space calibration
+    qx = np.mean(np.diff((np.arange(-size_array[1],size_array[1], 1))/
+                         (2*fourier_calibration*size_array[1])))
+    qy = np.mean(np.diff((np.arange(-size_array[0],size_array[0], 1))/
+                         (2*fourier_calibration*size_array[0])))
+    
+    #Calculate mirrored CPM integrand
+    mirr_ft = (x_mirr_ft + ((1j)*y_mirr_ft))/(qx + ((1j)*qy))
+    mirr_int = np.fft.ifft2(mirr_ft)
+    
+    #Select integrand from antisymmetric matrix
+    integrand = np.abs(mirr_int[size_array[0]:(2*size_array[0]),size_array[1]:(2*size_array[1])])
+    
+    return integrand
