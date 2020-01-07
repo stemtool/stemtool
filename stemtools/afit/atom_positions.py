@@ -80,8 +80,7 @@ def peaks_vis(data_image,
 
 @numba.jit
 def refine_atoms(image_data,
-                 positions,
-                 distance):
+                 positions):
     """
     Single Gaussian Peak Atom Refinement
     
@@ -91,9 +90,6 @@ def refine_atoms(image_data,
                 Original atomic resolution image
     positions:  ndarray
                 Intensity minima/maxima list
-    distance:   float
-                Average distance between neighboring peaks
-    
     
     Returns
     -------
@@ -111,6 +107,11 @@ def refine_atoms(image_data,
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     warnings.filterwarnings('ignore')
+    dist = np.zeros(len(positions))
+    for ii in np.arange(len(initial_peaks)):
+        ccd = np.sum(((positions[:,0:2] - positions[ii,0:2]) ** 2),axis=1)
+        dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
+    distance = np.median(dist)
     no_of_points = positions.shape[0]
     refined_pos = (np.zeros((no_of_points,6))).astype(float)
     for ii in range(no_of_points):
@@ -179,6 +180,7 @@ def mpfit(main_image,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    warnings.filterwarnings('ignore')
     dist = np.zeros(len(initial_peaks))
     for ii in np.arange(len(initial_peaks)):
         ccd = np.sum(((initial_peaks[:,0:2] - initial_peaks[ii,0:2]) ** 2),axis=1)
@@ -284,6 +286,7 @@ def mpfit_voronoi(main_image,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    warnings.filterwarnings('ignore')
     distm = np.zeros(len(initial_peaks))
     for ii in np.arange(len(initial_peaks)):
         ccd = np.sum(((initial_peaks[:,0:2] - initial_peaks[ii,0:2]) ** 2),axis=1)
