@@ -128,7 +128,8 @@ def mpfit(main_image,
           initial_peaks,
           peak_runs = 16,
           cut_point = 2/3,
-          tol_val = 0.01):
+          tol_val = 0.01,
+          peakparams = False):
     """
     Multi-Gaussian Peak Refinement (mpfit) 
     
@@ -149,6 +150,10 @@ def mpfit(main_image,
     tol_val:        float
                     The tolerance value to use for a gaussian estimation
                     Default is 0.01
+    peakparams:     boolean
+                    If set to True, then the individual Gaussian peaks and
+                    their amplitudes are also returned.
+                    Default is False
     
     Returns
     -------
@@ -181,6 +186,8 @@ def mpfit(main_image,
     med_dist = np.median(dist)
     mpfit_peaks = np.zeros_like(initial_peaks,dtype=np.float)
     yy,xx = np.mgrid[0:main_image.shape[0],0:main_image.shape[1]]
+    cvals = np.zeros((peak_runs,4),dtype=np.float)
+    peak_vals = np.zeros((len(initial_peaks),peak_runs,4),dtype=np.float)
     for jj in np.arange(len(initial_peaks)):
         ystart = initial_peaks[jj,0]
         xstart = initial_peaks[jj,1]
@@ -191,7 +198,6 @@ def mpfit(main_image,
         yvals = yy[sub]
         zvals = main_image[sub]
         zcalc = np.zeros_like(zvals)
-        cvals = np.zeros((peak_runs,4),dtype=np.float)
         for ii in np.arange(peak_runs):
             zvals = zvals - zcalc
             zgaus = (zvals - np.amin(zvals))/(np.amax(zvals) - np.amin(zvals))
@@ -215,14 +221,19 @@ def mpfit(main_image,
         y_mpfit = np.sum(cvals[required_cvals,0] * cvals[required_cvals,3])/total
         x_mpfit = np.sum(cvals[required_cvals,1] * cvals[required_cvals,3])/total
         mpfit_peaks[jj,0:2] = np.asarray((y_mpfit,x_mpfit))
-    return mpfit_peaks
-
+        peak_vals[jj,:,:] = cvals
+    if peakparams:
+        return mpfit_peaks,peak_vals
+    else:
+        return mpfit_peaks
+    
 @numba.jit
 def mpfit_voronoi(main_image,
                   initial_peaks,
                   peak_runs = 16,
                   cut_point = 2/3,
-                  tol_val = 0.01):
+                  tol_val = 0.01,
+                  blur_factor=0.25):
     """
     Multi-Gaussian Peak Refinement (mpfit) 
     
@@ -243,6 +254,9 @@ def mpfit_voronoi(main_image,
     tol_val:        float
                     The tolerance value to use for a gaussian estimation
                     Default is 0.01
+    blur_factor:    float
+                    Make the Voronoi regions slightly bigger. 
+                    Default is 25% bigger
     
     Returns
     -------
@@ -280,7 +294,7 @@ def mpfit_voronoi(main_image,
     cutoff = med_dist*2.5
     for jj in np.arange(len(initial_peaks)):
         ypos,xpos = initial_peaks[jj,:]
-        dist = (np.sum(((initial_peaks[:,0:2] - sim_peaks[jj,0:2]) ** 2),axis=1)) ** 0.5
+        dist = (np.sum(((initial_peaks[:,0:2] - initial_peaks[jj,0:2]) ** 2),axis=1)) ** 0.5
         distn = dist < cutoff
         distn[dist < 0.1] = False
         neigh = initial_peaks[distn,0:2]
