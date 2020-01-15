@@ -287,3 +287,48 @@ def integrate_dpc(xshift,
     integrand = np.abs(mirr_int[size_array[0]:(2*size_array[0]),size_array[1]:(2*size_array[1])])
     
     return integrand
+
+def log_sobel(pattern,
+              med_factor=30,
+              gauss_val=3):
+    """
+    Take the Log-Sobel of a pattern. 
+    
+    Parameters
+    ----------
+    pattern:    ndarray 
+                Image on which Log-Sobel is to be performed
+    med_factor: float
+                Due to detector noise, some stray pixels may often be brighter 
+                than the background. This is used for damping any such pixels.
+                Default is 30
+    gauss_val:  float
+                The standard deviation of the Gaussian filter applied to the
+                logarithm of the CBED pattern. Default is 3
+    
+    Returns
+    -------
+    lsb_pattern: ndarray
+                 Log-Sobel Filtered pattern
+    
+    Notes
+    -----
+    Generate the Sobel filtered pattern of the logarithm of
+    a dataset. Compared to running the Sobel filter back on
+    a log dataset, this takes care of somethings - notably
+    a Gaussian blur is applied to the image, and Sobel spikes
+    are removed when any values are too higher or lower than 
+    the median of the image. This is because real detector
+    images often are very noisy.
+    
+    See Also
+    --------
+    ..nbed.log_sobel4D
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),gauss_val))
+    lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
+    lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor
+    return lsb_pattern

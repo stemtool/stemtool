@@ -637,11 +637,71 @@ def ROI_strain_map(strain_ROI,
     strain_map[ROI] = (strain_ROI).astype(np.float64)
     return strain_map
 
-def log_sobel(data4D):
+@numba.jit
+def log_sobel4D(data4D,
+                scan_dims,
+                med_factor=30,
+                gauss_val=3):
+    """
+    Take the Log-Sobel of a pattern. 
+    
+    Parameters
+    ----------
+    data4D:     ndarray 
+                4D dataset whose CBED patterns will be filtered
+    scan_dims:  tuple
+                Scan dimensions. If your scanning pixels are for 
+                example the first two dimensions specify it as (0,1)
+    med_factor: float
+                Due to detector noise, some stray pixels may often 
+                be brighter than the background. This is used for 
+                damping any such pixels. Default is 30
+    gauss_val:  float
+                The standard deviation of the Gaussian filter applied 
+                to the logarithm of the CBED pattern. Default is 3
+    
+    Returns
+    -------
+    data_lsb: ndarray
+              4D dataset where each CBED pattern has been log
+              Sobel filtered
+    
+    Notes
+    -----
+    Generate the Sobel filtered pattern of the logarithm of
+    a dataset. Compared to running the Sobel filter back on
+    a log dataset, this takes care of somethings - notably
+    a Gaussian blur is applied to the image, and Sobel spikes
+    are removed when any values are too higher or lower than 
+    the median of the image. This is because real detector
+    images often are very noisy. This code generates the filtered
+    CBED at every scan position, and is dimension agnostic, in
+    that your CBED dimensions can either be the first two or last
+    two - just specify the dimensions
+    
+    See Also
+    --------
+    ..dpc.log_sobel
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
     data_lsb = np.zeros_like(data4D,dtype=np.float64)
-    for jj in range(data4D.shape[3]):
-        for ii in range(data4D.shape[2]):
-            data_lsb[:,:,ii,jj],_ = sc.sobel(iu.image_logarizer(data4D[:,:,ii,jj]))
+    scan_dims = np.asarray(scan_dims)
+    scan_dims[scan_dims < 0] = 4 + scan_dims[scan_dims < 0]
+    sum_dims = np.sum(scan_dims)
+    for jj in range(data4D.shape[scan_dims[1]]):
+        for ii in range(data4D.shape[scan_dims[0]]):
+            if sum_dims > 1:
+                lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(data4D[:,:,ii,jj]),gauss_val))
+            else:
+                lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(data4D[ii,jj,:,:]),gauss_val))
+            lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
+            lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor
+            if sum_dims > 1:
+                data_lsb[:,:,ii,jj] = lsb_pattern
+            else:
+                data_lsb[ii,jj,:,:] = lsb_pattern
     return data_lsb
 
 def spectra_finder(data4D,yvals,xvals):
