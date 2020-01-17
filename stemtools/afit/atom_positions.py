@@ -108,7 +108,7 @@ def refine_atoms(image_data,
     """
     warnings.filterwarnings('ignore')
     dist = np.zeros(len(positions))
-    for ii in np.arange(len(initial_peaks)):
+    for ii in np.arange(len(positions)):
         ccd = np.sum(((positions[:,0:2] - positions[ii,0:2]) ** 2),axis=1)
         dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
     distance = np.median(dist)
