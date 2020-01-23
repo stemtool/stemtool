@@ -652,6 +652,7 @@ def log_sobel4D(data4D,
     scan_dims:  tuple
                 Scan dimensions. If your scanning pixels are for 
                 example the first two dimensions specify it as (0,1)
+                Will be converted to numpy array so pass tuple only
     med_factor: float
                 Due to detector noise, some stray pixels may often 
                 be brighter than the background. This is used for 
@@ -677,7 +678,8 @@ def log_sobel4D(data4D,
     images often are very noisy. This code generates the filtered
     CBED at every scan position, and is dimension agnostic, in
     that your CBED dimensions can either be the first two or last
-    two - just specify the dimensions
+    two - just specify the dimensions. Also if loops weirdly need
+    to be outside the for loops - this is a numba feature (bug?)
     
     See Also
     --------
@@ -686,22 +688,22 @@ def log_sobel4D(data4D,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    data_lsb = np.zeros_like(data4D,dtype=np.float64)
     scan_dims = np.asarray(scan_dims)
     scan_dims[scan_dims < 0] = 4 + scan_dims[scan_dims < 0]
     sum_dims = np.sum(scan_dims)
-    for jj in range(data4D.shape[scan_dims[1]]):
-        for ii in range(data4D.shape[scan_dims[0]]):
-            if sum_dims > 1:
-                lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(data4D[:,:,ii,jj]),gauss_val))
-            else:
-                lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(data4D[ii,jj,:,:]),gauss_val))
+    if (sum_dims < 2):
+        data4D = np.transpose(data4D,(2,3,0,1))
+    data_lsb = np.zeros_like(data4D,dtype=np.float)
+    for jj in range(data4D.shape[int(scan_dims[1])]):
+        for ii in range(data4D.shape[int(scan_dims[0])]):
+            pattern = data4D[:,:,ii,jj]
+            pattern = 1000*(1 + iu.image_normalizer(pattern))
+            lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),gauss_val))
             lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
             lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor
-            if sum_dims > 1:
-                data_lsb[:,:,ii,jj] = lsb_pattern
-            else:
-                data_lsb[ii,jj,:,:] = lsb_pattern
+            data_lsb[:,:,ii,jj] = lsb_pattern
+    if (sum_dims < 2):
+        data_lsb = np.transpose(data_lsb,(2,3,0,1))
     return data_lsb
 
 def spectra_finder(data4D,yvals,xvals):
