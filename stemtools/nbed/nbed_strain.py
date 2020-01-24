@@ -861,7 +861,7 @@ def strain4D_general(data4D,
     rotmatrix = np.asarray(((np.cos(rotangle),-np.sin(rotangle)),
                             (np.sin(rotangle),np.cos(rotangle))))
     diff_y, diff_x = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
-    if isnan(npmean(disk_center)):
+    if np.isnan(np.mean(disk_center)):
         disk_center = np.asarray(np.shape(diff_y))/2
     else:
         disk_center = np.asarray(disk_center)
