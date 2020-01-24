@@ -4,6 +4,7 @@ import warnings
 from scipy import ndimage as scnd
 from scipy import optimize as sio
 from scipy import signal as scisig
+from skimage import feature as skfeat
 import matplotlib.colors as mplc
 import matplotlib.pyplot as plt
 from ..util import image_utils as iu
@@ -784,3 +785,149 @@ def sobel_filter(image,
     ls_image[ls_image > (med_filter*np.median(ls_image))] = med_filter*np.median(ls_image)
     ls_image[ls_image < (np.median(ls_image)/med_filter)] = np.median(ls_image)/med_filter
     return ls_image
+
+@numba.jit
+def strain4D_general(data4D,
+                     disk_radius,
+                     ROI=0,
+                     disk_center=np.nan,
+                     rotangle=0,
+                     med_factor=30,
+                     gauss_val=3,
+                     hybrid_cc=0.2):
+    """
+    Get strain from a ROI without the need for
+    specifying Miller indices of diffraction spots
+    
+    Parameters
+    ----------
+    data4D:      ndarray
+                 This is a 4D dataset where the first two dimensions
+                 are the diffraction dimensions and the next two 
+                 dimensions are the scan dimensions
+    disk_radius: float
+                 Radius in pixels of the diffraction disks
+    ROI:         ndarray of dtype bool
+                 Region of interest. If no ROI is passed then the entire
+                 scan region is the ROI
+    disk_center: tuple
+                 Location of the center of the diffraction disk - closest to
+                 the <000> undiffracted beam
+    rotangle:    float 
+                 Angle of rotation of the CBED with respect to the optic axis
+                 This must be in degrees
+    med_factor:  float
+                 Due to detector noise, some stray pixels may often be brighter 
+                 than the background. This is used for damping any such pixels.
+                 Default is 30
+    gauss_val:   float
+                 The standard deviation of the Gaussian filter applied to the
+                 logarithm of the CBED pattern. Default is 3
+    hybrid_cc:   float
+                 Hybridization parameter to be used for cross-correlation.
+                 Default is 0.1  
+    
+    Returns
+    -------
+    e_xx_map: ndarray
+              Strain in the xx direction in the region of interest
+    e_xy_map: ndarray
+              Strain in the xy direction in the region of interest
+    e_th_map: ndarray
+              Angular strain in the region of interest
+    e_yy_map: ndarray
+              Strain in the yy direction in the region of interest
+    list_pos: ndarray
+              List of all the higher order peak positions with 
+              respect to the central disk for all positions in the ROI
+    
+    Notes
+    -----
+    We first of all calculate the preconditioned data (log + Sobel filtered)
+    for every CBED pattern in the ROI. Then the mean preconditioned 
+    pattern is calculated and cross-correlated with the Sobel template. The disk 
+    positions are as peaks in this cross-correlated pattern, with the central
+    disk the one closest to the center of the CBED pattern. Using that insight
+    the distances of the higher order diffraction disks are calculated with respect
+    to the central transmitted beam. This is then performed for all other CBED 
+    patterns. The calculated higher order disk locations are then compared to the 
+    higher order disk locations for the median pattern to generate strain maps.
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    rotangle = np.deg2rad(rotangle)
+    
+    rotmatrix = np.asarray(((np.cos(rotangle),-np.sin(rotangle)),
+                            (np.sin(rotangle),np.cos(rotangle))))
+    diff_y, diff_x = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
+    if isnan(npmean(disk_center)):
+        disk_center = np.asarray(np.shape(diff_y))/2
+    else:
+        disk_center = np.asarray(disk_center)
+    e_xx_map = np.nan*np.ones((data4D.shape[2],data4D.shape[3]))
+    e_xy_map = np.nan*np.ones((data4D.shape[2],data4D.shape[3]))
+    e_th_map = np.nan*np.ones((data4D.shape[2],data4D.shape[3]))
+    e_yy_map = np.nan*np.ones((data4D.shape[2],data4D.shape[3]))
+    radiating = ((diff_y -disk_center[0])**2) + ((diff_x - disk_center[1])**2)
+    disk = np.zeros_like(radiating)
+    disk[radiating < (disk_radius**2)] = 1
+    sobel_disk,_ = sc.sobel(disk)
+    if np.sum(ROI) > 0:
+        imROI = np.ones_like(yy,dtype=bool)
+    else:
+        imROI = ROI
+    ROI_4D = data4D[:,:,imROI]
+    no_of_disks = ROI_4D.shape[-1]
+    LSB_ROI = np.zeros_like(ROI_4D,dtype=np.float)
+    for ii in range(no_of_disks):
+        cbed = ROI_4D[:,:,ii]
+        cbed = 1000*(1 + iu.image_normalizer(cbed))
+        lsb_cbed,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(cbed),gauss_val))
+        lsb_cbed[lsb_cbed > med_factor*np.median(lsb_cbed)] = np.median(lsb_cbed)*med_factor
+        lsb_cbed[lsb_cbed < np.median(lsb_cbed)/med_factor] = np.median(lsb_cbed)/med_factor
+        LSB_ROI[:,:,ii] = lsb_cbed
+    Mean_LSB = np.median(LSB_ROI,axis=(-1))
+    LSB_CC = iu.cross_corr(Mean_LSB,sobel_disk,hybrid_cc)
+    data_peaks = skfeat.peak_local_max(LSB_CC,min_distance=int(2*disk_radius),indices=False)
+    peak_labels = scnd.measurements.label(data_peaks)[0]
+    merged_peaks = np.asarray(scnd.measurements.center_of_mass(data_peaks, peak_labels, range(1, np.max(peak_labels)+1)))
+    fitted_mean = np.zeros_like(merged_peaks,dtype=np.float64)
+    for jj in range(len(merged_peaks)):
+        par = gt.fit_gaussian2D_mask(LSB_CC,merged_peaks[jj,1],merged_peaks[jj,0],disk_radius)
+        fitted_mean[jj,0:2] = np.flip(par[0:2])
+    distarr = (np.sum(((fitted_points - np.asarray(LSB_CC.shape)/2)**2),axis=1))**0.5
+    peaks_mean = fitted_mean[distarr != np.amin(distarr),:] - fitted_mean[distarr == np.amin(distarr),:]
+    list_pos = np.zeros((int(np.sum(imROI),peaks_mean.shape[0],peaks_means.shape[1])))
+    exx_ROI = np.ones(no_of_disks,dtype=np.float64)
+    exy_ROI = np.ones(no_of_disks,dtype=np.float64)
+    eth_ROI = np.ones(no_of_disks,dtype=np.float64)
+    eyy_ROI = np.ones(no_of_disks,dtype=np.float64)
+    for kk in range(no_of_disks):
+        scan_LSB = LSB_ROI[:,:,kk]
+        scan_CC = iu.cross_corr(scan_LSB,sobel_disk,hybrid_cc)
+        for qq in range(len(merged_peaks)):
+            scan_par = gt.fit_gaussian2D_mask(scan_CC,fitted_mean[qq,1],fitted_mean[qq,0],disk_radius)
+            fitted_scan[qq,0:2] = np.flip(scan_par[0:2])
+        peaks_scan = fitted_scan[distarr != np.amin(distarr),:] - fitted_scan[distarr == np.amin(distarr),:]
+        list_pos[kk,:,:] = peaks_scan         
+        scan_strain,_,_,_ = np.linalg.lstsq(peaks_mean,peaks_scan,rcond=None)
+        scan_strain = np.matmul(scan_strain,rotmatrix)
+        scan_strain = scan_strain - np.eye(2)
+        exx_ROI[kk] = scan_strain[0,0]
+        exy_ROI[kk] = (scan_strain[0,1] + scan_strain[1,0])/2
+        eth_ROI[kk] = (scan_strain[0,1] - scan_strain[1,0])/2
+        eyy_ROI[kk] = scan_strain[1,1]
+    e_xx_map[imROI] = exx_ROI
+    e_xx_map[np.isnan(e_xx_map)] = 0
+    e_xx_map = scnd.gaussian_filter(e_xx_map,1)
+    e_xy_map[imROI] = exy_ROI
+    e_xy_map[np.isnan(e_xy_map)] = 0
+    e_xy_map = scnd.gaussian_filter(e_xy_map,1)
+    e_th_map[imROI] = eth_ROI
+    e_th_map[np.isnan(e_th_map)] = 0
+    e_th_map = scnd.gaussian_filter(e_th_map,1)
+    e_yy_map[imROI] = eyy_ROI
+    e_yy_map[np.isnan(e_yy_map)] = 0
+    e_yy_map = scnd.gaussian_filter(e_yy_map,1)
+    return e_xx_map,e_xy_map,e_th_map,e_yy_map,list_pos
