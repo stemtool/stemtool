@@ -873,8 +873,8 @@ def strain4D_general(data4D,
     disk = np.zeros_like(radiating)
     disk[radiating < (disk_radius**2)] = 1
     sobel_disk,_ = sc.sobel(disk)
-    if np.sum(ROI) > 0:
-        imROI = np.ones_like(yy,dtype=bool)
+    if (np.sum(ROI)==0):
+        imROI = np.ones_like(e_xx_map,dtype=bool)
     else:
         imROI = ROI
     ROI_4D = data4D[:,:,imROI]
@@ -893,12 +893,13 @@ def strain4D_general(data4D,
     peak_labels = scnd.measurements.label(data_peaks)[0]
     merged_peaks = np.asarray(scnd.measurements.center_of_mass(data_peaks, peak_labels, range(1, np.max(peak_labels)+1)))
     fitted_mean = np.zeros_like(merged_peaks,dtype=np.float64)
-    for jj in range(len(merged_peaks)):
+    fitted_scan = np.zeros_like(merged_peaks,dtype=np.float64)
+    for jj in range(merged_peaks.shape[0]):
         par = gt.fit_gaussian2D_mask(LSB_CC,merged_peaks[jj,1],merged_peaks[jj,0],disk_radius)
         fitted_mean[jj,0:2] = np.flip(par[0:2])
-    distarr = (np.sum(((fitted_points - np.asarray(LSB_CC.shape)/2)**2),axis=1))**0.5
+    distarr = (np.sum(((fitted_mean - np.asarray(LSB_CC.shape)/2)**2),axis=1))**0.5
     peaks_mean = fitted_mean[distarr != np.amin(distarr),:] - fitted_mean[distarr == np.amin(distarr),:]
-    list_pos = np.zeros((int(np.sum(imROI),peaks_mean.shape[0],peaks_means.shape[1])))
+    list_pos = np.zeros((int(np.sum(imROI)),peaks_mean.shape[0],peaks_mean.shape[1]))
     exx_ROI = np.ones(no_of_disks,dtype=np.float64)
     exy_ROI = np.ones(no_of_disks,dtype=np.float64)
     eth_ROI = np.ones(no_of_disks,dtype=np.float64)
@@ -906,7 +907,7 @@ def strain4D_general(data4D,
     for kk in range(no_of_disks):
         scan_LSB = LSB_ROI[:,:,kk]
         scan_CC = iu.cross_corr(scan_LSB,sobel_disk,hybrid_cc)
-        for qq in range(len(merged_peaks)):
+        for qq in range(merged_peaks.shape[0]):
             scan_par = gt.fit_gaussian2D_mask(scan_CC,fitted_mean[qq,1],fitted_mean[qq,0],disk_radius)
             fitted_scan[qq,0:2] = np.flip(scan_par[0:2])
         peaks_scan = fitted_scan[distarr != np.amin(distarr),:] - fitted_scan[distarr == np.amin(distarr),:]
