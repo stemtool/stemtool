@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib as mpl
-import pyfftw
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.colors as mplc
 import matplotlib.cm as mplcm
@@ -47,7 +46,6 @@ def move_by_phase(image_to_move,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    pyfftw.interfaces.cache.enable()
     image_size = (np.asarray(image_to_move.shape)).astype(int)
     fourier_cal_y = np.linspace((-image_size[0] / 2), ((image_size[0] / 2) - 1), image_size[0])
     fourier_cal_y = fourier_cal_y / (image_size[0]).astype(np.float64)
@@ -56,9 +54,9 @@ def move_by_phase(image_to_move,
     [fourier_mesh_x, fourier_mesh_y] = np.meshgrid(fourier_cal_x, fourier_cal_y)
     move_matrix = np.multiply(fourier_mesh_x,x_pixels) + np.multiply(fourier_mesh_y,y_pixels)
     move_phase = np.exp((-2) * np.pi * 1j * move_matrix)
-    original_image_fft = pyfftw.interfaces.scipy_fftpack.fftshift(pyfftw.interfaces.scipy_fftpack.fft2(image_to_move))
+    original_image_fft = np.fft.fftshift(np.fft.fft2(image_to_move))
     moved_in_fourier = np.multiply(move_phase,original_image_fft)
-    moved_image = pyfftw.interfaces.scipy_fftpack.ifft2(moved_in_fourier)
+    moved_image = np.fft.ifft2(moved_in_fourier)
     return moved_image
 
 def image_normalizer(image_orig):
@@ -387,8 +385,6 @@ def cross_corr(image_1,
     corr_hybrid = np.abs(np.fft.ifftshift(corr_hybrid))
     corr_unpadded = corr_hybrid[pad_size[0]:pad_size[0]+im_size[0],pad_size[1]:pad_size[1]+im_size[1]]
     return corr_unpadded
-
-
 
 def make_circle(size_circ,
                 center_x,

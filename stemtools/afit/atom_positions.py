@@ -5,7 +5,6 @@ import numba
 from scipy import ndimage as scnd
 from scipy import optimize as spo
 from scipy import interpolate as scinterp
-import pyfftw
 import warnings
 from ..util import gauss_utils as gt
 from ..util import fourier_reg as fr
@@ -343,8 +342,7 @@ def fourier_mask(original_image,
                  center,
                  radius,
                  threshold=0.2):
-    pyfftw.interfaces.cache.enable()
-    image_fourier = pyfftw.interfaces.scipy_fftpack.fftshift(pyfftw.interfaces.scipy_fftpack.fft2(original_image))
+    image_fourier = np.fft.fftshift(np.fft.fft2(original_image))
     pos_x = center[0]
     pos_y = center[1]
     blurred_image = scnd.filters.gaussian_filter(np.abs(image_fourier),3)
@@ -359,7 +357,7 @@ def fourier_mask(original_image,
     circle = circle.astype(np.float64)
     filtered_circ = scnd.filters.gaussian_filter(circle,1)
     masked_image = np.multiply(image_fourier,filtered_circ)
-    SAED_image = pyfftw.interfaces.scipy_fftpack.ifft2(masked_image)
+    SAED_image = np.fft.ifft2(masked_image)
     mag_SAED = np.abs(SAED_image)
     mag_SAED = (mag_SAED - np.amin(mag_SAED))/(np.amax(mag_SAED) - np.amin(mag_SAED))
     mag_SAED[mag_SAED < threshold] = 0
@@ -401,8 +399,7 @@ def find_diffraction_spots(image,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    pyfftw.interfaces.cache.enable()
-    image_ft = pyfftw.interfaces.scipy_fftpack.fftshift(pyfftw.interfaces.scipy_fftpack.fft2(image))
+    image_ft = np.fft.fftshift(np.fft.fft2(image))
     log_abs_ft = scnd.filters.gaussian_filter(np.log10(np.abs(image_ft)),3)
     f, ax = plt.subplots(figsize=(20, 20))
     circ_c_im = plt.Circle(circ_c, 15,color="red",alpha=0.33)

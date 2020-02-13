@@ -1,5 +1,4 @@
 import numpy as np
-import pyfftw
 
 def wavelength_ang(voltage_kV):
     """
@@ -71,7 +70,6 @@ def make_probe(aperture,
     the option of adding spherical aberration in the 
     form of defocus, C3 and C5
     """ 
-    pyfftw.interfaces.cache.enable()
     aperture = aperture / 1000
     wavelength = wavelength_ang(voltage)
     LMax = aperture / wavelength
@@ -80,9 +78,9 @@ def make_probe(aperture,
     x_FOV = image_x * 0.01 * calibration_pm
     y_FOV = image_y * 0.01 * calibration_pm
     qx = (np.arange((-image_x / 2),(image_x / 2), 1)) / x_FOV
-    x_shifter = (round(image_x / 2))
+    x_shifter = int(round(image_x / 2))
     qy = (np.arange((-image_y / 2),(image_y / 2), 1)) / y_FOV
-    y_shifter = (round(image_y / 2))
+    y_shifter = int(round(image_y / 2))
     Lx = np.roll(qx, x_shifter)
     Ly = np.roll(qy, y_shifter)
     Lya, Lxa = np.meshgrid(Lx, Ly)
@@ -92,7 +90,7 @@ def make_probe(aperture,
     Adist = np.asarray(inverse_real_matrix<=LMax, dtype=complex)
     chi_probe = aberration(inverse_real_matrix,wavelength,defocus,c3,c5)
     Adist *= np.exp(-1j*chi_probe)
-    probe_real_space = np.fft.ifftshift(pyfftw.interfaces.numpy_fft.ifft2(Adist))
+    probe_real_space = np.fft.ifftshift(np.fft.ifft2(Adist))
     return probe_real_space
 
 def aberration(fourier_coord,

@@ -20,5 +20,4 @@ setup(name='stemtools',
         'pillow > 5.0.0'
         'matplotlib >= 2.2.0'
         'numba >= 0.45.0',
-        'pyfftw >= 0.10.2',
     ])
