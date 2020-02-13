@@ -328,6 +328,7 @@ def log_sobel(pattern,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    pattern = 1 + iu.image_normalizer(pattern)
     lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),gauss_val))
     lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
     lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor

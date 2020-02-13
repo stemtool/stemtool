@@ -1,19 +1,23 @@
 import numpy as np
 import numba
 import warnings
+from scipy import signal as scisig
 from scipy import ndimage as scnd
 from ..util import image_utils as iu
 import math
 
-@numba.jit
-def sobel(input_image):
+def sobel(im,
+          order=3):
     """
     Sobel Filter an Input Image
     
     Parameters
     ----------
-    input_image: ndarray
-                'input_image' is the original input image to be filtered
+    im:    ndarray
+           the original input image to be filtered
+    order: int
+           3 is the default but if 5 is specified
+           then a 5x5 Sobel filter is run
                 
     Returns
     -------
@@ -24,9 +28,9 @@ def sobel(input_image):
                 
     Notes
     -----
-    We define the two differentiation matrices - Gx and Gy
+    We define the two differentiation matrices - g_x and g_y
     and then move along our dataset - to perform the matrix 
-    operations on 3 by 3 sections of the input image. The 
+    operations on 5x5 or 3x3 sections of the input image. The 
     magnitude of the Sobel filtered image is the absolute 
     of the multiplied matrices - squared and summed and square
     rooted.
@@ -41,25 +45,29 @@ def sobel(input_image):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     
     """
-    warnings.filterwarnings('ignore')
-    Gx = np.asarray(((-1,0,1),
-                     (-2,0,2),
-                     (-1,0,1)),dtype=input_image.dtype)
-    Gy = np.asarray(((-1,-2,-1),
-                     (0,0,0),
-                     (1,2,1)),dtype=input_image.dtype)
-    rows,cols = input_image.shape
-    mag = np.zeros((rows,cols),dtype=input_image.dtype)
-    ang = np.zeros((rows,cols),dtype=input_image.dtype)
-    for ii in range(1,rows - 1):
-        for jj in range(1,cols - 1):
-            pp = ii - 1
-            qq = jj - 1
-            image_section = input_image[pp:pp+3,qq:qq+3]
-            S1 = (Gx * image_section).sum()
-            S2 = (Gy * image_section).sum()
-            mag[ii,jj] = ((S1 ** 2)+ (S2 ** 2)) ** 0.5
-            ang[ii,jj] = np.arctan2(S2,S1)
+    im = im.astype(np.float64)
+    if (order==3):
+        k_x = np.asarray(((-1,0,1),
+                          (-2,0,2),
+                          (-1,0,1)),dtype=np.float64)
+        k_y = np.asarray(((-1,-2,-1),
+                          (0,0,0),
+                          (1,2,1)),dtype=np.float64)
+    else:
+        k_x = np.asarray(((-1, -2, 0, 2, 1), 
+                          (-4, -8, 0, 8, 4), 
+                          (-6, -12, 0, 12, 6),
+                          (-4, -8, 0, 8, 4),
+                          (-1, -2, 0, 2, 1)), dtype = np.float64)
+        k_y = np.asarray(((1, 4, 6, 4, 1), 
+                          (2, 8, 12, 8, 2),
+                          (0, 0, 0, 0, 0), 
+                          (-2, -8, -12, -8, -2),
+                          (-1, -4, -6, -4, -1)), dtype = np.float64)
+    g_x = scisig.convolve2d(im, k_x, mode='same', boundary = 'symm', fillvalue=0)
+    g_y = scisig.convolve2d(im, k_y, mode='same', boundary = 'symm', fillvalue=0)
+    mag = ((g_x**2) + (g_y**2))**0.5
+    ang = np.arctan2(g_y,g_x)
     return mag, ang
 
 @numba.jit
