@@ -759,25 +759,35 @@ def sort_edges(edge_map,edge_distance=5):
     return outer_edge,inner_edge
 
 @numba.jit
-def get_inside(edges):
-    aa = edges.astype(float)
-    inside = np.zeros(aa.shape)
-    for ii in np.arange(aa.shape[0]):
-        for jj in np.arange(aa.shape[1]):
-            ytest = False
-            xtest = False
-            ysum = np.sum(aa[ii:-1,jj])
-            xsum = np.sum(aa[ii,jj:-1])
-            if (ysum < 3):
-                ytest = iu.is_odd(ysum)
-            if (xsum < 3):
-                xtest = iu.is_odd(xsum)
-            inside[ii,jj] = np.logical_or(ytest,xtest)
-    inside = inside.astype(float)
-    inside = scnd.gaussian_filter(inside,3)
-    inside[inside < 0.1] = 0
-    inside[inside > 0] = 1
-    return inside.astype(bool)
+def get_inside(edges,
+               cutoff=0.95):
+    big_size = (2.5*np.asarray(edges.shape)).astype(int)
+    starter = (0.5*(big_size - np.asarray(edges.shape))).astype(int)
+    bigger_aa = np.zeros(big_size)
+    bigger_aa[starter[0]:starter[0]+edges.shape[0],starter[1]:starter[1]+edges.shape[1]] = edges
+    aa1 = bigger_aa.astype(bool)
+    aa2 = (np.fliplr(bigger_aa)).astype(bool)
+    yy, xx = np.mgrid[0:big_size[0],0:big_size[1]]
+    positions = np.zeros((bigger_aa.size,2),dtype=int)
+    positions[:,0] = np.ravel(yy)
+    positions[:,1] = np.ravel(xx)
+    yy_aa1 = yy[aa1]
+    xx_aa1 = xx[aa1]
+    yy_aa2 = yy[aa2]
+    xx_aa2 = xx[aa2]
+    ang_range1 = np.zeros_like(yy,dtype=np.float)
+    ang_range2 = np.zeros_like(yy,dtype=np.float)
+    for ii in numba.prange(len(positions)):
+        angles1 = (180/np.pi)*np.arctan2(yy_aa1 - positions[ii,0],xx_aa1 - positions[ii,1])
+        ang_range1[positions[ii,0],positions[ii,1]] = np.amax(angles1) - np.amin(angles1)
+    for jj in numba.prange(len(positions)):
+        angles2 = (180/np.pi)*np.arctan2(yy_aa2 - positions[jj,0],xx_aa2 - positions[jj,1])
+        ang_range2[positions[jj,0],positions[jj,1]] = np.amax(angles2) - np.amin(angles2)
+    ang_range2 = np.fliplr(ang_range2)
+    ang_range = np.logical_and(ang_range1 > cutoff*np.amax(ang_range1),ang_range2 > cutoff*np.amax(ang_range2))
+    real_ang_range = np.zeros_like(edges,dtype=bool)
+    real_ang_range = ang_range[starter[0]:starter[0]+edges.shape[0],starter[1]:starter[1]+edges.shape[1]]
+    return real_ang_range
 
 def sobel_filter(image,
                  med_filter=50):
