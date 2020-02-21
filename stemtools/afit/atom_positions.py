@@ -110,7 +110,7 @@ def refine_atoms(image_data,
     for ii in np.arange(len(positions)):
         ccd = np.sum(((positions[:,0:2] - positions[ii,0:2]) ** 2),axis=1)
         dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
-    distance = np.median(dist)
+    distance = np.median(dist)/2
     no_of_points = positions.shape[0]
     refined_pos = (np.zeros((no_of_points,6))).astype(float)
     for ii in range(no_of_points):
