@@ -101,6 +101,11 @@ def powerlaw_plot(xdata,
                         'size'   : 25}):
     mpl.rc('font', **font)
     mpl.rcParams['axes.linewidth'] = 4
+    xrange = np.asarray(xrange)
+    if (xrange[0] < np.amin(xdata)):
+        xrange[0] = np.amin(xdata)
+    if (xrange[1] > np.amax(xdata)):
+        xrange[1] = np.amax(xdata)
     fitted_data, power, const  = powerlaw_fit(xdata,ydata,xrange)
     subtracted_data = ydata - fitted_data
     yrange = const * (xrange ** power)
@@ -185,11 +190,10 @@ def lcpl(xx,c1,p1,c2,p2):
 
 @numba.jit
 def eels_3D_LCPL(eels_dict,
-                fit_range,
-                peak_range,
-                LBA_radius=3,
-                percentile=5):
-    
+                 fit_range,
+                 peak_range,
+                 LBA_radius=3,
+                 percentile=5):
     fit_range = np.asarray(fit_range)
     peak_range = np.asarray(peak_range)
     no_elements = len(peak_range)

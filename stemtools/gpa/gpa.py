@@ -38,7 +38,8 @@ def find_diffraction_spots(image,
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    image_ft = np.fft.fftshift(np.fft.fft2(image))
+    ham = np.sqrt(np.outer(np.hamming(image.shape[0]),np.hamming(image.shape[1])))
+    image_ft = np.fft.fftshift(np.fft.fft2(image*ham))
     log_abs_ft = scnd.filters.gaussian_filter(np.log10(np.abs(image_ft)),3)
     f, ax = plt.subplots(figsize=(20, 20))
     circ_0_im = plt.Circle(circ_0, 15,color="red",alpha=0.33)
@@ -162,34 +163,42 @@ def G_to_circ(g_vec,image):
     return circ_pos
 
 def g_matrix(g_vector,image):
-    ry = (np.arange((-image.shape[0]/2),((image.shape[0]/2)),1))
-    rx = (np.arange((-image.shape[1]/2),((image.shape[1]/2)),1))
-    Rx, Ry = np.meshgrid(rx, ry)
-    gr = 2*np.pi*((Rx*g_vector[1]) + (Ry*g_vector[0]))
+    ry = np.arange(start=-image.shape[0]/2,stop=image.shape[0]/2,step=1)
+    rx = np.arange(start=-image.shape[1]/2,stop=image.shape[1]/2,step=1)
+    rx,ry = np.meshgrid(rx,ry)
+    gr = 2*np.pi*((rx*g_vector[1]) + (ry*g_vector[0]))
     return gr
 
-def p_matrix(g_vector,image):
+def phase_matrix(g_vector,image,gauss_blur=True):
+    ham = np.sqrt(np.outer(np.hamming(image.shape[0]),np.hamming(image.shape[1])))
     circ_pos = G_to_circ(g_vector,image)
     circ_rad = np.amin(0.01*np.asarray(image.shape))
-    circ_mask = iu.make_circle(image.shape,circ_pos[0],circ_pos[1],circ_rad)
-    G_matrix = np.angle(np.fft.ifft2(circ_mask*np.fft.fftshift(np.fft.fft2(image))))
-    G_matrix = skr.unwrap_phase(G_matrix)
-    P_matrix = G_matrix - g_matrix(g_vector,image)
-    return P_matrix
+    circ_mask = (iu.make_circle(image.shape,circ_pos[0],circ_pos[1],circ_rad)).astype(bool)
+    yy,xx = np.mgrid[0:image.shape[0],0:image.shape[1]]
+    sigma2 = np.sum((g_vector*0.5*np.asarray(image.shape))**2)
+    zz = (((yy[circ_mask] - circ_pos[1])**2) + ((xx[circ_mask] - circ_pos[0])**2))/sigma2
+    mask = np.exp((-0.5)*zz)
+    four_mask = np.zeros_like(image,dtype=np.float) 
+    four_mask[circ_mask] = mask
+    if gauss_blur:
+        G_matrix = np.angle(np.fft.ifft2(four_mask*np.fft.fftshift(np.fft.fft2(image*ham))))
+    else:
+        G_matrix = np.angle(np.fft.ifft2(circ_mask*np.fft.fftshift(np.fft.fft2(image*ham))))
+    return G_matrix
 
-def g_diff(P_matrix,ref_matrix):
-    pdiff_x,pdiff_y = phase_diff(P_matrix)
-    gdiff_y = (np.mean(pdiff_y[ref_matrix]))/(2*np.pi)
-    gdiff_x = (np.mean(pdiff_x[ref_matrix]))/(2*np.pi)
-    return (gdiff_y,gdiff_x)
-
-def refined_P(P_matrix,old_g,ref_matrix,image,iter_count=10):
+def refined_phase(old_p,old_g,ref_matrix,image,iter_count=10,gauss_blur=True):
+    ry = np.arange(start=-image.shape[0]/2,stop=image.shape[0]/2,step=1)
+    rx = np.arange(start=-image.shape[1]/2,stop=image.shape[1]/2,step=1)
+    rx,ry = np.meshgrid(rx,ry)
     new_g = old_g
-    new_p = P_matrix
-    for _ in range(int(iter_count)): 
-        g_delta = g_diff(new_p,ref_matrix)
-        new_g = new_g + g_delta
-        new_p = p_matrix(new_g,image)
+    new_p = old_p
+    for _ in range(int(iter_count)):
+        G_x,G_y = phase_diff(new_p)
+        G_nabla = G_x + G_y
+        g_r = G_nabla/(2*np.pi)
+        del_g = np.asarray((np.median(g_r[ref_matrix]/ry[ref_matrix]),np.median(g_r[ref_matrix]/rx[ref_matrix])))
+        new_g = new_g - del_g
+        new_p = phase_matrix(new_g,image,gauss_blur)
     return new_g,new_p
 
 def get_a_matrix(g_vector_1,
