@@ -3,6 +3,7 @@ from skimage import restoration as skr
 from scipy import ndimage as scnd
 import matplotlib.pyplot as plt
 from ..util import image_utils as iu
+import numba
 
 def find_diffraction_spots(image,
                            circ_0,
@@ -197,7 +198,7 @@ def refined_phase(old_p,old_g,ref_matrix,image,iter_count=10,gauss_blur=True):
         G_nabla = G_x + G_y
         g_r = G_nabla/(2*np.pi)
         del_g = np.asarray((np.median(g_r[ref_matrix]/ry[ref_matrix]),np.median(g_r[ref_matrix]/rx[ref_matrix])))
-        new_g = new_g - del_g
+        new_g = new_g + del_g
         new_p = phase_matrix(new_g,image,gauss_blur)
     return new_g,new_p
 
@@ -210,13 +211,43 @@ def get_a_matrix(g_vector_1,
     return a_matrix
 
 def get_u_matrices(P1,P2,a_matrix):
+    P1 = skr.unwrap_phase(P1)
+    P2 = skr.unwrap_phase(P2)
     rolled_p = np.asarray((np.reshape(P1,-1),np.reshape(P2,-1)))
     u_matrix = np.matmul(a_matrix,rolled_p)
     u_x = np.reshape(u_matrix[0,:],P1.shape)
     u_y = np.reshape(u_matrix[1,:],P2.shape)
     return u_x,u_y
 
-def get_strain(U_x,U_y):
+@numba.jit(cache=True,parallel=True)
+def gen_strain(P1,P2,a_matrix):
+    P1_x, P1_y = phase_diff(P1)
+    P2_x, P2_y = phase_diff(P2)
+    yy, xx = np.mgrid[0:P1.shape[0],0:P1.shape[1]]
+    yy = np.ravel(yy)
+    xx = np.ravel(xx)
+    P_mat = np.zeros((2,2),dtype=np.float)
+    e_xx = np.zeros_like(P1)
+    e_xy = np.zeros_like(P1)
+    e_yx = np.zeros_like(P1)
+    e_yy = np.zeros_like(P1)
+    for ii in numba.prange(len(yy)):
+        ypos = yy[ii]
+        xpos = xx[ii]
+        P_mat[0,0] = P1_x[ypos,xpos]
+        P_mat[0,1] = P1_y[ypos,xpos]
+        P_mat[1,0] = P2_x[ypos,xpos]
+        P_mat[1,1] = P2_y[ypos,xpos]
+        e_mat = ((1)/(2*np.pi))*np.matmul(a_matrix,P_mat)
+        e_xx[ypos,xpos] = e_mat[0,0]
+        e_xy[ypos,xpos] = e_mat[0,1]
+        e_yx[ypos,xpos] = e_mat[1,0]
+        e_yy[ypos,xpos] = e_mat[1,1]
+    e_th = 0.5*(e_xy - e_yx)
+    e_dg = 0.5*(e_xy + e_yx)
+    return e_xx,e_yy,e_th,e_dg
+
+def get_strain_fromU(U_x,U_y):
     e_xx,e_xy = phase_diff(U_x)
     e_yx,e_yy = phase_diff(U_y)
     e_theta = 0.5*(e_xy - e_yx)
