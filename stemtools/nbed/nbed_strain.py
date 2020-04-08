@@ -139,7 +139,30 @@ def data4Dto2D(data4D):
     data2D.shape = (data_shape[0]*data_shape[1],data_shape[2]*data_shape[3])
     return data2D
 
+@numba.jit
+def resizer1D_numbaopt(data,res,N):   
+    M = data.size
+    carry=0
+    m=0
+    for n in range(int(N)):
+        data_sum = carry
+        while m*N - n*M < M :
+            data_sum += data[m]
+            m += 1
+        carry = (m-(n+1)*M/N)*data[m-1]
+        data_sum -= carry
+        res[n] = data_sum*N/M
+    return res
 
+@numba.jit
+def resizer2D_numbaopt(data2D,resampled_x,resampled_f,sampling):
+    data_shape = np.asarray(np.shape(data2D))
+    sampled_shape = (np.round(data_shape/sampling)).astype(int)
+    for yy in range(data_shape[0]):
+        resampled_x[yy,:] = resizer1D_numbaopt(data2D[yy,:],resampled_x[yy,:],sampled_shape[1])
+    for xx in range(sampled_shape[1]):
+        resampled_f[:,xx] = resizer1D_numbaopt(resampled_x[:,xx],resampled_f[:,xx],sampled_shape[0])
+    return resampled_f
 
 @numba.jit
 def bin4D(data4D,
@@ -163,24 +186,23 @@ def bin4D(data4D,
     
     Notes
     -----
-    The data is binned in the last two spectral dimensions
-    using resizer2D function.
-    
-    See Also
-    --------
-    resizer
-    resizer2D
+    The data is binned in the first two dimensions - which are
+    the Fourier dimensions using the internal numba functions 
+    `resizer2D_numbaopt` and `resizer1D_numbaopt`
                  
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    warnings.filterwarnings('ignore')
-    mean_data = np.mean(data4D,axis=(-1,-2),dtype=np.float64)
-    mean_binned = iu.resizer2D(mean_data,(bin_factor,bin_factor))
-    binned_data = np.zeros((mean_binned.shape[0],mean_binned.shape[1],data4D.shape[2],data4D.shape[3]),dtype=data4D.dtype)
-    for ii in range(data4D.shape[2]):
-        for jj in range(data4D.shape[3]):
-            binned_data[:,:,ii,jj] = iu.resizer2D(data4D[:,:,ii,jj],(bin_factor,bin_factor))
+    data4D_flat = np.reshape(data4D,(data4D.shape[0],data4D.shape[1],data4D.shape[2]*data4D.shape[3]))
+    datashape = np.asarray(data4D_flat.shape)
+    res_shape = np.copy(datashape)
+    res_shape[0:2] = np.round(datashape[0:2]/bin_factor)
+    data4D_res = np.zeros(res_shape.astype(int),dtype=data4D_flat.dtype)
+    resampled_x = np.zeros((datashape[0],res_shape[1]),data4D_flat.dtype)
+    resampled_f = np.zeros(res_shape[0:2],dtype=data4D_flat.dtype)
+    for zz in range(data4D_flat.shape[-1]):
+        data4D_res[:,:,zz] = resizer2D_numbaopt(data4D_flat[:,:,zz],resampled_x,resampled_f,bin_factor)
+    binned_data = np.reshape(data4D_res,(resampled_f.shape[0],resampled_f.shape[1],data4D.shape[2],data4D.shape[3]))
     return binned_data
 
 def test_aperture(pattern,
@@ -638,7 +660,7 @@ def ROI_strain_map(strain_ROI,
     strain_map[ROI] = (strain_ROI).astype(np.float64)
     return strain_map
 
-@numba.jit
+@numba.jit(cache=True,parallel=True)
 def log_sobel4D(data4D,
                 scan_dims,
                 med_factor=30,
@@ -681,6 +703,7 @@ def log_sobel4D(data4D,
     that your CBED dimensions can either be the first two or last
     two - just specify the dimensions. Also if loops weirdly need
     to be outside the for loops - this is a numba feature (bug?)
+    Small change - made the Sobel matrix order 5 rather than 3
     
     See Also
     --------
@@ -695,11 +718,11 @@ def log_sobel4D(data4D,
     if (sum_dims < 2):
         data4D = np.transpose(data4D,(2,3,0,1))
     data_lsb = np.zeros_like(data4D,dtype=np.float)
-    for jj in range(data4D.shape[int(scan_dims[1])]):
+    for jj in numba.prange(data4D.shape[int(scan_dims[1])]):
         for ii in range(data4D.shape[int(scan_dims[0])]):
             pattern = data4D[:,:,ii,jj]
             pattern = 1000*(1 + iu.image_normalizer(pattern))
-            lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),gauss_val))
+            lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),gauss_val),5)
             lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
             lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor
             data_lsb[:,:,ii,jj] = lsb_pattern

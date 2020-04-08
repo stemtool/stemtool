@@ -92,7 +92,7 @@ def image_normalizer(image_orig):
     return image_norm
 
 def image_logarizer(image_orig,
-                    bit_depth=32):
+                    bit_depth=64):
     """
     Normalized log of image
     
