@@ -1,4 +1,7 @@
 import numpy as np
+import numba
+import pyfftw.interfaces as pfi
+from ..util import image_utils as iu
 
 def find_max_index(image):
     """
@@ -27,6 +30,40 @@ def find_max_index(image):
     yy,xx = np.mgrid[0:image.shape[0],0:image.shape[1]]
     ymax = (yy[image==np.amax(image)])[0]
     xmax = (xx[image==np.amax(image)])[0]
+    return ymax,xmax
+
+def first_max_index(image):
+    """
+    First maxima in image
+    
+    Parameters
+    ----------
+    image: ndarray
+           Input image
+    
+    Returns
+    -------
+    ymax: int
+          y-index position of maxima
+    xmax: int
+          x-index position of maxima
+    
+    Notes
+    -----
+    Finds the image maxima, and then locates the y 
+    and x indices corresponding to the maxima
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    yy,xx = np.mgrid[0:image.shape[0],0:image.shape[1]]
+    yy = np.ravel(yy)
+    xx = np.ravel(xx)
+    image = np.ravel(image)
+    indices = np.arange(np.size(image),dtype=int)
+    index = np.amin(indices[image==np.amax(image)])
+    ymax = yy[index]
+    xmax = xx[index]
     return ymax,xmax
 
 def fourier_pad(imFT,
@@ -61,16 +98,17 @@ def fourier_pad(imFT,
     n_in = np.asarray(imFT.shape)
     nout = np.asarray(outsize)
     imFT = np.fft.fftshift(imFT)
-    center_in = (np.floor(n_in/2) + 1).astype(int)
-    imFTout = np.zeros((outsize))
-    center_out = (np.floor(nout/2) + 1).astype(int)
+    center_in = np.asarray(first_max_index(np.abs(imFT)))
+    imFTout = np.zeros((outsize),dtype=imFT.dtype)
+    center_out = (center_in*(nout/n_in)).astype(int)
+    ft_val = np.prod(nout/n_in)
     cc = center_out - center_in
     n_in = n_in.astype(int)
     nout = nout.astype(int)
     imFTout[np.amax((cc[0],0)):np.amin((cc[0]+n_in[0],nout[0])),
             np.amax((cc[1],0)):np.amin((cc[1]+n_in[1],nout[1]))] = imFT[np.amax((-cc[0],0)):np.amin((-cc[0]+nout[0],n_in[0])),
                                                                         np.amax((-cc[1],0)):np.amin((-cc[1]+nout[1],n_in[1]))]
-    imout = (np.fft.ifftshift(imFTout) * np.prod(nout))/np.prod(n_in)
+    imout = np.fft.ifftshift(imFTout)*ft_val
     return imout
 
 def dftups(input_image,
@@ -212,10 +250,14 @@ def dftregistration(buf1ft,
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
     ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
+    
+    :Authors:
+    Manuel Guizar - June 02, 2014
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     nr,nc = np.shape(buf2ft)
-    Nr = np.fft.ifftshift(np.linspace((-np.fix(nr/2)),(np.ceil(nr/2)-1),nr))
-    Nc = np.fft.ifftshift(np.linspace((-np.fix(nc/2)),(np.ceil(nc/2)-1),nc))
+    Nr = np.fft.ifftshift(np.arange(start=-np.fix(nr/2),stop=np.ceil(nr/2),step=1))
+    Nc = np.fft.ifftshift(np.arange(start=-np.fix(nc/2),stop=np.ceil(nc/2),step=1))
     if (usfac == 0):
         # Simple computation of error and phase difference without registration
         CCmax = np.sum(np.multiply(buf1ft,np.conj(buf2ft)))
@@ -225,7 +267,7 @@ def dftregistration(buf1ft,
         # Single pixel registration
         CC = np.fft.ifft2(np.multiply(buf1ft,np.conj(buf2ft)))
         CCabs = np.abs(CC)
-        row_shift,col_shift = find_max_index(CCabs)
+        row_shift,col_shift = first_max_index(CCabs)
         CCmax = CC[row_shift,col_shift]*nr*nc
         # Now change shifts so that they represent relative shifts and not indices
         row_shift = Nr[row_shift]
@@ -235,11 +277,11 @@ def dftregistration(buf1ft,
         ft_mult = np.multiply(buf1ft,np.conj(buf2ft))
         CC = np.fft.ifft2(fourier_pad(ft_mult,(2*nr,2*nc)))
         CCabs = np.abs(CC)
-        row_shift, col_shift = find_max_index(CCabs)
+        row_shift, col_shift = first_max_index(CCabs)
         CCmax = CC[row_shift,col_shift]*nr*nc
         # Now change shifts so that they represent relative shifts and not indices
-        Nr2 = np.fft.ifftshift(np.linspace((-np.fix(nr)),(np.ceil(nr)-1),(2*nr)))
-        Nc2 = np.fft.ifftshift(np.linspace((-np.fix(nc)),(np.ceil(nc)-1),(2*nc)))
+        Nr2 = np.fft.ifftshift(np.arange(start=-np.fix(nr),stop=np.ceil(nr),step=1))
+        Nc2 = np.fft.ifftshift(np.arange(start=-np.fix(nc),stop=np.ceil(nc),step=1))
         row_shift = Nr2[row_shift]/2
         col_shift = Nc2[col_shift]/2
         #If upsampling > 2, then refine estimate with matrix multiply DFT
@@ -256,7 +298,7 @@ def dftregistration(buf1ft,
             CC = np.conj(dftups(ft_mult,np.ceil(usfac*1.5),np.ceil(usfac*1.5),usfac,dftrow,dftcol))
             # Locate maximum and map back to original pixel grid 
             CCabs = np.abs(CC)
-            rloc, cloc = find_max_index(CCabs)
+            rloc, cloc = first_max_index(CCabs)
             CCmax = CC[rloc,cloc]
             rloc = rloc - dftshift
             cloc = cloc - dftshift
@@ -282,3 +324,107 @@ def dftregistration(buf1ft,
     elif (usfac==0):
         registered_fft = buf2ft*np.exp(1j*phase_diff)
     return row_shift,col_shift,phase_diff,error,registered_fft
+
+@numba.jit(parallel=True,cache=True)
+def get_shift_stack(image_stack,
+                    sampling=500):
+    """
+    Cross-Correlate stack of images
+    
+    Parameters
+    ----------
+    image_stack: ndarray
+                 Stack of images collected in rapid succession,
+                 where the the first array position refers to the
+                 image collected. Thus the nth image in the stack
+                 is image_stack[n-1,:,:]
+    sampling:    int
+                 Fraction of the pixel to calculate upsampled
+                 cross-correlation for. Default is 500
+    
+    Returns
+    -------
+    row_stack: ndarray
+               The size is nXn where n is the n of images in
+               the image_stack
+    col_stack: ndarray
+               The size is nXn where n is the n of images in
+               the image_stack
+               
+    Notes
+    -----
+    For a rapidly collected image stack, each image in the stack is 
+    cross-correlated with all the other images of the stack, to generate
+    a skew matrix of row shifts and column shifts, calculated with sub
+    pixel precision.
+    
+    References
+    ----------
+    Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
+    Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
+    Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+    Ultramicroscopy, 191, pp.56-65.
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    pfi.cache.enable()
+    no_im = image_stack.shape[0]
+    col_stack = np.zeros((no_im,no_im))
+    row_stack = np.zeros((no_im,no_im))
+    for ii in numba.prange(no_im):
+        for jj in range(no_im):
+            rs,cs,_,_,_ = dftregistration(pfi.numpy_fft.fft2(image_stack[ii,:,:]),
+                                          pfi.numpy_fft.fft2(image_stack[jj,:,:]),sampling)
+            row_stack[ii,jj] = rs
+            col_stack[ii,jj] = cs
+    return row_stack,col_stack
+
+@numba.jit(parallel=True,cache=True)
+def corrected_stack(image_stack,rowshifts,colshifts):
+    """
+    Get corrected image stack
+    
+    Parameters
+    ----------
+    image_stack: ndarray
+                 Stack of images collected in rapid succession,
+                 where the the first array position refers to the
+                 image collected. Thus the nth image in the stack
+                 is image_stack[n-1,:,:]
+    row_stack:   ndarray
+                 The size is nXn where n is the n of images in
+                 the image_stack
+    col_stack:   ndarray
+                 The size is nXn where n is the n of images in
+                 the image_stack
+    
+    Returns
+    -------
+    corr_stack: ndarray
+                Corrected image from the image stack
+               
+    Notes
+    -----
+    The mean of the shift stacks for every image position are the 
+    amount by which each image is to be shifted. We calculate the 
+    mean and move each image by that amount in the stack and then
+    sum them up.
+    
+    References
+    ----------
+    Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
+    Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
+    Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+    Ultramicroscopy, 191, pp.56-65.
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    row_mean = np.mean(rowshifts,axis=0)
+    col_mean = np.mean(colshifts,axis=0)
+    moved_stack = np.zeros_like(image_stack,dtype=image_stack.dtype)
+    for ii in numba.prange(len(row_mean)):
+        moved_stack[ii,:,:] = np.abs(iu.move_by_phase(image_stack[ii,:,:],col_mean[ii],row_mean[ii]))
+    corr_stack = np.sum(moved_stack,axis=0)
+    return corr_stack
