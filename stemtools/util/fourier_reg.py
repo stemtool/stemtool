@@ -24,6 +24,10 @@ def find_max_index(image):
     Finds the image maxima, and then locates the y 
     and x indices corresponding to the maxima
     
+    Examples
+    --------
+    >>> ym, xm = find_max_index(image)
+    
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -218,9 +222,9 @@ def dftregistration(buf1ft,
     
     References
     ----------
-    Manuel Guizar-Sicairos, Samuel T. Thurman, and James R. Fienup, 
-    "Efficient subpixel image registration algorithms," Opt. Lett. 33, 
-    156-158 (2008).
+    [1]_, Manuel Guizar-Sicairos, Samuel T. Thurman, and James R. Fienup, 
+          "Efficient subpixel image registration algorithms," Opt. Lett. 33, 
+          156-158 (2008).
     
     Copyright
     ----------
@@ -254,6 +258,17 @@ def dftregistration(buf1ft,
     :Authors:
     Manuel Guizar - June 02, 2014
     Debangshu Mukherjee <mukherjeed@ornl.gov>
+    
+    Examples
+    --------
+    If you have two images im1 and im2, run as:
+    >>> row_shift,col_shift,phase_diff,error,registered_fft = dftregistration(np.fft.fft2(im1),np.fft.fft2(im2),upsampling)
+    You can test by reversing the order
+    >>> row_shift_r,col_shift_r,phase_diff,error,registered_fft = dftregistration(np.fft.fft2(im2),np.fft.fft2(im1),upsampling)
+    >>> row_shift == -row_shift_r
+    >>> True
+    >>> col_shift == -col_shift_r
+    >>> True
     """
     nr,nc = np.shape(buf2ft)
     Nr = np.fft.ifftshift(np.arange(start=-np.fix(nr/2),stop=np.ceil(nr/2),step=1))
@@ -482,22 +497,12 @@ class drift_corrector(object):
     
     Examples
     --------
-    Since this has several `numba` functions, to initialize the JIT we need
-    to call the class function with a small dataset first
-    
-    >>> cc = drift_corrector(image_stack[0:2,:,:])
-    >>> %timeit cc.get_shift_stack()
-    >>> %timeit cc.corrected_stack()
-    
-    Once the JIT is initialized run the function as:
+    Run the function as:
     
     >>> cc = drift_corrector(image_stack)
-    >>> %timeit cc.get_shift_stack()
-    >>> %timeit cc.corrected_stack()
+    >>> rows, cols = cc.get_shift_stack()
+    >>> corrected = cc.corrected_stack()
     
-    This also also uses the `pyfftw` function. We use it with the
-    cache enabled. Initializing the JIT also allows the `pyfftw` 
-    plan to be initialized, allowing for significant speedups
     """
     def __init__(self,image_stack,sampling=500):
         self.image_stack = image_stack
@@ -509,7 +514,6 @@ class drift_corrector(object):
         self.corr_image = np.zeros((image_stack.shape[1],image_stack.shape[2]),dtype=image_stack.dtype)
         self.moved_stack = np.zeros_like(image_stack,dtype=image_stack.dtype)
         
-    @numba.jit(parallel=True,cache=True)   
     def get_shape_stack(self):
         """
         Cross-Correlate stack of images
@@ -534,14 +538,13 @@ class drift_corrector(object):
         Debangshu Mukherjee <mukherjeed@ornl.gov>
         """
         pfi.cache.enable()
-        for ii in numba.prange(self.no_im):
+        for ii in range(self.no_im):
             for jj in range(self.no_im):
                 self.row_stack[ii,jj],self.col_stack[ii,jj],_,_,_ = dftregistration(pfi.numpy_fft.fft2(self.image_stack[ii,:,:]),
                                                                                     pfi.numpy_fft.fft2(self.image_stack[jj,:,:]),
                                                                                     self.sampling)
         return self.row_stack, self.col_stack
 
-    @numba.jit(parallel=True,cache=True)
     def corrected_stack(self):
         """
         Get corrected image stack
@@ -563,7 +566,7 @@ class drift_corrector(object):
         """
         row_mean = np.mean(self.row_stack,axis=0)
         col_mean = np.mean(self.col_stack,axis=0)
-        for ii in numba.prange(self.no_im):
+        for ii in range(self.no_im):
             self.moved_stack[ii,:,:] = np.abs(iu.move_by_phase(self.image_stack[ii,:,:],
                                                                col_mean[ii],
                                                                row_mean[ii]))
