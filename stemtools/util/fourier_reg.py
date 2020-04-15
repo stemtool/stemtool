@@ -360,13 +360,24 @@ def get_shift_stack(image_stack,
     
     References
     ----------
-    Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
-    Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
-    Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
-    Ultramicroscopy, 191, pp.56-65.
+    [1]_, Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
+          Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
+          Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+          Ultramicroscopy, 191, pp.56-65.
     
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
+    
+    Examples
+    --------
+    Since this is a `numba` function, to initialize the JIT we need
+    to call the function with a small dataset first
+    
+    >>> %timeit get_shift_stack(image_stack[0:2,:,:])
+    
+    Once the JIT is initialized run the function as:
+    
+    >>> row_stack,col_stack = get_shift_stack(image_stack)
     """
     pfi.cache.enable()
     no_im = image_stack.shape[0]
@@ -381,7 +392,9 @@ def get_shift_stack(image_stack,
     return row_stack,col_stack
 
 @numba.jit(parallel=True,cache=True)
-def corrected_stack(image_stack,rowshifts,colshifts):
+def corrected_stack(image_stack,
+                    rowshifts,
+                    colshifts):
     """
     Get corrected image stack
     
@@ -413,13 +426,25 @@ def corrected_stack(image_stack,rowshifts,colshifts):
     
     References
     ----------
-    Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
-    Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
-    Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
-    Ultramicroscopy, 191, pp.56-65.
+    [1]_, Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
+          Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
+          Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+          Ultramicroscopy, 191, pp.56-65.
     
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
+    
+    Examples
+    --------
+    Since this is a `numba` function, to initialize the JIT we need
+    to call the function with a small dataset first
+    
+    >>> %timeit corrected_stack(image_stack[0:2,:,:],rowshifts[0:2,0:2],colshifts[0:2,0:2])
+    
+    Once the JIT is initialized run the function as:
+    
+    >>> corr_stack = corrected_stack(image_stack,rowshifts,colshifts)
+    
     """
     row_mean = np.mean(rowshifts,axis=0)
     col_mean = np.mean(colshifts,axis=0)
@@ -428,3 +453,119 @@ def corrected_stack(image_stack,rowshifts,colshifts):
         moved_stack[ii,:,:] = np.abs(iu.move_by_phase(image_stack[ii,:,:],col_mean[ii],row_mean[ii]))
     corr_stack = np.sum(moved_stack,axis=0)
     return corr_stack
+
+class drift_corrector(object):
+    """
+    Correct for scan drift through cross-correlating a
+    rapidly acquired image stack
+    
+    Parameters
+    ----------
+    image_stack: ndarray
+                 Stack of images collected in rapid succession,
+                 where the the first array position refers to the
+                 image collected. Thus the nth image in the stack
+                 is image_stack[n-1,:,:]
+    sampling:    int
+                 Fraction of the pixel to calculate upsampled
+                 cross-correlation for. Default is 500
+                 
+    References
+    ----------
+    [1]_, Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
+          Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
+          Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+          Ultramicroscopy, 191, pp.56-65.
+
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    
+    Examples
+    --------
+    Since this has several `numba` functions, to initialize the JIT we need
+    to call the class function with a small dataset first
+    
+    >>> cc = drift_corrector(image_stack[0:2,:,:])
+    >>> %timeit cc.get_shift_stack()
+    >>> %timeit cc.corrected_stack()
+    
+    Once the JIT is initialized run the function as:
+    
+    >>> cc = drift_corrector(image_stack)
+    >>> %timeit cc.get_shift_stack()
+    >>> %timeit cc.corrected_stack()
+    
+    This also also uses the `pyfftw` function. We use it with the
+    cache enabled. Initializing the JIT also allows the `pyfftw` 
+    plan to be initialized, allowing for significant speedups
+    """
+    def __init__(self,image_stack,sampling=500):
+        self.image_stack = image_stack
+        no_im = image_stack.shape[0]
+        self.no_im = no_im
+        self.sampling = sampling
+        self.row_stack = np.zeros((no_im,no_im))
+        self.col_stack = np.zeros((no_im,no_im))
+        self.corr_image = np.zeros((image_stack.shape[1],image_stack.shape[2]),dtype=image_stack.dtype)
+        self.moved_stack = np.zeros_like(image_stack,dtype=image_stack.dtype)
+        
+    @numba.jit(parallel=True,cache=True)   
+    def get_shape_stack(self):
+        """
+        Cross-Correlate stack of images
+        
+        Returns
+        -------
+        row_stack: ndarray
+                   The size is nXn where n is the n of images in
+                   the image_stack
+        col_stack: ndarray
+                   The size is nXn where n is the n of images in
+                   the image_stack
+
+        Notes
+        -----
+        For a rapidly collected image stack, each image in the stack is 
+        cross-correlated with all the other images of the stack, to generate
+        a skew matrix of row shifts and column shifts, calculated with sub
+        pixel precision.
+
+        :Authors:
+        Debangshu Mukherjee <mukherjeed@ornl.gov>
+        """
+        pfi.cache.enable()
+        for ii in numba.prange(self.no_im):
+            for jj in range(self.no_im):
+                self.row_stack[ii,jj],self.col_stack[ii,jj],_,_,_ = dftregistration(pfi.numpy_fft.fft2(self.image_stack[ii,:,:]),
+                                                                                    pfi.numpy_fft.fft2(self.image_stack[jj,:,:]),
+                                                                                    self.sampling)
+        return self.row_stack, self.col_stack
+
+    @numba.jit(parallel=True,cache=True)
+    def corrected_stack(self):
+        """
+        Get corrected image stack
+
+        Returns
+        -------
+        corr_stack: ndarray
+                    Corrected image from the image stack
+
+        Notes
+        -----
+        The mean of the shift stacks for every image position are the 
+        amount by which each image is to be shifted. We calculate the 
+        mean and move each image by that amount in the stack and then
+        sum them up.
+
+        :Authors:
+        Debangshu Mukherjee <mukherjeed@ornl.gov>
+        """
+        row_mean = np.mean(self.row_stack,axis=0)
+        col_mean = np.mean(self.col_stack,axis=0)
+        for ii in numba.prange(self.no_im):
+            self.moved_stack[ii,:,:] = np.abs(iu.move_by_phase(self.image_stack[ii,:,:],
+                                                               col_mean[ii],
+                                                               row_mean[ii]))
+        self.corr_image = np.sum(self.moved_stack,axis=0)
+        return self.corr_image
