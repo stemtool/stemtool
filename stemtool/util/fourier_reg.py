@@ -36,7 +36,8 @@ def find_max_index(image):
     xmax = (xx[image==np.amax(image)])[0]
     return ymax,xmax
 
-def first_max_index(image):
+def first_max_index(image,
+                    order='C'):
     """
     First maxima in image
     
@@ -44,6 +45,22 @@ def first_max_index(image):
     ----------
     image: ndarray
            Input image
+    order : {'C','F', 'A', 'K'}, 
+            optional
+            The elements of `a` are read using this index order. 'C' means
+            to index the elements in row-major, C-style order,
+            with the last axis index changing fastest, back to the first
+            axis index changing slowest.  'F' means to index the elements
+            in column-major, Fortran-style order, with the
+            first index changing fastest, and the last index changing
+            slowest. Note that the 'C' and 'F' options take no account of
+            the memory layout of the underlying array, and only refer to
+            the order of axis indexing.  'A' means to read the elements in
+            Fortran-like index order if `a` is Fortran *contiguous* in
+            memory, C-like order otherwise.  'K' means to read the
+            elements in the order they occur in memory, except for
+            reversing the data when strides are negative.  By default, 'C'
+            index order is used.
     
     Returns
     -------
@@ -54,16 +71,21 @@ def first_max_index(image):
     
     Notes
     -----
-    Finds the image maxima, and then locates the y 
-    and x indices corresponding to the maxima
+    Finds the first image maxima if there are multiple
+    points with the same maximum value, and then locates 
+    the y and x indices corresponding to the maxima
+    
+    Examples
+    --------
+    >>> ym, xm = first_max_index(image)
     
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     yy,xx = np.mgrid[0:image.shape[0],0:image.shape[1]]
-    yy = np.ravel(yy)
-    xx = np.ravel(xx)
-    image = np.ravel(image)
+    yy = np.ravel(yy,order)
+    xx = np.ravel(xx,order)
+    image = np.ravel(image,order)
     indices = np.arange(np.size(image),dtype=int)
     index = np.amin(indices[image==np.amax(image)])
     ymax = yy[index]
@@ -505,6 +527,8 @@ class drift_corrector(object):
     
     """
     def __init__(self,image_stack,sampling=500):
+        if sampling<1:
+            raise RuntimeError('Sampling factor should be a positive integer')
         self.image_stack = image_stack
         no_im = image_stack.shape[0]
         self.no_im = no_im
