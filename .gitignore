@@ -64,6 +64,20 @@ MANIFEST
 *.manifest
 *.spec
 
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt

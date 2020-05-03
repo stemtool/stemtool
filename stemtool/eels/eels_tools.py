@@ -1,5 +1,5 @@
 import numpy as np
-import pywt
+import pywavelets as pywt
 import numba
 from scipy import optimize as spo
 from scipy import signal as sps
