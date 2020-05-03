@@ -352,10 +352,10 @@ def cross_corr(image_1,
     
     References
     ----------
-    Pekin, T.C., Gammer, C., Ciston, J., Minor, A.M. and Ophus, C., 
-    2017. Optimizing disk registration algorithms for nanobeam 
-    electron diffraction strain mapping. Ultramicroscopy, 176, 
-    pp.170-176.
+    1]_, Pekin, T.C., Gammer, C., Ciston, J., Minor, A.M. and Ophus, C., 
+         2017. Optimizing disk registration algorithms for nanobeam 
+         electron diffraction strain mapping. Ultramicroscopy, 176, 
+         pp.170-176.
     
     See Also
     --------

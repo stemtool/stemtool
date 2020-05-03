@@ -10,33 +10,25 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
-devdir=''
-try:
-    if os.environ['DEVDIR']:
-        devdir = os.environ['DEVDIR']
-except KeyError:
-    print 'Unable to obtain $DEVDIR from the environment.'
-    exit(-1)
-sys.path.insert(0, devdir + '/stemtool/stemtool')
+import os
+import matplotlib
+matplotlib.use('agg')
+import sphinx
+import sphinx_rtd_theme
+import sphinx_gallery
+sys.path.append(os.path.abspath('../'))
+import stemtool
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
-# Sort members by type
-autodoc_member_order = 'groupwise'
 
 # -- Project information -----------------------------------------------------
 
-project = 'STEMTool'
-copyright = '2020, Debangshu Mukherjee'
-author = 'Debangshu Mukherjee'
+project = u'stemtool'
+copyright = u'2020, Debangshu Mukherjee'
+author = u'Debangshu Mukherjee'
 
 # The full version, including alpha/beta/rc tags
-release = '0.51'
+release = stemtool.__version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -45,24 +37,37 @@ release = '0.51'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.todo',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.napoleon',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-# Ensure that the __init__ method gets documented.
-def skip(app, what, name, obj, skip, options):
-    if name == "__init__":
-        return False
-    return skip
+# General information about the project.
 
-def setup(app):
-    app.connect("autodoc-skip-member", skip)
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+add_function_parentheses = True
+add_module_names = True
+show_authors = True
+
+autoclass_content = 'both'
+
+autodoc_default_flags = ['members',
+                         'inherited-members',
+                         # 'private-members',
+                         # 'show-inheritance'
+                         ]
 
 
 # -- Options for HTML output -------------------------------------------------
