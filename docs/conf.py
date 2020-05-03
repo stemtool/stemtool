@@ -10,10 +10,24 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('.'))
+devdir=''
+try:
+    if os.environ['DEVDIR']:
+        devdir = os.environ['DEVDIR']
+except KeyError:
+    print 'Unable to obtain $DEVDIR from the environment.'
+    exit(-1)
+sys.path.insert(0, devdir + '/stemtool/stemtool')
 
+# If extensions (or modules to document with autodoc) are in another directory,
+# add these directories to sys.path here. If the directory is relative to the
+# documentation root, use os.path.abspath to make it absolute, like shown here.
+#sys.path.insert(0, os.path.abspath('.'))
+# Sort members by type
+autodoc_member_order = 'groupwise'
 
 # -- Project information -----------------------------------------------------
 
@@ -35,6 +49,15 @@ extensions = [
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+# Ensure that the __init__ method gets documented.
+def skip(app, what, name, obj, skip, options):
+    if name == "__init__":
+        return False
+    return skip
+
+def setup(app):
+    app.connect("autodoc-skip-member", skip)
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
