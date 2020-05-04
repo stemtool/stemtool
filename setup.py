@@ -16,6 +16,7 @@ setup(name='stemtool',
     author_email='mukherjeed@ornl.gov',
     license='MIT',
     keywords = ['STEM','EELS','4D-STEM','electron microscopy'],
+    zip_safe=False,
     install_requires=[
         'numpy >= 1.13.0',
         'scipy >= 1.0.0',
