@@ -10,8 +10,7 @@ from scipy import optimize as spo
 from scipy import ndimage as scnd
 from scipy import signal as scsig
 from skimage import color as skc
-from ..proc import sobel_canny as sc
-from ..util import gauss_utils as gt
+import stemtool as st
 
 def move_by_phase(image_to_move,
                   x_pixels,
@@ -493,12 +492,12 @@ def array_rms(arr):
     return arr_rms
 
 def sobel_circle(image):
-    sobel_image,_ = sc.sobel(image)
+    sobel_image,_ = st.proc.sobel(image)
     yy,xx = np.mgrid[0:sobel_image.shape[0],0:sobel_image.shape[1]]
     center_y, center_x = np.asarray(scnd.measurements.center_of_mass(sobel_image))
     rr = (((yy - center_y) ** 2) + ((xx - center_x) ** 2)) ** 0.5
-    initial_guess = gt.initialize_gauss1D(np.ravel(rr),np.ravel(sobel_image),'maxima')
-    popt, _ = spo.curve_fit(gt.gaussian_1D_function, xdata=np.ravel(rr), ydata=np.ravel(sobel_image), p0=initial_guess)
+    initial_guess = st.util.initialize_gauss1D(np.ravel(rr),np.ravel(sobel_image),'maxima')
+    popt, _ = spo.curve_fit(st.util.gaussian_1D_function, xdata=np.ravel(rr), ydata=np.ravel(sobel_image), p0=initial_guess)
     radius = popt[0]
     return center_x,center_y,radius
 

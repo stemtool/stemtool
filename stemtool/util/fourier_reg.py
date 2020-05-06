@@ -1,7 +1,7 @@
 import numpy as np
 import numba
 import pyfftw.interfaces as pfi
-from ..util import image_utils as iu
+import stemtool as st
 
 def find_max_index(image):
     """
@@ -487,7 +487,7 @@ def corrected_stack(image_stack,
     col_mean = np.mean(colshifts,axis=0)
     moved_stack = np.zeros_like(image_stack,dtype=image_stack.dtype)
     for ii in numba.prange(len(row_mean)):
-        moved_stack[ii,:,:] = np.abs(iu.move_by_phase(image_stack[ii,:,:],col_mean[ii],row_mean[ii]))
+        moved_stack[ii,:,:] = np.abs(st.util.move_by_phase(image_stack[ii,:,:],col_mean[ii],row_mean[ii]))
     corr_stack = np.sum(moved_stack,axis=0)
     return corr_stack
 
@@ -591,8 +591,8 @@ class drift_corrector(object):
         row_mean = np.mean(self.row_stack,axis=0)
         col_mean = np.mean(self.col_stack,axis=0)
         for ii in range(self.no_im):
-            self.moved_stack[ii,:,:] = np.abs(iu.move_by_phase(self.image_stack[ii,:,:],
-                                                               col_mean[ii],
-                                                               row_mean[ii]))
+            self.moved_stack[ii,:,:] = np.abs(st.util.move_by_phase(self.image_stack[ii,:,:],
+                                                                    col_mean[ii],
+                                                                    row_mean[ii]))
         self.corr_image = np.sum(self.moved_stack,axis=0)
         return self.corr_image
