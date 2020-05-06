@@ -6,8 +6,7 @@ from scipy import ndimage as scnd
 from scipy import optimize as spo
 from scipy import interpolate as scinterp
 import warnings
-from ..util import gauss_utils as gt
-from ..util import fourier_reg as fr
+import stemtool as st
 
 def remove_close_vals(input_arr,limit):
     result = np.copy(input_arr) 
@@ -116,7 +115,7 @@ def refine_atoms(image_data,
     for ii in range(no_of_points):
         pos_x = (positions[ii,1]).astype(float)
         pos_y = (positions[ii,0]).astype(float)
-        fitted_diff = gt.fit_gaussian2D_mask(1+image_data,pos_x,pos_y,distance)
+        fitted_diff = st.util.fit_gaussian2D_mask(1+image_data,pos_x,pos_y,distance)
         refined_pos[ii,1] = fitted_diff[0]
         refined_pos[ii,0] = fitted_diff[1]
         refined_pos[ii,2:6] = fitted_diff[2:6]
@@ -204,18 +203,18 @@ def mpfit(main_image,
             zgaus = (zvals - np.amin(zvals))/(np.amax(zvals) - np.amin(zvals))
             mask_radius = med_dist
             xy = (xvals,yvals)
-            initial_guess = gt.initialize_gauss(xvals,yvals,zgaus)
+            initial_guess = st.util.initialize_gauss(xvals,yvals,zgaus)
             lower_bound = ((initial_guess[0]-med_dist),(initial_guess[1]-med_dist),
                            -180,0,0,((-2.5)*initial_guess[5]))
             upper_bound = ((initial_guess[0]+med_dist),(initial_guess[1]+med_dist),
                            180,(2.5*mask_radius),(2.5*mask_radius),(2.5*initial_guess[5]))
-            popt, _ = spo.curve_fit(gt.gaussian_2D_function, xy, zgaus, initial_guess,
+            popt, _ = spo.curve_fit(st.util.gaussian_2D_function, xy, zgaus, initial_guess,
                                     bounds=(lower_bound,upper_bound),ftol=tol_val, xtol=tol_val)
             cvals[ii,1] = popt[0]
             cvals[ii,0] = popt[1]
             cvals[ii,-1] = popt[-1] * (np.amax(zvals) - np.amin(zvals))
             cvals[ii,2] = (((popt[0] - xstart) ** 2) + ((popt[1] - ystart) ** 2)) ** 0.5
-            zcalc = gt.gaussian_2D_function(xy,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5])
+            zcalc = st.util.gaussian_2D_function(xy,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5])
             zcalc = (zcalc * (np.amax(zvals) - np.amin(zvals))) + np.amin(zvals)
         required_cvals = cvals[:,2] < (cut_point*med_dist)
         total = np.sum(cvals[required_cvals,3])
@@ -320,16 +319,16 @@ def mpfit_voronoi(main_image,
         for ii in np.arange(peak_runs):
             zvor = zvor - zcalc
             zgaus = (zvor - np.amin(zvor))/(np.amax(zvor) - np.amin(zvor))
-            initial_guess = gt.initialize_gauss(xvor,yvor,zgaus)
+            initial_guess = st.util.initialize_gauss(xvor,yvor,zgaus)
             lower_bound = (np.amin(xvor),np.amin(yvor),-180,0,0,((-2.5)*initial_guess[5]))
             upper_bound = (np.amax(xvor),np.amax(yvor),180,vor_dist,vor_dist,(2.5*initial_guess[5]))
-            popt, _ = spo.curve_fit(gt.gaussian_2D_function, xy, zgaus, initial_guess,
+            popt, _ = spo.curve_fit(st.util.gaussian_2D_function, xy, zgaus, initial_guess,
                                     bounds=(lower_bound,upper_bound),ftol=tol_val, xtol=tol_val)
             cvals[ii,1] = popt[0]
             cvals[ii,0] = popt[1]
             cvals[ii,-1] = popt[-1] * (np.amax(zvor) - np.amin(zvor))
             cvals[ii,2] = (((popt[0] - xpos) ** 2) + ((popt[1] - ypos) ** 2)) ** 0.5
-            zcalc = gt.gaussian_2D_function(xy,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5])
+            zcalc = st.util.gaussian_2D_function(xy,popt[0],popt[1],popt[2],popt[3],popt[4],popt[5])
             zcalc = (zcalc * (np.amax(zvor) - np.amin(zvor))) + np.amin(zvor)
         required_cvals = cvals[:,2] < (cut_point*vor_dist)
         total = np.sum(cvals[required_cvals,3])
@@ -346,7 +345,7 @@ def fourier_mask(original_image,
     pos_x = center[0]
     pos_y = center[1]
     blurred_image = scnd.filters.gaussian_filter(np.abs(image_fourier),3)
-    fitted_diff = gt.fit_gaussian2D_mask(blurred_image,pos_x,pos_y,radius)
+    fitted_diff = st.util.fit_gaussian2D_mask(blurred_image,pos_x,pos_y,radius)
     new_x = fitted_diff[0]
     new_y = fitted_diff[1]
     new_center = np.asarray((new_x,new_y))

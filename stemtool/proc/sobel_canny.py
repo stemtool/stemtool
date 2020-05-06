@@ -3,7 +3,7 @@ import numba
 import warnings
 from scipy import signal as scisig
 from scipy import ndimage as scnd
-from ..util import image_utils as iu
+import stemtool as st
 import math
 
 def sobel(im,
@@ -287,7 +287,7 @@ def canny_edge(input_image,
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     blurred_input = scnd.gaussian_filter(input_image,5)
-    normalized_blurred = iu.image_normalizer(blurred_input)
+    normalized_blurred = st.util.image_normalizer(blurred_input)
     sobel_mag, sobel_angle = sobel_filter(normalized_blurred)
     thinned_edge = edge_thinner(sobel_mag,sobel_angle)
     thresholded_edge = canny_threshold(thinned_edge, lowThreshold, highThreshold)

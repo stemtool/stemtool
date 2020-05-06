@@ -305,3 +305,84 @@ def initialize_gauss1D(rr,
     sigma_r = np.amax(r_fwhm)/(2*((2*np.log(2)) ** 0.5))
     height = np.amax(zz)
     return r_com, sigma_r, height
+
+def fit_gaussian1D_mask(signal,
+                        position,
+                        mask_width,
+                        center_type='COM'):
+    """
+    Fit a 2D gaussian to a masked image based on
+    the location of the mask, size of the mask and
+    the type of the mask
+    
+    Parameters
+    ----------
+    image_data:  ndarray
+                 The image that will be fitted with the Gaussian
+    mask_x:      float
+                 x center of the mask
+    mask_y:      float
+                 y center of the mask
+    mask_radius: float
+                 The size of the mask. For a circulat mask this
+                 refers to the mask radius, while for a square mask
+                 this refers to half the side of the square
+    mask_type:   str
+                 Default is `circular`, while the other option is `square`
+    center_type: str
+                 Center location for the first pass of the Gaussian.
+                 Default is `COM`, while the other options are `minima`
+                 or `maxima`.
+    
+    Returns
+    -------
+    popt: tuple
+          Refined X position, Refined Y Position, Rotation angle of
+          2D Gaussian, Standard deviation(s), Amplitude
+    
+    Notes
+    -----
+    This code uses the `scipy.optimize.curve_fit` module to fit a 2D
+    Gaussian peak to masked data. `mask_x` and `mask_y` refer to the
+    initial starting positions. Also, this can take in `minima` as a
+    string for initializing Gaussian peaks, which allows for atom column
+    mapping in inverted contrast images too.
+    
+    See also
+    --------
+    fit_gaussian2D_mask
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    p,q = np.shape(image_data)
+    yV, xV = np.mgrid[0:p, 0:q]
+    if (mask_type == 'circular'):
+        sub = ((((yV - mask_y) ** 2) + ((xV - mask_x) ** 2)) ** 0.5) < mask_radius
+    elif (mask_type == 'square'):
+        sub = np.logical_and((np.abs(yV - mask_y) < mask_radius),(np.abs(xV - mask_x) < mask_radius))
+    else:
+        raise ValueError("Unknown Mask Type")
+    x_pos = np.asarray(xV[sub],dtype=np.float64)
+    y_pos = np.asarray(yV[sub],dtype=np.float64)
+    masked_image = np.asarray(image_data[sub],dtype=np.float64)
+    mi_min = np.amin(masked_image)
+    mi_max = np.amax(masked_image)
+    if (center_type='minima'):
+        calc_image =  (masked_image - mi_max)/(mi_min - mi_max)
+        initial_guess = initialize_gauss(x_pos,y_pos,calc_image,'maxima')
+    else:
+        calc_image = (masked_image - mi_min)/(mi_max - mi_min)
+        initial_guess = initialize_gauss(x_pos,y_pos,calc_image,center_type)
+    lower_bound = ((initial_guess[0]-mask_radius),(initial_guess[1]-mask_radius),
+                   -180,0,0,((-2.5)*initial_guess[5]))
+    upper_bound = ((initial_guess[0]+mask_radius),(initial_guess[1]+mask_radius),
+                   180,(2.5*mask_radius),(2.5*mask_radius),(2.5*initial_guess[5]))
+    xy = (x_pos,y_pos)
+    popt, _ = spo.curve_fit(gaussian_2D_function, xy, calc_image, initial_guess,
+                                   bounds=(lower_bound,upper_bound),
+                                   ftol=0.01, xtol=0.01)
+    if (center_type='minima'):
+        popt[-1] = (popt[-1]*(mi_min - mi_max)) + mi_max
+    popt[-1] = (popt[-1]*(mi_max - mi_min)) + mi_min
+    return popt

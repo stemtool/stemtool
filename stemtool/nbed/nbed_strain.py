@@ -7,9 +7,7 @@ from scipy import signal as scisig
 from skimage import feature as skfeat
 import matplotlib.colors as mplc
 import matplotlib.pyplot as plt
-from ..util import image_utils as iu
-from ..proc import sobel_canny as sc
-from ..util import gauss_utils as gt
+import stemtool as st
 import warnings
 
 def angle_fun(angle,
@@ -108,7 +106,7 @@ def rotate_and_center_ROI(data4D_ROI,
     corrected_ROI = np.zeros_like(data4D_ROI)
     for ii in range(data4D_ROI.shape[0]):
         cbed_pattern = data4D_ROI[ii,:,:]
-        moved_cbed = np.abs(iu.move_by_phase(cbed_pattern,(-xcenter + (0.5 * data_size[-1])),(-ycenter + (0.5 * data_size[-2]))))
+        moved_cbed = np.abs(st.util.move_by_phase(cbed_pattern,(-xcenter + (0.5 * data_size[-1])),(-ycenter + (0.5 * data_size[-2]))))
         rotated_cbed = scnd.rotate(moved_cbed,rotangle,order=5,reshape=False)
         corrected_ROI[ii,:,:] = rotated_cbed
     return corrected_ROI
@@ -249,7 +247,7 @@ def test_aperture(pattern,
     aperture = np.asarray(rr<=radius, dtype=np.double)
     if showfig:
         plt.figure(figsize=(15,15))
-        plt.imshow(iu.image_normalizer(pattern)+aperture,cmap='Spectral')
+        plt.imshow(st.util.image_normalizer(pattern)+aperture,cmap='Spectral')
         plt.scatter(center[0],center[1],c='w', s=25)
     return aperture
 
@@ -310,7 +308,7 @@ def ROI_from_image(image,
         ROI = np.asarray(image < (med_val*np.median(image)),dtype=np.double)
     if showfig:
         plt.figure(figsize=(15, 15))
-        plt.imshow(ROI+iu.image_normalizer(image),cmap='viridis')
+        plt.imshow(ROI+st.util.image_normalizer(image),cmap='viridis')
         plt.title('ROI overlaid')
     ROI = ROI.astype(bool)
     return ROI
@@ -400,7 +398,7 @@ def fit_nbed_disks(corr_image,
         if peak_ratio < (1+nan_cutoff):
             fitted_disk_list[ii,0:2] = np.nan
         else:
-            par = gt.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
+            par = st.util.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
             fitted_disk_list[ii,0:2] = par[0:2]
     nancount = np.int(np.sum(np.isnan(fitted_disk_list))/2)
     if nancount == no_pos:
@@ -518,9 +516,9 @@ def strain_in_ROI(data4D,
     scan_y,scan_x = np.mgrid[0:data4D.shape[2],0:data4D.shape[3]]
     data4D_ROI = data4D[:,:,scan_y[ROI],scan_x[ROI]]
     no_of_disks = data4D_ROI.shape[-1]
-    disk_size = (np.sum(iu.image_normalizer(center_disk))/np.pi) ** 0.5
+    disk_size = (np.sum(st.util.image_normalizer(center_disk))/np.pi) ** 0.5
     i_matrix = (np.eye(2)).astype(np.float64)
-    sobel_center_disk,_ = sc.sobel(center_disk)
+    sobel_center_disk,_ = st.proc.sobel(center_disk)
     # Initialize matrices
     e_xx_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
     e_xy_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
@@ -535,19 +533,19 @@ def strain_in_ROI(data4D,
     #axes present
     if np.size(reference_axes) < 2:
         mean_cbed = np.mean(data4D_ROI,axis=-1)
-        sobel_lm_cbed,_ = sc.sobel(iu.image_logarizer(mean_cbed))
+        sobel_lm_cbed,_ = st.proc.sobel(st.util.image_logarizer(mean_cbed))
         sobel_lm_cbed[sobel_lm_cbed > med_factor*np.median(sobel_lm_cbed)] = np.median(sobel_lm_cbed)
-        lsc_mean = iu.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=hybrid_cc)
+        lsc_mean = st.util.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=hybrid_cc)
         _,_,_,mean_axes = fit_nbed_disks(lsc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
         pattern = data4D_ROI[:,:,ii]
-        sobel_log_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),gauss_val))
+        sobel_log_pattern,_ = st.proc.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val))
         sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)*med_factor
         sobel_log_pattern[sobel_log_pattern < np.median(sobel_log_pattern)/med_factor] = np.median(sobel_log_pattern)/med_factor
-        lsc_pattern = iu.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=hybrid_cc)
+        lsc_pattern = st.util.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=hybrid_cc)
         _,_,std,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list,nan_cutoff)
         if ~(np.isnan(np.ravel(pattern_axes))[0]):
             fit_std[ii,:] = std
@@ -592,16 +590,16 @@ def strain_log(data4D_ROI,
     #axes present
     if np.size(reference_axes) < 2:
         mean_cbed = np.mean(data4D_ROI,axis=-1)
-        log_cbed,_ = iu.image_logarizer(mean_cbed)
-        log_cc_mean = iu.cross_corr(log_cbed,center_disk,hybridizer=0.1)
+        log_cbed,_ = st.util.image_logarizer(mean_cbed)
+        log_cc_mean = st.util.cross_corr(log_cbed,center_disk,hybridizer=0.1)
         _,_,mean_axes = fit_nbed_disks(log_cc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
         pattern = data4D_ROI[:,:,ii]
-        log_pattern,_ = iu.image_logarizer(pattern)
-        log_cc_pattern = iu.cross_corr(log_pattern,center_disk,hybridizer=0.1)
+        log_pattern,_ = st.util.image_logarizer(pattern)
+        log_cc_pattern = st.util.cross_corr(log_pattern,center_disk,hybridizer=0.1)
         _,_,pattern_axes = fit_nbed_disks(log_cc_pattern,disk_size,disk_list,pos_list)
         t_pattern = np.matmul(pattern_axes,inverse_axes)
         s_pattern = t_pattern - i_matrix
@@ -631,14 +629,14 @@ def strain_oldstyle(data4D_ROI,
     #axes present
     if np.size(reference_axes) < 2:
         mean_cbed = np.mean(data4D_ROI,axis=-1)
-        cc_mean = iu.cross_corr(mean_cbed,center_disk,hybridizer=0.1)
+        cc_mean = st.util.cross_corr(mean_cbed,center_disk,hybridizer=0.1)
         _,_,mean_axes = fit_nbed_disks(cc_mean,disk_size,disk_list,pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
         pattern = data4D_ROI[:,:,ii]
-        cc_pattern = iu.cross_corr(pattern,center_disk,hybridizer=0.1)
+        cc_pattern = st.util.cross_corr(pattern,center_disk,hybridizer=0.1)
         _,_,pattern_axes = fit_nbed_disks(cc_pattern,disk_size,disk_list,pos_list)
         t_pattern = np.matmul(pattern_axes,inverse_axes)
         s_pattern = t_pattern - i_matrix
@@ -721,8 +719,8 @@ def log_sobel4D(data4D,
     for jj in numba.prange(data4D.shape[int(scan_dims[1])]):
         for ii in range(data4D.shape[int(scan_dims[0])]):
             pattern = data4D[:,:,ii,jj]
-            pattern = 1000*(1 + iu.image_normalizer(pattern))
-            lsb_pattern,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(pattern),gauss_val),5)
+            pattern = 1000*(1 + st.util.image_normalizer(pattern))
+            lsb_pattern,_ = st.proc.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val),5)
             lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
             lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor
             data_lsb[:,:,ii,jj] = lsb_pattern
@@ -814,7 +812,7 @@ def get_inside(edges,
 
 def sobel_filter(image,
                  med_filter=50):
-    ls_image,_ = sc.sobel(iu.image_logarizer(image))
+    ls_image,_ = st.proc.sobel(st.util.image_logarizer(image))
     ls_image[ls_image > (med_filter*np.median(ls_image))] = med_filter*np.median(ls_image)
     ls_image[ls_image < (np.median(ls_image)/med_filter)] = np.median(ls_image)/med_filter
     return ls_image
@@ -905,7 +903,7 @@ def strain4D_general(data4D,
     radiating = ((diff_y -disk_center[0])**2) + ((diff_x - disk_center[1])**2)
     disk = np.zeros_like(radiating)
     disk[radiating < (disk_radius**2)] = 1
-    sobel_disk,_ = sc.sobel(disk)
+    sobel_disk,_ = st.proc.sobel(disk)
     if (np.sum(ROI)==0):
         imROI = np.ones_like(e_xx_map,dtype=bool)
     else:
@@ -915,20 +913,20 @@ def strain4D_general(data4D,
     LSB_ROI = np.zeros_like(ROI_4D,dtype=np.float)
     for ii in range(no_of_disks):
         cbed = ROI_4D[:,:,ii]
-        cbed = 1000*(1 + iu.image_normalizer(cbed))
-        lsb_cbed,_ = sc.sobel(scnd.gaussian_filter(iu.image_logarizer(cbed),gauss_val))
+        cbed = 1000*(1 + st.util.image_normalizer(cbed))
+        lsb_cbed,_ = st.proc.sobel(scnd.gaussian_filter(st.util.image_logarizer(cbed),gauss_val))
         lsb_cbed[lsb_cbed > med_factor*np.median(lsb_cbed)] = np.median(lsb_cbed)*med_factor
         lsb_cbed[lsb_cbed < np.median(lsb_cbed)/med_factor] = np.median(lsb_cbed)/med_factor
         LSB_ROI[:,:,ii] = lsb_cbed
     Mean_LSB = np.median(LSB_ROI,axis=(-1))
-    LSB_CC = iu.cross_corr(Mean_LSB,sobel_disk,hybrid_cc)
+    LSB_CC = st.util.cross_corr(Mean_LSB,sobel_disk,hybrid_cc)
     data_peaks = skfeat.peak_local_max(LSB_CC,min_distance=int(2*disk_radius),indices=False)
     peak_labels = scnd.measurements.label(data_peaks)[0]
     merged_peaks = np.asarray(scnd.measurements.center_of_mass(data_peaks, peak_labels, range(1, np.max(peak_labels)+1)))
     fitted_mean = np.zeros_like(merged_peaks,dtype=np.float64)
     fitted_scan = np.zeros_like(merged_peaks,dtype=np.float64)
     for jj in range(merged_peaks.shape[0]):
-        par = gt.fit_gaussian2D_mask(LSB_CC,merged_peaks[jj,1],merged_peaks[jj,0],disk_radius)
+        par = st.util.fit_gaussian2D_mask(LSB_CC,merged_peaks[jj,1],merged_peaks[jj,0],disk_radius)
         fitted_mean[jj,0:2] = np.flip(par[0:2])
     distarr = (np.sum(((fitted_mean - np.asarray(LSB_CC.shape)/2)**2),axis=1))**0.5
     peaks_mean = fitted_mean[distarr != np.amin(distarr),:] - fitted_mean[distarr == np.amin(distarr),:]
@@ -939,9 +937,9 @@ def strain4D_general(data4D,
     eyy_ROI = np.ones(no_of_disks,dtype=np.float64)
     for kk in range(no_of_disks):
         scan_LSB = LSB_ROI[:,:,kk]
-        scan_CC = iu.cross_corr(scan_LSB,sobel_disk,hybrid_cc)
+        scan_CC = st.util.cross_corr(scan_LSB,sobel_disk,hybrid_cc)
         for qq in range(merged_peaks.shape[0]):
-            scan_par = gt.fit_gaussian2D_mask(scan_CC,fitted_mean[qq,1],fitted_mean[qq,0],disk_radius)
+            scan_par = st.util.fit_gaussian2D_mask(scan_CC,fitted_mean[qq,1],fitted_mean[qq,0],disk_radius)
             fitted_scan[qq,0:2] = np.flip(scan_par[0:2])
         peaks_scan = fitted_scan[distarr != np.amin(distarr),:] - fitted_scan[distarr == np.amin(distarr),:]
         list_pos[kk,:,:] = peaks_scan         
