@@ -203,7 +203,7 @@ def mpfit(main_image,
             zgaus = (zvals - np.amin(zvals))/(np.amax(zvals) - np.amin(zvals))
             mask_radius = med_dist
             xy = (xvals,yvals)
-            initial_guess = st.util.initialize_gauss(xvals,yvals,zgaus)
+            initial_guess = st.util.initialize_gauss2D(xvals,yvals,zgaus)
             lower_bound = ((initial_guess[0]-med_dist),(initial_guess[1]-med_dist),
                            -180,0,0,((-2.5)*initial_guess[5]))
             upper_bound = ((initial_guess[0]+med_dist),(initial_guess[1]+med_dist),
@@ -319,7 +319,7 @@ def mpfit_voronoi(main_image,
         for ii in np.arange(peak_runs):
             zvor = zvor - zcalc
             zgaus = (zvor - np.amin(zvor))/(np.amax(zvor) - np.amin(zvor))
-            initial_guess = st.util.initialize_gauss(xvor,yvor,zgaus)
+            initial_guess = st.util.initialize_gauss2D(xvor,yvor,zgaus)
             lower_bound = (np.amin(xvor),np.amin(yvor),-180,0,0,((-2.5)*initial_guess[5]))
             upper_bound = (np.amax(xvor),np.amax(yvor),180,vor_dist,vor_dist,(2.5*initial_guess[5]))
             popt, _ = spo.curve_fit(st.util.gaussian_2D_function, xy, zgaus, initial_guess,
@@ -687,3 +687,70 @@ def strain_map(centers,
     map_th = np.multiply(map_th,mask)
     
     return map_yy, map_xx, map_xy, map_th
+
+def create_circmask(image,
+                    center,
+                    radius,
+                    g_val=3,
+                    flip=True):
+    """
+    Use a Gaussian blurred image to fit 
+    peaks.
+    
+    Parameters
+    ----------
+    image:  ndarray
+            2D array representing the image
+    center: tuple
+            Approximate location as (x,y) of 
+            the peak we are trying to fit
+    radius: float
+            Masking radius
+    g_val:  float
+            Value in pixels of the Gaussian
+            blur applied. Default is 3
+    flip:   bool
+            Switch to flip refined center position
+            from (x,y) to (y,x). Default is True
+            which returns the center as (y,x)
+            
+    
+    Returns
+    -------
+    masked_image: ndarray
+                  Masked Image centered at refined 
+                  peak position
+    new_center:   ndarray
+                  Refined atom center as (y,x) if 
+                  flip switch is on, else the center
+                  is returned as (x,y)
+    
+    Notes
+    -----
+    For some noisy datasets, a peak may be visible with
+    the human eye, but getting a sub-pixel estimation of
+    the peak position is often challenging, especially
+    for FFT for diffraction patterns. This code Gaussian
+    blurs the image, and returns the refined peak position
+    
+    See also
+    --------
+    st.util.fit_gaussian2D_mask
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+                  
+    """
+    blurred_image = scnd.filters.gaussian_filter(np.abs(image),g_val)
+    fitted_diff = st.util.fit_gaussian2D_mask(blurred_image,center[0],center[1],radius)
+    size_image = np.asarray(np.shape(image),dtype=int)
+    yV, xV = np.mgrid[0:size_image[0], 0:size_image[1]]
+    masked_image = np.zeros_like(blurred_image)
+    if flip:
+        new_center = np.asarray(np.flip(fitted_diff[0:2]))
+        sub = ((((yV - new_center[0]) ** 2) + ((xV - new_center[1]) ** 2)) ** 0.5) < radius
+    else:
+        new_center = np.asarray(fitted_diff[0:2])
+        sub = ((((yV - new_center[1]) ** 2) + ((xV - new_center[0]) ** 2)) ** 0.5) < radius
+    masked_image[sub] = image[sub]
+    return masked_image, new_center

@@ -298,6 +298,56 @@ def aperture_image(data4D,
     df_image = np.sum(np.sum(apt_mult,axis=0),axis=0)
     return df_image
 
+def custom_detector(data4D,
+                    det_inner,
+                    det_outer,
+                    det_center=0,
+                    mrad_calib=0):
+    """
+    Generate an image with a custom annular detector 
+    located anywhere in diffraction space
+    
+    Parameters
+    ----------
+    data4D: ndarray of shape (4,4)
+            the first two dimensions are Fourier
+            space, while the next two dimensions
+            are real space
+    center: ndarray of shape (1,2)
+            Center of the circular aperture
+    radius: float
+            Radius of the circular aperture
+    
+    Returns
+    -------
+    df_image: ndarray of shape (2,2)
+              Generated virtual dark field image
+              from the aperture and 4D data
+    
+    Notes
+    -----
+    We generate the aperture first, and then make copies
+    of the aperture to generate a 4D dataset of the same 
+    size as the 4D data. Then we do an element wise 
+    multiplication of this aperture 4D data with the 4D data
+    and then sum it along the two Fourier directions.
+                 
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    center = np.array(center)
+    yy,xx = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
+    yy = yy - center[1]
+    xx = xx - center[0]
+    rr = ((yy ** 2) + (xx ** 2)) ** 0.5
+    aperture = np.asarray(rr<=radius, dtype=data4D.dtype)
+    apt_copy = np.empty((data4D.shape[2],data4D.shape[3]) + aperture.shape,dtype=data4D.dtype)
+    apt_copy[:] = aperture
+    apt_copy = np.transpose(apt_copy,(2,3,0,1))
+    apt_mult = apt_copy * data4D
+    df_image = np.sum(np.sum(apt_mult,axis=0),axis=0)
+    return df_image
+
 def ROI_from_image(image,
                    med_val,
                    style='over',

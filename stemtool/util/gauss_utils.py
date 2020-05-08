@@ -66,7 +66,7 @@ def gauss2D(im_size,
             sigma_y,
             amplitude):
     """
-    Return a 2D Gaussian function
+    Return a 2D Gaussian function centered at x0, y0
     
     Parameters
     ----------
@@ -117,10 +117,10 @@ def gauss2D(im_size,
     gauss2D[yr,xr] = amplitude * np.exp((-1)*(expo_1 + expo_2 + expo_3))
     return gauss2D
 
-def initialize_gauss(xx,
-                     yy,
-                     zz,
-                     center_type='COM'):
+def initialize_gauss2D(xx,
+                       yy,
+                       zz,
+                       center_type='COM'):
     """
     Generate an approximate Gaussian based on image
     
@@ -223,7 +223,8 @@ def fit_gaussian2D_mask(image_data,
     
     See also
     --------
-    fit_gaussian2D_mask
+    gaussian_2D_function
+    initialize_gauss2D
     
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
@@ -241,12 +242,12 @@ def fit_gaussian2D_mask(image_data,
     masked_image = np.asarray(image_data[sub],dtype=np.float64)
     mi_min = np.amin(masked_image)
     mi_max = np.amax(masked_image)
-    if (center_type='minima'):
+    if (center_type=='minima'):
         calc_image =  (masked_image - mi_max)/(mi_min - mi_max)
-        initial_guess = initialize_gauss(x_pos,y_pos,calc_image,'maxima')
+        initial_guess = initialize_gauss2D(x_pos,y_pos,calc_image,'maxima')
     else:
         calc_image = (masked_image - mi_min)/(mi_max - mi_min)
-        initial_guess = initialize_gauss(x_pos,y_pos,calc_image,center_type)
+        initial_guess = initialize_gauss2D(x_pos,y_pos,calc_image,center_type)
     lower_bound = ((initial_guess[0]-mask_radius),(initial_guess[1]-mask_radius),
                    -180,0,0,((-2.5)*initial_guess[5]))
     upper_bound = ((initial_guess[0]+mask_radius),(initial_guess[1]+mask_radius),
@@ -255,56 +256,103 @@ def fit_gaussian2D_mask(image_data,
     popt, _ = spo.curve_fit(gaussian_2D_function, xy, calc_image, initial_guess,
                                    bounds=(lower_bound,upper_bound),
                                    ftol=0.01, xtol=0.01)
-    if (center_type='minima'):
+    if (center_type=='minima'):
         popt[-1] = (popt[-1]*(mi_min - mi_max)) + mi_max
     popt[-1] = (popt[-1]*(mi_max - mi_min)) + mi_min
     return popt
-
-def create_circmask(image,
-                    center,
-                    radius):
-    """
-    Use a blurred image to fit values
-    
-    """
-    pos_x = center[0]
-    pos_y = center[1]
-    blurred_image = scnd.filters.gaussian_filter(np.abs(image),3)
-    fitted_diff = fit_gaussian2D_mask(blurred_image,pos_x,pos_y,radius)
-    new_x = fitted_diff[0]
-    new_y = fitted_diff[1]
-    new_center = np.asarray((new_y,new_x))
-    size_image = np.asarray(np.shape(image),dtype=int)
-    yV, xV = np.mgrid[0:size_image[0], 0:size_image[1]]
-    sub = ((((yV - new_y) ** 2) + ((xV - new_x) ** 2)) ** 0.5) < radius
-    circle = np.asarray(sub,dtype=np.float)
-    masked_image = np.multiply(image,circle)
-    return masked_image, new_center, circle
 
 def gaussian_1D_function(x,
                          x0,
                          sigma_x,
                          amplitude):
+    """
+    The underlying 1D Gaussian function
+    
+    Parameters
+    ----------
+    x:         ndarray
+               x positions
+    x0:        float
+               x center of Gaussian peak
+    sigma_x:   float
+               Standard deviation of the 2D Gaussian along x
+    amplitude: float
+               Peak intensity
+    
+    Returns
+    -------
+    gaussvals: ndarray
+               A Gausian peak centered at x0 based on the
+               parameters given 
+    
+    Notes
+    -----
+    The Gaussian 1D function is calculated at every x position for
+    a list of position values based on the parameters given.
+    
+    See also
+    --------
+    gaussian_2D_function
+    initialize_gauss1D
+    fit_gaussian1D_mask
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
     x = x - x0
     term = (x ** 2)/(2*(sigma_x ** 2))
-    gauss1D = amplitude * np.exp((-1)*term)
-    return gauss1D
+    gaussvals = amplitude * np.exp((-1)*term)
+    return gaussvals
 
-def initialize_gauss1D(rr,
-                       zz,
+def initialize_gauss1D(xx,
+                       yy,
                        center_type='COM'):
+    """
+    Generate an approximate Gaussian based on signal
+    
+    Parameters
+    ----------
+    xx:          ndarray
+                 X positions
+    yy:          ndarray
+                 Signal value at the positions
+    center_type: str
+                 Default is `COM` which uses the center
+                 of mass of the given positions to generate
+                 the starting gaussian center. The other option 
+                 is `maxima` which takes the maximum intensity 
+                 value as the starting point.
+    
+    Returns
+    -------
+    gauss_ini: tuple
+               X_center, X_std, Amplitude
+    
+    Notes
+    -----
+    For a given list of x positions and corresponding signal 
+    values, this code returns a first pass approximation of a 
+    1D Gaussian function. The center of the function can either 
+    be the center of mass or the intensity maxima, and is user 
+    defined. 
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
     if (center_type == 'maxima'):
-        r_com = rr[zz == np.amax(zz)]
-        r_com = r_com[0]
+        x_com = xx[yy == np.amax(yy)]
+        x_com = x_com[0]
     elif (center_type == 'COM'):
-        total = np.sum(zz)
-        r_com = np.sum(np.multiply(rr,zz))/total
-    zz_norm = st.util.image_normalizer(zz)
-    r_fwhm = rr[zz_norm > 0.5]
-    r_fwhm = np.abs(r_fwhm - r_com)
-    sigma_r = np.amax(r_fwhm)/(2*((2*np.log(2)) ** 0.5))
-    height = np.amax(zz)
-    return r_com, sigma_r, height
+        total = np.sum(yy)
+        x_com = np.sum(np.multiply(xx,yy))/total
+    else:
+        raise ValueError("Invalid Center Type")
+    yy_norm = st.util.image_normalizer(yy)
+    x_fwhm = xx[yy_norm > 0.5]
+    x_fwhm = np.abs(x_fwhm - x_com)
+    sigma_x = np.amax(x_fwhm)/(2*((2*np.log(2)) ** 0.5))
+    height = np.amax(yy)
+    return x_com, sigma_x, height
 
 def fit_gaussian1D_mask(signal,
                         position,
@@ -317,18 +365,12 @@ def fit_gaussian1D_mask(signal,
     
     Parameters
     ----------
-    image_data:  ndarray
-                 The image that will be fitted with the Gaussian
-    mask_x:      float
+    signal:      ndarray
+                 The 1D signal that will be fitted with the Gaussian
+    position:    float
                  x center of the mask
-    mask_y:      float
-                 y center of the mask
-    mask_radius: float
-                 The size of the mask. For a circulat mask this
-                 refers to the mask radius, while for a square mask
-                 this refers to half the side of the square
-    mask_type:   str
-                 Default is `circular`, while the other option is `square`
+    mask_width:  float
+                 The size of the mask.
     center_type: str
                  Center location for the first pass of the Gaussian.
                  Default is `COM`, while the other options are `minima`
@@ -337,52 +379,42 @@ def fit_gaussian1D_mask(signal,
     Returns
     -------
     popt: tuple
-          Refined X position, Refined Y Position, Rotation angle of
-          2D Gaussian, Standard deviation(s), Amplitude
+          Refined X position, Standard deviation, Amplitude
     
     Notes
     -----
-    This code uses the `scipy.optimize.curve_fit` module to fit a 2D
-    Gaussian peak to masked data. `mask_x` and `mask_y` refer to the
-    initial starting positions. Also, this can take in `minima` as a
-    string for initializing Gaussian peaks, which allows for atom column
-    mapping in inverted contrast images too.
+    This code uses the `scipy.optimize.curve_fit` module to fit a 1D
+    Gaussian peak to masked data. `mask_x` refers to the initial 
+    starting position. Also, this can take in `minima` as a string 
+    for initializing Gaussian peaks.
     
     See also
     --------
     fit_gaussian2D_mask
+    initialize_gauss1D
+    gaussian_1D_function
     
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    p,q = np.shape(image_data)
-    yV, xV = np.mgrid[0:p, 0:q]
-    if (mask_type == 'circular'):
-        sub = ((((yV - mask_y) ** 2) + ((xV - mask_x) ** 2)) ** 0.5) < mask_radius
-    elif (mask_type == 'square'):
-        sub = np.logical_and((np.abs(yV - mask_y) < mask_radius),(np.abs(xV - mask_x) < mask_radius))
-    else:
-        raise ValueError("Unknown Mask Type")
-    x_pos = np.asarray(xV[sub],dtype=np.float64)
-    y_pos = np.asarray(yV[sub],dtype=np.float64)
-    masked_image = np.asarray(image_data[sub],dtype=np.float64)
-    mi_min = np.amin(masked_image)
-    mi_max = np.amax(masked_image)
-    if (center_type='minima'):
-        calc_image =  (masked_image - mi_max)/(mi_min - mi_max)
-        initial_guess = initialize_gauss(x_pos,y_pos,calc_image,'maxima')
+    xV = np.arange(np.len(signal))
+    sub = np.abs(xV - position) < mask_width
+    x_pos = np.asarray(xV[sub],dtype=np.float)
+    masked_signal = np.asarray(signal[sub],dtype=np.float)
+    mi_min = np.amin(masked_signal)
+    mi_max = np.amax(masked_signal)
+    if (center_type=='minima'):
+        calc_signal =  (masked_signal - mi_max)/(mi_min - mi_max)
+        initial_guess = initialize_gauss1D(x_pos,calc_signal,'maxima')
     else:
         calc_image = (masked_image - mi_min)/(mi_max - mi_min)
-        initial_guess = initialize_gauss(x_pos,y_pos,calc_image,center_type)
-    lower_bound = ((initial_guess[0]-mask_radius),(initial_guess[1]-mask_radius),
-                   -180,0,0,((-2.5)*initial_guess[5]))
-    upper_bound = ((initial_guess[0]+mask_radius),(initial_guess[1]+mask_radius),
-                   180,(2.5*mask_radius),(2.5*mask_radius),(2.5*initial_guess[5]))
-    xy = (x_pos,y_pos)
-    popt, _ = spo.curve_fit(gaussian_2D_function, xy, calc_image, initial_guess,
-                                   bounds=(lower_bound,upper_bound),
-                                   ftol=0.01, xtol=0.01)
-    if (center_type='minima'):
+        initial_guess = initialize_gauss1D(x_pos,calc_signal,center_type)
+    lower_bound = ((initial_guess[0]-mask_width),0,((-2.5)*initial_guess[5]))
+    upper_bound = ((initial_guess[0]+mask_radius),(2.5*mask_radius),(2.5*initial_guess[5]))
+    popt, _ = spo.curve_fit(gaussian_1D_function, x_pos, calc_signal, initial_guess,
+                            bounds=(lower_bound,upper_bound),
+                            ftol=0.01, xtol=0.01)
+    if (center_type=='minima'):
         popt[-1] = (popt[-1]*(mi_min - mi_max)) + mi_max
     popt[-1] = (popt[-1]*(mi_max - mi_min)) + mi_min
     return popt

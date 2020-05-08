@@ -2,7 +2,7 @@ import numpy as np
 from skimage import restoration as skr
 from scipy import ndimage as scnd
 import matplotlib.pyplot as plt
-from ..util import image_utils as iu
+import stemtool as st
 import numba
 
 def find_diffraction_spots(image,
@@ -91,7 +91,7 @@ def define_reference(image,
     ref_reg = np.logical_and(np.logical_and((yy > (m_AB*xx) + c_AB),((yy - c_BC)/m_BC > xx)),
                              np.logical_and((yy < (m_CD*xx) + c_CD),((yy - c_DA)/m_DA < xx)))
     plt.figure(figsize=(15,15))
-    plt.imshow(iu.image_normalizer(image)+0.33*ref_reg)
+    plt.imshow(st.util.image_normalizer(image)+0.33*ref_reg)
     plt.annotate(A, (A[0]/image.shape[0], (1 - A[1]/image.shape[1])), textcoords='axes fraction', size=15,color='w')
     plt.annotate(B, (B[0]/image.shape[0], (1 - B[1]/image.shape[1])), textcoords='axes fraction', size=15,color='w')
     plt.annotate(C, (C[0]/image.shape[0], (1 - C[1]/image.shape[1])), textcoords='axes fraction', size=15,color='w')
@@ -174,7 +174,7 @@ def phase_matrix(g_vector,image,gauss_blur=True):
     ham = np.sqrt(np.outer(np.hamming(image.shape[0]),np.hamming(image.shape[1])))
     circ_pos = G_to_circ(g_vector,image)
     circ_rad = np.amin(0.01*np.asarray(image.shape))
-    circ_mask = (iu.make_circle(image.shape,circ_pos[0],circ_pos[1],circ_rad)).astype(bool)
+    circ_mask = (st.util.make_circle(image.shape,circ_pos[0],circ_pos[1],circ_rad)).astype(bool)
     yy,xx = np.mgrid[0:image.shape[0],0:image.shape[1]]
     sigma2 = np.sum((g_vector*0.5*np.asarray(image.shape))**2)
     zz = (((yy[circ_mask] - circ_pos[1])**2) + ((xx[circ_mask] - circ_pos[0])**2))/sigma2
