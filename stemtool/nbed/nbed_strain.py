@@ -22,7 +22,7 @@ def angle_fun(angle,
                 Angle to rotate 
     image_orig: (2,2) shape ndarray
                 Input Image
-    axis:       int
+    axis:       int, optional
                 Axis along which to perform sum
                      
     Returns
@@ -30,9 +30,15 @@ def angle_fun(angle,
     rotmin: float
             Sum of the rotated image multiplied by -1 along 
             the axis specified
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
+
+    Notes
+    -----
+    This is an internal minimization function for finding the 
+    minimum sum of the image at a particular rotation angle.
+
+    See Also
+    --------
+    rotation_finder 
     """
     rotated_image = scnd.rotate(image_orig,angle,order=5,reshape=False)
     rotsum = (-1)*(np.sum(rotated_image,1))
@@ -48,7 +54,7 @@ def rotation_finder(image_orig,
     ----------
     image_orig: (2,2) shape ndarray
                 Input Image
-    axis:       int
+    axis:       int, optional
                 Axis along which to perform sum
                      
     Returns
@@ -57,12 +63,17 @@ def rotation_finder(image_orig,
            Angle by which if the image is rotated
            by, the sum of the image along the axis
            specified is maximum
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    
+    Notes
+    -----
+    Uses the `angle_fun` function as the minimizer.
+
+    See Also
+    --------
+    angle_fun
     """
     x0 = 90
-    x = sio.minimize(angle_fun,x0,args=(image_orig))
+    x = sio.minimize(angle_fun, x0, args=(image_orig))
     min_x = x.x
     return min_x
 
@@ -92,23 +103,21 @@ def rotate_and_center_ROI(data4D_ROI,
                    Each CBED pattern from the region of interest
                    first centered and then rotated along the center
      
-    
     Notes
     -----
     We start by centering each 4D-STEM CBED pattern 
     and then rotating the patterns with respect to the
     pattern center
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     data_size = np.asarray(np.shape(data4D_ROI))
     corrected_ROI = np.zeros_like(data4D_ROI)
     for ii in range(data4D_ROI.shape[0]):
-        cbed_pattern = data4D_ROI[ii,:,:]
-        moved_cbed = np.abs(st.util.move_by_phase(cbed_pattern,(-xcenter + (0.5 * data_size[-1])),(-ycenter + (0.5 * data_size[-2]))))
-        rotated_cbed = scnd.rotate(moved_cbed,rotangle,order=5,reshape=False)
-        corrected_ROI[ii,:,:] = rotated_cbed
+        cbed_pattern = data4D_ROI[ii, :, :]
+        moved_cbed = np.abs(st.util.move_by_phase(cbed_pattern,
+                                                 (-xcenter+ (0.5* data_size[-1])), 
+                                                 (-ycenter+ (0.5* data_size[-2]))))
+        rotated_cbed = scnd.rotate(moved_cbed, rotangle, order=5, reshape=False)
+        corrected_ROI[ii, :, :] = rotated_cbed
     return corrected_ROI
 
 def data4Dto2D(data4D):
@@ -128,38 +137,40 @@ def data4Dto2D(data4D):
             Raveled 2D data where the
             first two dimensions are positions
             while the next two dimensions are spectra
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    data2D = np.transpose(data4D,(2,3,0,1))
+    data2D = np.transpose(data4D, (2, 3, 0, 1))
     data_shape = data2D.shape
-    data2D.shape = (data_shape[0]*data_shape[1],data_shape[2]*data_shape[3])
+    data2D.shape = (data_shape[0]* data_shape[1], data_shape[2]* data_shape[3])
     return data2D
 
-@numba.jit
-def resizer1D_numbaopt(data,res,N):   
-    M = data.size
-    carry=0
-    m=0
+@numba.jit(parallel=True,cache=True)
+def resizer1D_numbaopt(data,
+                       res,
+                       N):   
+    M= data.size
+    carry= 0
+    m= 0
     for n in range(int(N)):
         data_sum = carry
-        while m*N - n*M < M :
-            data_sum += data[m]
-            m += 1
-        carry = (m-(n+1)*M/N)*data[m-1]
-        data_sum -= carry
-        res[n] = data_sum*N/M
+        while (((m* N)- (n* M)) < M):
+            data_sum+= data[m]
+            m+= 1
+        carry= (m- (n+ 1)* (M/N))* data[m-1]
+        data_sum-= carry
+        res[n]= data_sum* (N/ M)
     return res
 
-@numba.jit
-def resizer2D_numbaopt(data2D,resampled_x,resampled_f,sampling):
-    data_shape = np.asarray(np.shape(data2D))
-    sampled_shape = (np.round(data_shape/sampling)).astype(int)
-    for yy in range(data_shape[0]):
-        resampled_x[yy,:] = resizer1D_numbaopt(data2D[yy,:],resampled_x[yy,:],sampled_shape[1])
-    for xx in range(sampled_shape[1]):
-        resampled_f[:,xx] = resizer1D_numbaopt(resampled_x[:,xx],resampled_f[:,xx],sampled_shape[0])
+@numba.jit(parallel=True,cache=True)
+def resizer2D_numbaopt(data2D,
+                       resampled_x,
+                       resampled_f,
+                       sampling):
+    data_shape= np.asarray(data2D.shape)
+    sampled_shape= (np.round(data_shape/ sampling)).astype(int)
+    for yy in numba.prange(data_shape[0]):
+        resampled_x[yy, :] = resizer1D_numbaopt(data2D[yy,:], resampled_x[yy,:], sampled_shape[1])
+    for xx in numba.prange(sampled_shape[1]):
+        resampled_f[:, xx] = resizer1D_numbaopt(resampled_x[:,xx], resampled_f[:,xx], sampled_shape[0])
     return resampled_f
 
 @numba.jit
@@ -187,9 +198,11 @@ def bin4D(data4D,
     The data is binned in the first two dimensions - which are
     the Fourier dimensions using the internal numba functions 
     `resizer2D_numbaopt` and `resizer1D_numbaopt`
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
+
+    See Also
+    --------
+    resizer1D_numbaopt
+    resizer2D_numbaopt
     """
     data4D_flat = np.reshape(data4D,(data4D.shape[0],data4D.shape[1],data4D.shape[2]*data4D.shape[3]))
     datashape = np.asarray(data4D_flat.shape)
@@ -220,7 +233,7 @@ def test_aperture(pattern,
              Center of the circular aperture
     radius:  float
              Radius of the circular aperture
-    showfig: bool
+    showfig: bool, optional
              If showfig is True, then the image is
              displayed with the aperture overlaid
                      
@@ -235,9 +248,6 @@ def test_aperture(pattern,
     -----
     Use the showfig option to visually test out the aperture 
     location with varying parameters
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     center = np.asarray(center)
     yy,xx = np.mgrid[0:pattern.shape[0],0:pattern.shape[1]]
@@ -281,9 +291,6 @@ def aperture_image(data4D,
     size as the 4D data. Then we do an element wise 
     multiplication of this aperture 4D data with the 4D data
     and then sum it along the two Fourier directions.
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     center = np.array(center)
     yy,xx = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
@@ -301,7 +308,7 @@ def aperture_image(data4D,
 def custom_detector(data4D,
                     det_inner,
                     det_outer,
-                    det_center=0,
+                    det_center=(0,0),
                     mrad_calib=0):
     """
     Generate an image with a custom annular detector 
@@ -331,16 +338,19 @@ def custom_detector(data4D,
     size as the 4D data. Then we do an element wise 
     multiplication of this aperture 4D data with the 4D data
     and then sum it along the two Fourier directions.
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    center = np.array(center)
+    if (mrad_calib > 0):
+        det_inner = det_inner * mrad_calib
+        det_outer = det_outer * mrad_calib
+        det_center = np.asarray(det_center) * mrad_calib
+    det_center = np.asarray(det_center)
     yy,xx = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
-    yy = yy - center[1]
-    xx = xx - center[0]
-    rr = ((yy ** 2) + (xx ** 2)) ** 0.5
-    aperture = np.asarray(rr<=radius, dtype=data4D.dtype)
+    yy -= (0.5*data4D.shape[0])
+    xx -= (0.5*data4D.shape[1])
+    yy = yy - det_center[1]
+    xx = xx - det_center[0]
+    rr = (yy ** 2) + (xx ** 2)
+    aperture = np.logical_and((rr<=det_outer),(rr>=det_inner))
     apt_copy = np.empty((data4D.shape[2],data4D.shape[3]) + aperture.shape,dtype=data4D.dtype)
     apt_copy[:] = aperture
     apt_copy = np.transpose(apt_copy,(2,3,0,1))
@@ -403,7 +413,7 @@ def fit_nbed_disks(corr_image,
     diff_spots: ndarray of shape (n,2)
                 a and b Miller indices corresponding to the
                 disk positions
-    nan_cutoff: float
+    nan_cutoff: float, optional
                 Optional parameter that is used for thresholding disk
                 fits. If the intensity ratio is below the threshold 
                 the position will not be fit. Default value is 0
@@ -431,9 +441,6 @@ def fit_nbed_disks(corr_image,
     is (1+nan_cutoff) times the median pixel intensity will be fitted. Use this 
     parameter carefully, because in some cases this may result in no disks being fitted
     and the program throwing weird errors at you. 
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     warnings.filterwarnings('ignore')
     no_pos = int(np.shape(positions)[0])
@@ -512,24 +519,24 @@ def strain_in_ROI(data4D,
     pos_list:       ndarray of shape (n,2)
                     a and b Miller indices corresponding to the
                     disk positions
-    reference_axes: ndarray
+    reference_axes: ndarray, optional
                     The unit cell axes from the reference region. Strain is
                     calculated by comapring the axes at a scan position with 
                     the reference axes values. If it is 0, then the average 
                     NBED axes will be calculated and will be used as the 
                     reference axes.
-    med_factor:     float
+    med_factor:     float, optional
                     Due to detector noise, some stray pixels may often be brighter 
                     than the background. This is used for damping any such pixels.
                     Default is 30
-    gauss_val:      float
+    gauss_val:      float, optional
                     The standard deviation of the Gaussian filter applied to the
                     logarithm of the CBED pattern. Default is 3
-    hybrid_cc:      float
+    hybrid_cc:      float, optional
                     Hybridization parameter to be used for cross-correlation.
                     Default is 0.1
-    nan_cutoff:     float
-                    Optional parameter that is used for thresholding disk
+    nan_cutoff:     float, optional
+                    Parameter that is used for thresholding disk
                     fits. If the intensity ratio is below the threshold 
                     the position will not be fit. Default value is 0.5    
     
@@ -543,8 +550,8 @@ def strain_in_ROI(data4D,
               Angular strain in the region of interest
     e_yy_map: ndarray
               Strain in the yy direction in the region of interest
-    fit_std: ndarray
-             x and y deviations in axes fitting for the scan points
+    fit_std:  ndarray
+              x and y deviations in axes fitting for the scan points
     
     Notes
     -----
@@ -557,9 +564,6 @@ def strain_in_ROI(data4D,
     value. This is then hybrid cross-correlated with the Sobel magnitude of the 
     template disk. If the pattern axes return a numerical value, then the strain
     is calculated for that scan position, else it is NaN
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     warnings.filterwarnings('ignore')
     # Calculate needed values
@@ -700,9 +704,6 @@ def ROI_strain_map(strain_ROI,
                    ROI):
     """
     Convert the strain in the ROI array to a strain map
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     strain_map = np.zeros_like(ROI,dtype=np.float64)
     strain_map[ROI] = (strain_ROI).astype(np.float64)
@@ -724,11 +725,11 @@ def log_sobel4D(data4D,
                 Scan dimensions. If your scanning pixels are for 
                 example the first two dimensions specify it as (0,1)
                 Will be converted to numpy array so pass tuple only
-    med_factor: float
+    med_factor: float, optional
                 Due to detector noise, some stray pixels may often 
                 be brighter than the background. This is used for 
                 damping any such pixels. Default is 30
-    gauss_val:  float
+    gauss_val:  float, optional
                 The standard deviation of the Gaussian filter applied 
                 to the logarithm of the CBED pattern. Default is 3
     
@@ -755,10 +756,7 @@ def log_sobel4D(data4D,
     
     See Also
     --------
-    ..dpc.log_sobel
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    dpc.log_sobel
     """
     scan_dims = np.asarray(scan_dims)
     scan_dims[scan_dims < 0] = 4 + scan_dims[scan_dims < 0]
@@ -888,23 +886,23 @@ def strain4D_general(data4D,
                  dimensions are the scan dimensions
     disk_radius: float
                  Radius in pixels of the diffraction disks
-    ROI:         ndarray of dtype bool
+    ROI:         ndarray, optional
                  Region of interest. If no ROI is passed then the entire
                  scan region is the ROI
-    disk_center: tuple
+    disk_center: tuple, optional
                  Location of the center of the diffraction disk - closest to
                  the <000> undiffracted beam
-    rotangle:    float 
+    rotangle:    float, optional
                  Angle of rotation of the CBED with respect to the optic axis
                  This must be in degrees
-    med_factor:  float
+    med_factor:  float, optional
                  Due to detector noise, some stray pixels may often be brighter 
                  than the background. This is used for damping any such pixels.
                  Default is 30
-    gauss_val:   float
+    gauss_val:   float, optional
                  The standard deviation of the Gaussian filter applied to the
                  logarithm of the CBED pattern. Default is 3
-    hybrid_cc:   float
+    hybrid_cc:   float, optional
                  Hybridization parameter to be used for cross-correlation.
                  Default is 0.1  
     
@@ -933,12 +931,8 @@ def strain4D_general(data4D,
     to the central transmitted beam. This is then performed for all other CBED 
     patterns. The calculated higher order disk locations are then compared to the 
     higher order disk locations for the median pattern to generate strain maps.
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     rotangle = np.deg2rad(rotangle)
-    
     rotmatrix = np.asarray(((np.cos(rotangle),-np.sin(rotangle)),
                             (np.sin(rotangle),np.cos(rotangle))))
     diff_y, diff_x = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
@@ -980,36 +974,39 @@ def strain4D_general(data4D,
         fitted_mean[jj,0:2] = np.flip(par[0:2])
     distarr = (np.sum(((fitted_mean - np.asarray(LSB_CC.shape)/2)**2),axis=1))**0.5
     peaks_mean = fitted_mean[distarr != np.amin(distarr),:] - fitted_mean[distarr == np.amin(distarr),:]
-    list_pos = np.zeros((int(np.sum(imROI)),peaks_mean.shape[0],peaks_mean.shape[1]))
-    exx_ROI = np.ones(no_of_disks,dtype=np.float64)
-    exy_ROI = np.ones(no_of_disks,dtype=np.float64)
-    eth_ROI = np.ones(no_of_disks,dtype=np.float64)
-    eyy_ROI = np.ones(no_of_disks,dtype=np.float64)
+    list_pos = np.zeros((int(np.sum(imROI)),peaks_mean.shape[0], peaks_mean.shape[1]))
+    exx_ROI = np.ones(no_of_disks, dtype=np.float64)
+    exy_ROI = np.ones(no_of_disks, dtype=np.float64)
+    eth_ROI = np.ones(no_of_disks, dtype=np.float64)
+    eyy_ROI = np.ones(no_of_disks, dtype=np.float64)
     for kk in range(no_of_disks):
         scan_LSB = LSB_ROI[:,:,kk]
         scan_CC = st.util.cross_corr(scan_LSB,sobel_disk,hybrid_cc)
         for qq in range(merged_peaks.shape[0]):
-            scan_par = st.util.fit_gaussian2D_mask(scan_CC,fitted_mean[qq,1],fitted_mean[qq,0],disk_radius)
-            fitted_scan[qq,0:2] = np.flip(scan_par[0:2])
-        peaks_scan = fitted_scan[distarr != np.amin(distarr),:] - fitted_scan[distarr == np.amin(distarr),:]
-        list_pos[kk,:,:] = peaks_scan         
-        scan_strain,_,_,_ = np.linalg.lstsq(peaks_mean,peaks_scan,rcond=None)
-        scan_strain = np.matmul(scan_strain,rotmatrix)
+            scan_par = st.util.fit_gaussian2D_mask(scan_CC, 
+                                                   fitted_mean[qq, 1], 
+                                                   fitted_mean[qq, 0], 
+                                                   disk_radius)
+            fitted_scan[qq, 0:2] = np.flip(scan_par[0:2])
+        peaks_scan = fitted_scan[distarr != np.amin(distarr), :] - fitted_scan[distarr == np.amin(distarr), :]
+        list_pos[kk, :, :] = peaks_scan         
+        scan_strain, _, _, _ = np.linalg.lstsq(peaks_mean, peaks_scan,rcond=None)
+        scan_strain = np.matmul(scan_strain, rotmatrix)
         scan_strain = scan_strain - np.eye(2)
-        exx_ROI[kk] = scan_strain[0,0]
-        exy_ROI[kk] = (scan_strain[0,1] + scan_strain[1,0])/2
-        eth_ROI[kk] = (scan_strain[0,1] - scan_strain[1,0])/2
-        eyy_ROI[kk] = scan_strain[1,1]
+        exx_ROI[kk] = scan_strain[0, 0]
+        exy_ROI[kk] = (scan_strain[0, 1] + scan_strain[1, 0])/2
+        eth_ROI[kk] = (scan_strain[0, 1] - scan_strain[1, 0])/2
+        eyy_ROI[kk] = scan_strain[1, 1]
     e_xx_map[imROI] = exx_ROI
     e_xx_map[np.isnan(e_xx_map)] = 0
-    e_xx_map = scnd.gaussian_filter(e_xx_map,1)
+    e_xx_map = scnd.gaussian_filter(e_xx_map, 1)
     e_xy_map[imROI] = exy_ROI
     e_xy_map[np.isnan(e_xy_map)] = 0
-    e_xy_map = scnd.gaussian_filter(e_xy_map,1)
+    e_xy_map = scnd.gaussian_filter(e_xy_map, 1)
     e_th_map[imROI] = eth_ROI
     e_th_map[np.isnan(e_th_map)] = 0
-    e_th_map = scnd.gaussian_filter(e_th_map,1)
+    e_th_map = scnd.gaussian_filter(e_th_map, 1)
     e_yy_map[imROI] = eyy_ROI
     e_yy_map[np.isnan(e_yy_map)] = 0
-    e_yy_map = scnd.gaussian_filter(e_yy_map,1)
-    return e_xx_map,e_xy_map,e_th_map,e_yy_map,list_pos
+    e_yy_map = scnd.gaussian_filter(e_yy_map, 1)
+    return e_xx_map, e_xy_map, e_th_map, e_yy_map, list_pos

@@ -537,7 +537,8 @@ class drift_corrector(object):
         self.col_stack = np.zeros((no_im,no_im))
         self.corr_image = np.zeros((image_stack.shape[1],image_stack.shape[2]),dtype=image_stack.dtype)
         self.moved_stack = np.zeros_like(image_stack,dtype=image_stack.dtype)
-        
+    
+    @classmethod
     def get_shape_stack(self):
         """
         Cross-Correlate stack of images
@@ -558,8 +559,9 @@ class drift_corrector(object):
         a skew matrix of row shifts and column shifts, calculated with sub
         pixel precision.
 
-        :Authors:
-        Debangshu Mukherjee <mukherjeed@ornl.gov>
+        See Also
+        --------
+        dftregistration
         """
         pfi.cache.enable()
         for ii in range(self.no_im):
@@ -568,7 +570,8 @@ class drift_corrector(object):
                                                                                     pfi.numpy_fft.fft2(self.image_stack[jj,:,:]),
                                                                                     self.sampling)
         return self.row_stack, self.col_stack
-
+    
+    @classmethod
     def corrected_stack(self):
         """
         Get corrected image stack
@@ -585,8 +588,9 @@ class drift_corrector(object):
         mean and move each image by that amount in the stack and then
         sum them up.
 
-        :Authors:
-        Debangshu Mukherjee <mukherjeed@ornl.gov>
+        See Also
+        --------
+        util.move_by_phase
         """
         row_mean = np.mean(self.row_stack,axis=0)
         col_mean = np.mean(self.col_stack,axis=0)
