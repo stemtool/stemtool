@@ -27,9 +27,6 @@ def find_max_index(image):
     Examples
     --------
     >>> ym, xm = find_max_index(image)
-    
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     yy,xx = np.mgrid[0:image.shape[0],0:image.shape[1]]
     ymax = (yy[image==np.amax(image)])[0]
@@ -78,9 +75,6 @@ def first_max_index(image,
     Examples
     --------
     >>> ym, xm = first_max_index(image)
-    
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     yy,xx = np.mgrid[0:image.shape[0],0:image.shape[1]]
     yy = np.ravel(yy,order)
@@ -116,10 +110,6 @@ def fourier_pad(imFT,
     care that the zero frequency is put in the correct place for the output
     for subsequent FT or IFT. Can be used for Fourier transform based
     interpolation, i.e. dirichlet kernel interpolation. 
-    
-    :Authors:
-    Manuel Guizar - June 02, 2014
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     n_in = np.asarray(imFT.shape)
     nout = np.asarray(outsize)
@@ -176,11 +166,6 @@ def dftups(input_image,
     It achieves this result by computing the DFT in the output array without
     the need to zeropad. Much faster and memory efficient than the
     zero-padded FFT approach if [nor noc] are much smaller than [nr*usfac nc*usfac]
-    
-    :Authors:
-    Manuel Guizar - Dec 13, 2007
-    Modified from dftus, by J.R. Fienup July 31, 2006
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     nr,nc=np.shape(input_image)
     # Set defaults
@@ -276,10 +261,6 @@ def dftregistration(buf1ft,
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
     ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
-    
-    :Authors:
-    Manuel Guizar - June 02, 2014
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     
     Examples
     --------
@@ -402,9 +383,6 @@ def get_shift_stack(image_stack,
           Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
           Ultramicroscopy, 191, pp.56-65.
     
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
-    
     Examples
     --------
     Since this is a `numba` function, to initialize the JIT we need
@@ -468,9 +446,6 @@ def corrected_stack(image_stack,
           Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
           Ultramicroscopy, 191, pp.56-65.
     
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
-    
     Examples
     --------
     Since this is a `numba` function, to initialize the JIT we need
@@ -503,7 +478,7 @@ class drift_corrector(object):
                  where the the first array position refers to the
                  image collected. Thus the nth image in the stack
                  is image_stack[n-1,:,:]
-    sampling:    int
+    sampling:    int, optional
                  Fraction of the pixel to calculate upsampled
                  cross-correlation for. Default is 500
                  
@@ -513,32 +488,31 @@ class drift_corrector(object):
           Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
           Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
           Ultramicroscopy, 191, pp.56-65.
-
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     
     Examples
     --------
     Run the function as:
     
     >>> cc = drift_corrector(image_stack)
-    >>> rows, cols = cc.get_shift_stack()
+    >>> cc.get_shift_stack()
     >>> corrected = cc.corrected_stack()
     
     """
-    def __init__(self,image_stack,sampling=500):
+    def __init__(self,
+                 image_stack,
+                 sampling=500):
         if sampling<1:
             raise RuntimeError('Sampling factor should be a positive integer')
         self.image_stack = image_stack
         no_im = image_stack.shape[0]
         self.no_im = no_im
         self.sampling = sampling
-        self.row_stack = np.zeros((no_im,no_im))
-        self.col_stack = np.zeros((no_im,no_im))
-        self.corr_image = np.zeros((image_stack.shape[1],image_stack.shape[2]),dtype=image_stack.dtype)
-        self.moved_stack = np.zeros_like(image_stack,dtype=image_stack.dtype)
+        self.row_stack = np.empty((no_im,no_im))
+        self.col_stack = np.empty((no_im,no_im))
+        self.corr_image = np.empty((image_stack.shape[1],image_stack.shape[2]),dtype=image_stack.dtype)
+        self.moved_stack = np.empty_like(image_stack,dtype=image_stack.dtype)
+        self.stack_check = False
     
-    @classmethod
     def get_shape_stack(self):
         """
         Cross-Correlate stack of images
@@ -569,9 +543,8 @@ class drift_corrector(object):
                 self.row_stack[ii,jj],self.col_stack[ii,jj],_,_,_ = dftregistration(pfi.numpy_fft.fft2(self.image_stack[ii,:,:]),
                                                                                     pfi.numpy_fft.fft2(self.image_stack[jj,:,:]),
                                                                                     self.sampling)
-        return self.row_stack, self.col_stack
+        self.stack_check = True
     
-    @classmethod
     def corrected_stack(self):
         """
         Get corrected image stack
@@ -592,6 +565,8 @@ class drift_corrector(object):
         --------
         util.move_by_phase
         """
+        if (not self.stack_check):
+            raise RuntimeError('Please get the images correlated first as get_shape_stack()')
         row_mean = np.mean(self.row_stack,axis=0)
         col_mean = np.mean(self.col_stack,axis=0)
         for ii in range(self.no_im):
