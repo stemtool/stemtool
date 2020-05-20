@@ -26,4 +26,5 @@ setup(name='stemtool',
         'matplotlib >= 2.2.0',
         'numba >= 0.45.0',
         'pyfftw >= 0.10.3',
+        'imagecodecs >= 2019.1.1',
     ])
