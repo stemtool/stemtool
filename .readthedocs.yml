@@ -24,7 +24,7 @@ python:
    install:
       - requirements: docs/requirements.txt
       - method: setuptools
-        path: stemtool
+        path: 
    system_packages: true
 
 sphinx:
