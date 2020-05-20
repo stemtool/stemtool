@@ -1,4 +1,4 @@
-from skimage import feature as skfeat
+import skimage.feature as skfeat
 import matplotlib.pyplot as plt
 import numpy as np
 import numba
