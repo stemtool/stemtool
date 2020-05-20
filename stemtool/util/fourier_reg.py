@@ -229,9 +229,9 @@ def dftregistration(buf1ft,
     
     References
     ----------
-    [1]_, Manuel Guizar-Sicairos, Samuel T. Thurman, and James R. Fienup, 
-          "Efficient subpixel image registration algorithms," Opt. Lett. 33, 
-          156-158 (2008).
+    .. [1] Manuel Guizar-Sicairos, Samuel T. Thurman, and James R. Fienup, 
+       "Efficient subpixel image registration algorithms," Opt. Lett. 33, 
+       156-158 (2008).
     
     Copyright
     ----------
@@ -265,8 +265,11 @@ def dftregistration(buf1ft,
     Examples
     --------
     If you have two images im1 and im2, run as:
+    
     >>> row_shift,col_shift,phase_diff,error,registered_fft = dftregistration(np.fft.fft2(im1),np.fft.fft2(im2),upsampling)
+    
     You can test by reversing the order
+    
     >>> row_shift_r,col_shift_r,phase_diff,error,registered_fft = dftregistration(np.fft.fft2(im2),np.fft.fft2(im1),upsampling)
     >>> row_shift == -row_shift_r
     >>> True
@@ -441,10 +444,10 @@ def corrected_stack(image_stack,
     
     References
     ----------
-    [1]_, Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
-          Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
-          Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
-          Ultramicroscopy, 191, pp.56-65.
+    .. [2] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
+       Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
+       Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+       Ultramicroscopy, 191, pp.56-65.
     
     Examples
     --------
@@ -484,10 +487,10 @@ class drift_corrector(object):
                  
     References
     ----------
-    [1]_, Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
-          Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
-          Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
-          Ultramicroscopy, 191, pp.56-65.
+    .. [2] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
+       Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
+       Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+       Ultramicroscopy, 191, pp.56-65.
     
     Examples
     --------

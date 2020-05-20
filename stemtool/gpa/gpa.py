@@ -32,9 +32,9 @@ def phase_diff(angle_image):
 
     Reference
     ---------
-    [1]_, Hÿtch, M. J., E. Snoeck, and R. Kilaas. "Quantitative measurement 
-          of displacement and strain fields from HREM micrographs." 
-          Ultramicroscopy 74.3 (1998): 131-146.
+    .. [1] Hÿtch, M. J., E. Snoeck, and R. Kilaas. "Quantitative measurement 
+       of displacement and strain fields from HREM micrographs." 
+       Ultramicroscopy 74.3 (1998): 131-146.
     """
     imaginary_image = np.exp(1j * angle_image)
     diff_imaginary_x = np.zeros(imaginary_image.shape,dtype='complex_')
@@ -303,9 +303,9 @@ class GPA(object):
                  
     References
     ----------
-    [1]_, Hÿtch, M. J., E. Snoeck, and R. Kilaas. "Quantitative measurement 
-          of displacement and strain fields from HREM micrographs." 
-          Ultramicroscopy 74.3 (1998): 131-146.
+    .. [1] Hÿtch, M. J., E. Snoeck, and R. Kilaas. "Quantitative measurement 
+       of displacement and strain fields from HREM micrographs." 
+       Ultramicroscopy 74.3 (1998): 131-146.
     
     Examples
     --------
@@ -313,12 +313,16 @@ class GPA(object):
     
     >>> im_gpa = gpa(imageDC)
     >>> im_gpa.find_spots((983,905),(1066,984))
+    
     where (983,905) and (1066,984) are two diffraction spot
     locations. You can run the `find_spots` method manually
     multiple times till you locate the spots closely,
+    
     >>> im_gpa.define_reference((870, 750), (1300, 740), (1310, 1080), (900, 1100))
+    
     where (870, 750), (1300, 740), (1310, 1080) and (900, 1100) are
     the corners of the reference region you are defining. 
+    
     >>> im_gpa.refine_phase()
     >>> e_xx,e_yy,e_theta,e_diag = im_gpa.get_strain()
     
