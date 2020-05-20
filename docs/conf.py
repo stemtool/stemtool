@@ -16,7 +16,6 @@ import matplotlib
 matplotlib.use('agg')
 import sphinx
 import sphinx_rtd_theme
-import sphinx_gallery
 sys.path.append(os.path.abspath('../'))
 import stemtool
 
@@ -29,6 +28,7 @@ author = u'Debangshu Mukherjee'
 
 # The full version, including alpha/beta/rc tags
 release = stemtool.__version__
+autoapi_dirs = ['../stemtool']
 
 
 # -- General configuration ---------------------------------------------------
@@ -60,6 +60,8 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 add_function_parentheses = True
 add_module_names = True
 show_authors = True
+source_suffix = '.rst'
+
 
 autoclass_content = 'both'
 
@@ -75,7 +77,7 @@ autodoc_default_flags = ['members',
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
