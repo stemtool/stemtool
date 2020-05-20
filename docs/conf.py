@@ -11,8 +11,36 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import sys
-from unittest.mock import MagicMock
 import os
+import mock
+from unittest.mock import MagicMock
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return MagicMock()
+
+MOCK_MODULES = ['pygtk', 
+                'gtk', 
+                'gobject', 
+                'argparse', 
+                'numpy',
+                'scipy',
+                'pandas', 
+                'skimage', 
+                'pyfftw', 
+                'scikit-image', 
+                'numba', 
+                'imagecodecs',
+                'matplotlib', 
+                'matplotlib.pyplot', 
+                'scipy.interpolate', 
+                'skimage.feature']
+
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
+
+from unittest.mock import MagicMock
 import matplotlib
 matplotlib.use('agg')
 import sphinx
