@@ -35,7 +35,9 @@ MOCK_MODULES = ['pygtk',
                 'matplotlib', 
                 'matplotlib.pyplot', 
                 'scipy.interpolate', 
-                'skimage.feature']
+                'skimage.feature', 
+                'pywt', 
+                'pywavelets']
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
