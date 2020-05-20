@@ -537,4 +537,8 @@ class GPA(object):
         e_yx,self.e_yy = phase_diff(u_y)
         self.e_th = 0.5*(e_xy - e_yx)
         self.e_dg = 0.5*(e_xy + e_yx)
+        self.e_yy -= np.median(self.e_yy[self.ref_reg])
+        self.e_dg -= np.median(self.e_dg[self.ref_reg])
+        self.e_th -= np.median(self.e_th[self.ref_reg])
+        self.e_xx -= np.median(self.e_xx[self.ref_reg])
         return self.e_xx, self.e_yy, self.e_th, self.e_dg
