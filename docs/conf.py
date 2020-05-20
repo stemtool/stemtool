@@ -11,6 +11,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import sys
+from unittest.mock import MagicMock
 import os
 import matplotlib
 matplotlib.use('agg')
@@ -29,6 +30,25 @@ author = u'Debangshu Mukherjee'
 # The full version, including alpha/beta/rc tags
 release = stemtool.__version__
 autoapi_dirs = ['../stemtool']
+
+#Add Mock files to fool RTD for C dependent packages
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return MagicMock()
+
+MOCK_MODULES = ['pygtk', 
+                'gtk', 
+                'gobject', 
+                'argparse', 
+                'numpy', 
+                'pandas', 
+                'skimage', 
+                'pyfftw', 
+                'scikit-image', 
+                'numba']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
 # -- General configuration ---------------------------------------------------
