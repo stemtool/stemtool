@@ -18,7 +18,22 @@ sphinx:
 #  - pdf
 
 # Optionally set the version of Python and requirements required to build your docs
+
 python:
-  version: 3.7
-  install:
-    - requirements: docs/requirements.txt
+   version: 3.7
+   install:
+      - requirements: docs/requirements.txt
+      - method: setuptools
+        path: stemtool
+        extra_requirements:
+            - docs
+   system_packages: true
+
+sphinx:
+  builder: html
+  configuration: docs/conf.py
+  fail_on_warning: false
+
+submodules:
+  include: all
+  recursive: true
