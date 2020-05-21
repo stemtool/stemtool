@@ -72,6 +72,7 @@ import stemtool
 project = u'stemtool'
 copyright = u'2020, Debangshu Mukherjee'
 author = u'Debangshu Mukherjee'
+master_doc = 'index'
 
 # The full version, including alpha/beta/rc tags
 release = stemtool.__version__
