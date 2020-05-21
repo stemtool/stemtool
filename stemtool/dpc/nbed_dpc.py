@@ -1,5 +1,5 @@
-from scipy import ndimage as scnd
-from scipy import optimize as sio
+import scipy.ndimage as scnd
+import scipy.optimize as sio
 import numpy as np
 import numba
 import warnings
