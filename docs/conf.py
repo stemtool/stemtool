@@ -34,13 +34,24 @@ MOCK_MODULES = ['pygtk',
                 'matplotlib.axes',
                 'numba', 
                 'imagecodecs',
-                'matplotlib', 
+                'matplotlib',
+                'scipy.optimize',
+                'scipy.ndimage',
                 'matplotlib.pyplot',
                 'matplotlib.colors',
                 'scipy.interpolate', 
                 'skimage.feature', 
                 'pywt', 
-                'pywavelets']
+                'pywavelets',
+                'matplotlib.colors', 
+                'matplotlib.cm', 
+                'skimage.color', 
+                'scipy.signal', 
+                'scipy.misc', 
+                'mpl_toolkits.axes', 
+                'scipy.interpolate', 
+                'skimage.restoration', 
+                'scipy.special',]
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
