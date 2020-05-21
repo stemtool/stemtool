@@ -51,7 +51,8 @@ MOCK_MODULES = ['pygtk',
                 'mpl_toolkits.axes', 
                 'scipy.interpolate', 
                 'skimage.restoration', 
-                'scipy.special',]
+                'scipy.special', 
+                'matplotlib.gridspec',]
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
