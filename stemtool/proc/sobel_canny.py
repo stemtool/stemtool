@@ -1,8 +1,8 @@
 import numpy as np
 import numba
 import warnings
-from scipy import signal as scisig
-from scipy import ndimage as scnd
+import scipy.signal as scisig
+import scipy.ndimage as scnd
 import stemtool as st
 import math
 
