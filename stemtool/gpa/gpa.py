@@ -1,6 +1,6 @@
 import numpy as np
-from skimage import restoration as skr
-from scipy import ndimage as scnd
+import skimage.restoration as skr
+import scipy.ndimage as scnd
 import matplotlib.pyplot as plt
 import stemtool as st
 import numba
