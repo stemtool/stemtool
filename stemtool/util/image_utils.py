@@ -1,15 +1,15 @@
 import numpy as np
 import matplotlib as mpl
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+import mpl_toolkits.axes_grid1 as mplax
 import matplotlib.colors as mplc
 import matplotlib.cm as mplcm
 import numba
 import warnings
-from scipy import misc as scm
-from scipy import optimize as spo
-from scipy import ndimage as scnd
-from scipy import signal as scsig
-from skimage import color as skc
+import scipy.misc as scm
+import scipy.optimize as spo
+import scipy.ndimage as scnd
+import scipy.signal as scsig
+import skimage.color as skc
 import stemtool as st
 
 def move_by_phase(image_to_move,
@@ -203,7 +203,7 @@ def hanned_image(image):
 def sane_colorbar(mappable):
     ax = mappable.axes
     fig = ax.figure
-    divider = make_axes_locatable(ax)
+    divider = mplax.make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     return fig.colorbar(mappable, cax=cax)
 
