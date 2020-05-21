@@ -1,6 +1,6 @@
 import numpy as np
-from scipy import optimize as spo
-from scipy import ndimage as scnd
+import scipy.optimize as spo
+import scipy.ndimage as scnd
 import stemtool as st
 
 def gaussian_2D_function(xy,
