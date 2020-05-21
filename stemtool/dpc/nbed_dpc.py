@@ -33,7 +33,7 @@ def fit_nbed_disks(corr_image,
 
 def sobel_filter(image,
                  med_filter=50):
-    ls_image,_ = st.proc.sobel(st.util.image_logarizer(image))
+    ls_image,_ = st.util.sobel(st.util.image_logarizer(image))
     ls_image[ls_image > (med_filter*np.median(ls_image))] = med_filter*np.median(ls_image)
     ls_image[ls_image < (np.median(ls_image)/med_filter)] = np.median(ls_image)/med_filter
     return ls_image
@@ -58,7 +58,7 @@ def strain_and_disk(data4D,
     yy,xx = np.mgrid[0:cbed_size[0],0:cbed_size[1]]
     center_disk = (st.util.make_circle(cbed_size,cbed_size[1]/2,cbed_size[0]/2,disk_size)).astype(np.float64)
     i_matrix = (np.eye(2)).astype(np.float64)
-    sobel_center_disk,_ = st.proc.sobel(center_disk)
+    sobel_center_disk,_ = st.util.sobel(center_disk)
     
     # Initialize matrices
     e_xx = np.zeros(scan_size,dtype=np.float64)
@@ -72,7 +72,7 @@ def strain_and_disk(data4D,
     
     #Calculate for mean CBED if no reference
     mean_cbed = np.mean(data4D,axis=(-1,-2),dtype=np.float64)
-    mean_ls_cbed,_ = st.proc.sobel(st.util.image_logarizer(mean_cbed))
+    mean_ls_cbed,_ = st.util.sobel(st.util.image_logarizer(mean_cbed))
     mean_ls_cbed[mean_ls_cbed > med_factor*np.median(mean_ls_cbed)] = med_factor*np.median(mean_ls_cbed)
     mean_ls_cbed[mean_ls_cbed < np.median(mean_ls_cbed)/med_factor] = np.median(mean_ls_cbed)/med_factor
     mean_lsc = st.util.cross_corr_unpadded(mean_ls_cbed,sobel_center_disk)
@@ -85,7 +85,7 @@ def strain_and_disk(data4D,
         ii = scan_positions[0,pp]
         jj = scan_positions[1,pp]
         pattern = data4D[:,:,ii,jj]
-        pattern_ls,_ = st.proc.sobel(st.util.image_logarizer(pattern))
+        pattern_ls,_ = st.util.sobel(st.util.image_logarizer(pattern))
         pattern_ls[pattern_ls > med_factor*np.median(pattern_ls)] = np.median(pattern_ls)
         pattern_lsc = st.util.cross_corr_unpadded(pattern_ls,sobel_center_disk)
         _,pattern_center,pattern_axes = fit_nbed_disks(pattern_lsc,disk_size,pixel_list_xy,disk_list)
@@ -175,7 +175,7 @@ def dpc_central_disk(data4D,
     pos_p = position[0]
     pos_q = position[1]
     corr_disk = st.util.make_circle(np.asarray(data4D.shape[0:2]),pos_p,pos_q,disk_size)
-    sobel_corr_disk,_ = st.proc.sobel(corr_disk)
+    sobel_corr_disk,_ = st.util.sobel(corr_disk)
         
     p_cen = np.zeros((data4D.shape[2],data4D.shape[3]),dtype=np.float64)
     q_cen = np.zeros((data4D.shape[2],data4D.shape[3]),dtype=np.float64)
@@ -184,7 +184,7 @@ def dpc_central_disk(data4D,
     
     for ii in numba.prange(int(no_points)):
         cbed_image = data4D_ROI[:,:,ii]
-        slm_image,_ = st.proc.sobel(scnd.gaussian_filter(st.util.image_logarizer(cbed_image),3))
+        slm_image,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(cbed_image),3))
         slm_image[slm_image > med_val*np.median(slm_image)] = med_val*np.median(slm_image)
         slm_image[slm_image < np.median(slm_image)/med_val] = np.median(slm_image)/med_val
         corr_image = st.util.cross_corr(slm_image,sobel_corr_disk,hybridizer=0.25)
@@ -327,7 +327,7 @@ def log_sobel(pattern,
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     pattern = 1 + st.util.image_normalizer(pattern)
-    lsb_pattern,_ = st.proc.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val))
+    lsb_pattern,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val))
     lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
     lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor
     return lsb_pattern

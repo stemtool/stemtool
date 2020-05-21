@@ -492,7 +492,7 @@ def array_rms(arr):
     return arr_rms
 
 def sobel_circle(image):
-    sobel_image,_ = st.proc.sobel(image)
+    sobel_image,_ = st.util.sobel(image)
     yy,xx = np.mgrid[0:sobel_image.shape[0],0:sobel_image.shape[1]]
     center_y, center_x = np.asarray(scnd.measurements.center_of_mass(sobel_image))
     rr = (((yy - center_y) ** 2) + ((xx - center_x) ** 2)) ** 0.5

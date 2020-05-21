@@ -7,7 +7,6 @@ from . import beam
 from . import eels
 from . import gpa
 from . import nbed
-from . import proc
 from . import util
 from . import dpc
 from . import sim

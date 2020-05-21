@@ -572,7 +572,7 @@ def strain_in_ROI(data4D,
     no_of_disks = data4D_ROI.shape[-1]
     disk_size = (np.sum(st.util.image_normalizer(center_disk))/np.pi) ** 0.5
     i_matrix = (np.eye(2)).astype(np.float64)
-    sobel_center_disk,_ = st.proc.sobel(center_disk)
+    sobel_center_disk,_ = st.util.sobel(center_disk)
     # Initialize matrices
     e_xx_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
     e_xy_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
@@ -587,7 +587,7 @@ def strain_in_ROI(data4D,
     #axes present
     if np.size(reference_axes) < 2:
         mean_cbed = np.mean(data4D_ROI,axis=-1)
-        sobel_lm_cbed,_ = st.proc.sobel(st.util.image_logarizer(mean_cbed))
+        sobel_lm_cbed,_ = st.util.sobel(st.util.image_logarizer(mean_cbed))
         sobel_lm_cbed[sobel_lm_cbed > med_factor*np.median(sobel_lm_cbed)] = np.median(sobel_lm_cbed)
         lsc_mean = st.util.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=hybrid_cc)
         _,_,_,mean_axes = fit_nbed_disks(lsc_mean,disk_size,disk_list,pos_list)
@@ -596,7 +596,7 @@ def strain_in_ROI(data4D,
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
         pattern = data4D_ROI[:,:,ii]
-        sobel_log_pattern,_ = st.proc.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val))
+        sobel_log_pattern,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val))
         sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)*med_factor
         sobel_log_pattern[sobel_log_pattern < np.median(sobel_log_pattern)/med_factor] = np.median(sobel_log_pattern)/med_factor
         lsc_pattern = st.util.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=hybrid_cc)
@@ -768,7 +768,7 @@ def log_sobel4D(data4D,
         for ii in range(data4D.shape[int(scan_dims[0])]):
             pattern = data4D[:,:,ii,jj]
             pattern = 1000*(1 + st.util.image_normalizer(pattern))
-            lsb_pattern,_ = st.proc.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val),5)
+            lsb_pattern,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val),5)
             lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
             lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor
             data_lsb[:,:,ii,jj] = lsb_pattern
@@ -860,7 +860,7 @@ def get_inside(edges,
 
 def sobel_filter(image,
                  med_filter=50):
-    ls_image,_ = st.proc.sobel(st.util.image_logarizer(image))
+    ls_image,_ = st.util.sobel(st.util.image_logarizer(image))
     ls_image[ls_image > (med_filter*np.median(ls_image))] = med_filter*np.median(ls_image)
     ls_image[ls_image < (np.median(ls_image)/med_filter)] = np.median(ls_image)/med_filter
     return ls_image
@@ -947,7 +947,7 @@ def strain4D_general(data4D,
     radiating = ((diff_y -disk_center[0])**2) + ((diff_x - disk_center[1])**2)
     disk = np.zeros_like(radiating)
     disk[radiating < (disk_radius**2)] = 1
-    sobel_disk,_ = st.proc.sobel(disk)
+    sobel_disk,_ = st.util.sobel(disk)
     if (np.sum(ROI)==0):
         imROI = np.ones_like(e_xx_map,dtype=bool)
     else:
@@ -958,7 +958,7 @@ def strain4D_general(data4D,
     for ii in range(no_of_disks):
         cbed = ROI_4D[:,:,ii]
         cbed = 1000*(1 + st.util.image_normalizer(cbed))
-        lsb_cbed,_ = st.proc.sobel(scnd.gaussian_filter(st.util.image_logarizer(cbed),gauss_val))
+        lsb_cbed,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(cbed),gauss_val))
         lsb_cbed[lsb_cbed > med_factor*np.median(lsb_cbed)] = np.median(lsb_cbed)*med_factor
         lsb_cbed[lsb_cbed < np.median(lsb_cbed)/med_factor] = np.median(lsb_cbed)/med_factor
         LSB_ROI[:,:,ii] = lsb_cbed
