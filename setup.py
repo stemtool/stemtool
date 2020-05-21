@@ -23,8 +23,7 @@ if not os.getenv('READTHEDOCS'):
                             'numpy >= 1.13.0',
                             'scipy >= 1.0.0',
                             'matplotlib >= 2.2.0',
-                            'pillow > 5.0.0', 
-                            'imagecodecs >= 2019.1.1', 
+                            'pillow > 5.0.0',  
                             'numba >= 0.45.0', 
                             'scikit-image >= 0.13.0',])
 else:
