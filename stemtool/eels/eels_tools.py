@@ -1,8 +1,8 @@
 import numpy as np
 import pywt
 import numba
-from scipy import optimize as spo
-from scipy import signal as sps
+import scipy.optimize as spo
+import scipy.signal as scisig
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
@@ -34,7 +34,7 @@ def cleanEELS_3D(data3D,
         if (threshold > 0):
             for ii in range(data_shape[2]):
                 for jj in range(data_shape[1]):
-                    cleaned_3D[:,jj,ii] = sps.medfilt(data3D[:,jj,ii],threshold)
+                    cleaned_3D[:,jj,ii] = scisig.medfilt(data3D[:,jj,ii],threshold)
         else:
             cleaned_3D = data3D
     return cleaned_3D
