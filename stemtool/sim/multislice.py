@@ -1,5 +1,5 @@
 import numpy as np
-from scipy import special as s2
+import scipy.special as s2
 import PIL
 
 def wavelength_ang(voltage_kV):
