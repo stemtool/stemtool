@@ -1,10 +1,10 @@
 import numpy as np
 import numba
 import warnings
-from scipy import ndimage as scnd
-from scipy import optimize as sio
-from scipy import signal as scisig
-from skimage import feature as skfeat
+import scipy.ndimage as scnd
+import scipy.optimize as sio
+import scipy.signal as scisig
+import skimage.feature as skfeat
 import matplotlib.colors as mplc
 import matplotlib.pyplot as plt
 import stemtool as st
