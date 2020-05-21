@@ -2,9 +2,9 @@ import skimage.feature as skfeat
 import matplotlib.pyplot as plt
 import numpy as np
 import numba
-from scipy import ndimage as scnd
-from scipy import optimize as spo
-from scipy import interpolate as scinterp
+scipy.ndimage as scnd
+scipy.optimize as spo
+scipy.interpolate as scinterp
 import warnings
 import stemtool as st
 
