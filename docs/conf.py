@@ -29,7 +29,7 @@ MOCK_MODULES = ['pygtk',
                 'pandas', 
                 'skimage', 
                 'pyfftw',
-                'pyfftw.interfaces'
+                'pyfftw.interfaces',
                 'scikit-image', 
                 'numba', 
                 'imagecodecs',
