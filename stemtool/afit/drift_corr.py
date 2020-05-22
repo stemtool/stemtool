@@ -2,7 +2,8 @@ import numpy as np
 import numba
 import pyfftw.interfaces as pfi
 import stemtool as st
-
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as mpgs
 
 @numba.jit(parallel=True,cache=True)
 def numba_shift_stack(image_stack,
@@ -37,6 +38,10 @@ def numba_shift_stack(image_stack,
     a skew matrix of row shifts and column shifts, calculated with sub
     pixel precision.
     
+    See Also
+    --------
+    util.dftregistration
+    
     References
     ----------
     [1]_, Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
@@ -66,7 +71,6 @@ def numba_shift_stack(image_stack,
 @numba.jit(parallel=True,cache=True)
 def numba_stack_corr(image_stack,
                      moved_stack,
-                     corr_stack,
                      rowshifts,
                      colshifts):
     """
@@ -81,8 +85,6 @@ def numba_stack_corr(image_stack,
                  is image_stack[n-1,:,:]
     moved_stack: ndarray
                  Stack of moved images
-    corr_stack:  ndarray
-                 Final corrected image
     rowshifts:   ndarray
                  The size is nXn where n is the n of images in
                  the image_stack
@@ -97,6 +99,10 @@ def numba_stack_corr(image_stack,
     mean and move each image by that amount in the stack and then
     sum them up.
     
+    See Also
+    --------
+    util.move_by_phase
+    
     References
     ----------
     .. [2] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
@@ -109,19 +115,17 @@ def numba_stack_corr(image_stack,
     Since this is a `numba` function, to initialize the JIT we need
     to call the function with a small dataset first
     
-    >>> corrected_stack(image_stack[0:2,:,:],moved_stack[0:2,0:2],corr_stack[0:2,:,:],rowshifts[0:2,0:2],colshifts[0:2,0:2])
+    >>> corrected_stack(image_stack,moved_stack,rowshifts,colshifts)
     
     Once the JIT is initialized run the function as:
     
     >>> corr_stack = corrected_stack(image_stack,rowshifts,colshifts)
     
     """
-    row_mean = np.mean(rowshifts,axis=0)
-    col_mean = np.mean(colshifts,axis=0)
+    row_mean = np.median(rowshifts,axis=0)
+    col_mean = np.median(colshifts,axis=0)
     for ii in numba.prange(len(row_mean)):
         moved_stack[ii,:,:] = np.abs(st.util.move_by_phase(image_stack[ii,:,:],col_mean[ii],row_mean[ii]))
-    corr_stack = np.sum(moved_stack,axis=0)
-    return corr_stack
 
 class multi_image_drift(object):
     """
@@ -141,7 +145,7 @@ class multi_image_drift(object):
                  
     References
     ----------
-    .. [2] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
+    .. [1] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
        Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
        Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
        Ultramicroscopy, 191, pp.56-65.
@@ -167,6 +171,7 @@ class multi_image_drift(object):
         self.sampling = sampling
         self.row_stack = np.empty((no_im,no_im))
         self.col_stack = np.empty((no_im,no_im))
+        self.max_shift = 0
         self.corr_image = np.empty((image_stack.shape[1],image_stack.shape[2]),dtype=image_stack.dtype)
         self.moved_stack = np.empty_like(image_stack,dtype=image_stack.dtype)
         self.stack_check = False
@@ -174,15 +179,6 @@ class multi_image_drift(object):
     def get_shape_stack(self):
         """
         Cross-Correlate stack of images
-        
-        Returns
-        -------
-        row_stack: ndarray
-                   The size is nXn where n is the n of images in
-                   the image_stack
-        col_stack: ndarray
-                   The size is nXn where n is the n of images in
-                   the image_stack
 
         Notes
         -----
@@ -190,10 +186,6 @@ class multi_image_drift(object):
         cross-correlated with all the other images of the stack, to generate
         a skew matrix of row shifts and column shifts, calculated with sub
         pixel precision.
-
-        See Also
-        --------
-        dftregistration
         """
         pfi.cache.enable()
         rows, cols = np.mgrid[0:self.no_im,0:self.no_im]
@@ -204,6 +196,8 @@ class multi_image_drift(object):
 
         #Run JITted function
         numba_shift_stack(self.image_stack,self.row_stack,self.col_stack,pos_stack,self.sampling)
+        
+        self.max_shift = np.amax(np.asarray((np.amax(self.row_stack),np.amax(self.col_stack))))
         self.stack_check = True
     
     def corrected_stack(self):
@@ -221,17 +215,48 @@ class multi_image_drift(object):
         amount by which each image is to be shifted. We calculate the 
         mean and move each image by that amount in the stack and then
         sum them up.
-
-        See Also
-        --------
-        util.move_by_phase
         """
         if (not self.stack_check):
             raise RuntimeError('Please get the images correlated first as get_shape_stack()')
-        
+        image_stack = np.copy(self.image_stack[0:3,:,:])
+        moved_stack = np.copy(self.moved_stack[0:3,:,:])
+        corr_image = np.copy(self.corr_image),
+        row_stack = np.copy(self.row_stack[0:3,0:3])
+        col_stack = np.copy(self.col_stack[0:3,0:3])
         #Initialize JIT
-        numba_stack_corr(self.image_stack,self.moved_stack,self.corr_image,self.row_stack[0:2,0:2],self.col_stack)
+        numba_stack_corr(image_stack,moved_stack,row_stack,col_stack)
 
         #Run JITted code
-        numba_stack_corr(self.image_stack,self.moved_stack,self.corr_image,self.row_stack,self.col_stack)
+        numba_stack_corr(self.image_stack,self.moved_stack,self.row_stack,self.col_stack)
+        self.corr_image = np.sum(self.moved_stack,axis=0)/self.no_im
         return self.corr_image
+    
+    def plot_shifts(self):
+        """
+        Notes
+        -----
+        Plot the relative shifts of images with each other
+        """
+        if (not self.stack_check):
+            raise RuntimeError('Please get the images correlated first as get_shape_stack()')
+        vm = self.max_shift
+        fig = plt.figure(figsize=(20, 10))
+        gs = mpgs.GridSpec(1, 2)
+        ax1 = plt.subplot(gs[0, 0])
+        ax2 = plt.subplot(gs[0, 1])
+
+        im = ax1.imshow(self.row_stack,vmin=-vm,vmax=vm,cmap='RdBu_r')
+        ax1.set_xlabel('Stack Number')
+        ax1.set_ylabel('Stack Number')
+        ax1.set_title(label='Shift along X direction', loc='left')
+
+        im = ax2.imshow(self.col_stack,vmin=-vm,vmax=vm,cmap='RdBu_r')
+        ax2.set_xlabel('Stack Number')
+        ax2.set_ylabel('Stack Number')
+        ax2.set_title(label='Shift along Y direction', loc='left')
+
+        p1 = ax1.get_position().get_points().flatten()
+        p2 = ax2.get_position().get_points().flatten()
+        ax_cbar = fig.add_axes([p1[0], 0.25, p2[2] - 0.12, 0.02])
+        cbar = plt.colorbar(im, cax=ax_cbar, orientation='horizontal')
+        cbar.set_label('Relative Shift (pixels)')
