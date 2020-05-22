@@ -256,16 +256,17 @@ def numba_strain_P(P_1,
     phase_diff 
     GPA.gen_strain()
     """
-    P1_x, P1_y = phase_diff(P1)
-    P2_x, P2_y = phase_diff(P2)
-    yy, xx = np.mgrid[0:P1.shape[0],0:P1.shape[1]]
+    P1_x, P1_y = phase_diff(P_1)
+    P2_x, P2_y = phase_diff(P_2)
+    P_shape = np.shape(P_1)
+    yy, xx = np.mgrid[0:P_shape[0],0:P_shape[1]]
     yy = np.ravel(yy)
     xx = np.ravel(xx)
     P_mat = np.zeros((2,2),dtype=np.float)
-    e_xx = np.zeros_like(P1)
-    e_xy = np.zeros_like(P1)
-    e_yx = np.zeros_like(P1)
-    e_yy = np.zeros_like(P1)
+    e_xx = np.zeros_like(P_1)
+    e_xy = np.zeros_like(P_1)
+    e_yx = np.zeros_like(P_1)
+    e_yy = np.zeros_like(P_1)
     for ii in numba.prange(len(yy)):
         ypos = yy[ii]
         xpos = xx[ii]
