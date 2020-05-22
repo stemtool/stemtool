@@ -63,10 +63,10 @@ def numba_shift_stack(image_stack,
     """
     pfi.cache.enable()
     for pp in numba.prange(len(stack_pos)):
-        ii = stack_pos[pp,0]
-        jj = stack_pos[pp,1]
-        row_stack[ii,jj],col_stack[ii,jj],_,_,_ = st.util.dftregistration(pfi.numpy_fft.fft2(image_stack[ii,:,:]),
-                                                                          pfi.numpy_fft.fft2(image_stack[jj,:,:]),sampling)
+        ii = stack_pos[pp, 0]
+        jj = stack_pos[pp, 1]
+        row_stack[ii,jj],col_stack[ii,jj], _, _, _ = st.util.dftregistration(pfi.numpy_fft.fft2(image_stack[ii, :, :]),
+                                                                             pfi.numpy_fft.fft2(image_stack[jj, :, :]), sampling)
 
 @numba.jit(parallel=True,cache=True)
 def numba_stack_corr(image_stack,
@@ -122,10 +122,10 @@ def numba_stack_corr(image_stack,
     >>> corr_stack = corrected_stack(image_stack,rowshifts,colshifts)
     
     """
-    row_mean = np.median(rowshifts,axis=0)
-    col_mean = np.median(colshifts,axis=0)
+    row_mean = np.median(rowshifts, axis=0)
+    col_mean = np.median(colshifts, axis=0)
     for ii in numba.prange(len(row_mean)):
-        moved_stack[ii,:,:] = np.abs(st.util.move_by_phase(image_stack[ii,:,:],col_mean[ii],row_mean[ii]))
+        moved_stack[ii,:,:] = np.abs(st.util.move_by_phase(image_stack[ii,:,:], col_mean[ii], row_mean[ii]))
 
 class multi_image_drift(object):
     """
@@ -169,11 +169,11 @@ class multi_image_drift(object):
         no_im = image_stack.shape[0]
         self.no_im = no_im
         self.sampling = sampling
-        self.row_stack = np.empty((no_im,no_im))
-        self.col_stack = np.empty((no_im,no_im))
+        self.row_stack = np.empty((no_im, no_im))
+        self.col_stack = np.empty((no_im, no_im))
         self.max_shift = 0
-        self.corr_image = np.empty((image_stack.shape[1],image_stack.shape[2]),dtype=image_stack.dtype)
-        self.moved_stack = np.empty_like(image_stack,dtype=image_stack.dtype)
+        self.corr_image = np.empty((image_stack.shape[1], image_stack.shape[2]), dtype=image_stack.dtype)
+        self.moved_stack = np.empty_like(image_stack, dtype=image_stack.dtype)
         self.stack_check = False
     
     def get_shape_stack(self):
@@ -188,16 +188,16 @@ class multi_image_drift(object):
         pixel precision.
         """
         pfi.cache.enable()
-        rows, cols = np.mgrid[0:self.no_im,0:self.no_im]
-        pos_stack = np.asarray((np.ravel(rows),np.ravel(cols))).transpose()
+        rows, cols = np.mgrid[0:self.no_im, 0:self.no_im]
+        pos_stack = np.asarray((np.ravel(rows), np.ravel(cols))).transpose()
 
         #Initialize JIT
-        numba_shift_stack(self.image_stack,self.row_stack,self.col_stack,pos_stack[0:10,:],self.sampling)
+        numba_shift_stack(self.image_stack, self.row_stack, self.col_stack, pos_stack[0:10,:], self.sampling)
 
         #Run JITted function
-        numba_shift_stack(self.image_stack,self.row_stack,self.col_stack,pos_stack,self.sampling)
+        numba_shift_stack(self.image_stack, self.row_stack, self.col_stack, pos_stack, self.sampling)
         
-        self.max_shift = np.amax(np.asarray((np.amax(self.row_stack),np.amax(self.col_stack))))
+        self.max_shift = np.amax(np.asarray((np.amax(self.row_stack), np.amax(self.col_stack))))
         self.stack_check = True
     
     def corrected_stack(self):
@@ -218,17 +218,16 @@ class multi_image_drift(object):
         """
         if (not self.stack_check):
             raise RuntimeError('Please get the images correlated first as get_shape_stack()')
-        image_stack = np.copy(self.image_stack[0:3,:,:])
-        moved_stack = np.copy(self.moved_stack[0:3,:,:])
-        corr_image = np.copy(self.corr_image),
-        row_stack = np.copy(self.row_stack[0:3,0:3])
-        col_stack = np.copy(self.col_stack[0:3,0:3])
+        image_stack = np.copy(self.image_stack[0:3, :, :])
+        moved_stack = np.copy(self.moved_stack[0:3, :, :])
+        row_stack = np.copy(self.row_stack[0:3, 0:3])
+        col_stack = np.copy(self.col_stack[0:3, 0:3])
         #Initialize JIT
-        numba_stack_corr(image_stack,moved_stack,row_stack,col_stack)
+        numba_stack_corr(image_stack, moved_stack, row_stack, col_stack)
 
         #Run JITted code
-        numba_stack_corr(self.image_stack,self.moved_stack,self.row_stack,self.col_stack)
-        self.corr_image = np.sum(self.moved_stack,axis=0)/self.no_im
+        numba_stack_corr(self.image_stack, self.moved_stack, self.row_stack, self.col_stack)
+        self.corr_image = np.sum(self.moved_stack, axis=0)/self.no_im
         return self.corr_image
     
     def plot_shifts(self):
@@ -245,12 +244,12 @@ class multi_image_drift(object):
         ax1 = plt.subplot(gs[0, 0])
         ax2 = plt.subplot(gs[0, 1])
 
-        im = ax1.imshow(self.row_stack,vmin=-vm,vmax=vm,cmap='RdBu_r')
+        im = ax1.imshow(self.row_stack, vmin=-vm, vmax=vm, cmap='RdBu_r')
         ax1.set_xlabel('Stack Number')
         ax1.set_ylabel('Stack Number')
         ax1.set_title(label='Shift along X direction', loc='left')
 
-        im = ax2.imshow(self.col_stack,vmin=-vm,vmax=vm,cmap='RdBu_r')
+        im = ax2.imshow(self.col_stack, vmin=-vm, vmax=vm, cmap='RdBu_r')
         ax2.set_xlabel('Stack Number')
         ax2.set_ylabel('Stack Number')
         ax2.set_title(label='Shift along Y direction', loc='left')
