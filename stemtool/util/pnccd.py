@@ -1,9 +1,9 @@
+from __future__ import print_function, division, absolute_import
 import os
 import struct
 import numpy as np
 import h5py
 from collections import OrderedDict
-from __future__ import print_function, division, absolute_import
 
 class Frms6Reader(object):
     """ This class allows to access frm6 files
