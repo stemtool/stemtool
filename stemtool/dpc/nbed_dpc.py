@@ -321,10 +321,7 @@ def log_sobel(pattern,
     
     See Also
     --------
-    ..nbed.log_sobel4D
-                 
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    nbed.log_sobel4D
     """
     pattern = 1 + st.util.image_normalizer(pattern)
     lsb_pattern,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val))
