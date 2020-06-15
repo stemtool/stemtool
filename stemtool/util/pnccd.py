@@ -3,6 +3,8 @@ import os
 import struct
 import numpy as np
 import h5py
+import stemtool as st
+import numba
 from collections import OrderedDict
 
 class Frms6Reader(object):
@@ -424,3 +426,46 @@ def getDataSize(filename, path='/stream'):
         f = h5py.File(filename, "r")
 
     return f[path].shape
+
+def get_data_ref(data_string):
+    dref_string = data_string[0:-7] + '0' + data_string[-6:-1] + data_string[-1]
+    data_class = st.util.Frms6Reader()
+    data_shape = np.asarray(data_class.getDataShape(data_string),dtype=int)
+    dref_shape = np.asarray(data_class.getDataShape(dref_string),dtype=int)
+    dark_ref = data_class.readData(dref_string, image_range=(0,dref_shape[-1]), pixels_x = dref_shape[0], pixels_y = dref_shape[1])
+    data_3D = data_class.readData(data_string, image_range=(0,data_shape[-1]), pixels_x = data_shape[0], pixels_y = data_shape[1])
+    return data_3D, dark_ref
+
+@numba.jit(cache=True, parallel=True)
+def reconstruct_im(data_3D, dark_ref, numba_init=20):
+    data_3D = data_3D.astype(np.float)
+    data_shape = data_3D.shape
+    md_ref = np.mean(dark_ref.astype(np.float), axis=-1)
+    dref = np.empty((int(data_shape[0]*0.5), int(data_shape[1]*2)), dtype=data_3D.dtype)
+    dref[:, 0:md_ref.shape[1]] = md_ref[0:dref.shape[0], :]
+    dref[:, md_ref.shape[1]:dref.shape[1]] = np.flipud(np.fliplr(md_ref[dref.shape[0]:md_ref.shape[0], :]))
+    
+    im_raw = np.empty((data_shape[0], data_shape[1]), dtype=data_3D.dtype)
+    im_con = np.empty((int(data_shape[0]*0.5), int(data_shape[1]*2)), dtype=data_3D.dtype)
+    
+    xyvals = data_3D.shape[2]
+    xvals = int(xyvals ** 0.5)
+    yV, xV = np.mgrid[0:xvals, 0:xvals]
+    yV = np.ravel(yV)
+    xV = np.ravel(xV)
+    data_4D = np.empty((int(data_3D.shape[0]*0.5), int(data_3D.shape[1]*2), xvals, xvals), dtype=data_3D.dtype)
+    for ii in numba.prange(xyvals):
+        im_raw = data_3D[:,:,ii]
+        im_con[:, 0:im_raw.shape[1]] = im_raw[0:im_con.shape[0], :]
+        im_con[:, im_raw.shape[1]:im_con.shape[1]] = np.flipud(np.fliplr(im_raw[im_con.shape[0]:im_raw.shape[0], :]))
+        data_4D[:, :, yV[ii], xV[ii]] = im_con - dref
+    return data_4D
+        
+@numba.jit(cache=True, parallel=True)  
+def remove_dark_ref(data3D, dark_ref):
+    data_fin = np.empty(data3D.shape,dtype=np.float)
+    dref = np.mean(dark_ref, axis=-1)
+    data3D = data3D.astype(np.float)
+    for ii in numba.prange(data3D.shape[-1]):
+        data_fin[:,:,ii] = data3D[:,:,ii] - dref
+    return data_fin
