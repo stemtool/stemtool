@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 dist/
+dask-worker-space/
+notebooks/dask-worker-space/
 stemtools/__pycache__/
 notebooks/__pycache__/
 stemtools/adf/__pycache__/

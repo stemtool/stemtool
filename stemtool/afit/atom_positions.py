@@ -7,6 +7,10 @@ import scipy.optimize as spo
 import scipy.interpolate as scinterp
 import warnings
 import stemtool as st
+import dask
+from dask.distributed import Client
+from dask import delayed, compute
+import dask.array as da
 
 def remove_close_vals(input_arr,limit):
     result = np.copy(input_arr) 
@@ -76,9 +80,25 @@ def peaks_vis(data_image,
     plt.scatter(peaks[:,1],peaks[:,0],c='b', s=15)
     return peaks
 
-@numba.jit
+def get_dist(pos, ii):
+    """
+    Dask mini-function to get distance of a point
+    from every other point
+    """
+    ccd = np.sum(((pos[:, 0:2] - pos[ii, 0:2]) ** 2), axis=1)
+    cc_dist = (np.amin(ccd[ccd > 0])) ** 0.5
+    return cc_dist
+
+def med_dist(dist):
+    """
+    Dask mini-function to get half the median
+    distance
+    """
+    return 0.5*np.median(dist)
+
 def refine_atoms(image_data,
-                 positions):
+                 positions, 
+                 threads=2):
     """
     Single Gaussian Peak Atom Refinement
     
@@ -99,28 +119,39 @@ def refine_atoms(image_data,
     This is the single Gaussian peak fitting technique
     where the initial atom positions are fitted with a 
     single 2D Gaussian function. The center of the Gaussian
-    is returned as the refined atom position
+    is returned as the refined atom position. This is a Dask 
+    based function, that uses two mini-functions, get_dist and 
+    med_dist
     
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    See Also
+    --------
+    st.afit.get_dist
+    st.afit.med_dist
     """
-    warnings.filterwarnings('ignore')
-    dist = np.zeros(len(positions))
-    for ii in np.arange(len(positions)):
-        ccd = np.sum(((positions[:,0:2] - positions[ii,0:2]) ** 2),axis=1)
-        dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
-    distance = np.median(dist)/2
-    no_of_points = positions.shape[0]
-    refined_pos = (np.zeros((no_of_points,6))).astype(float)
-    for ii in range(no_of_points):
-        pos_x = (positions[ii,1]).astype(float)
-        pos_y = (positions[ii,0]).astype(float)
-        fitted_diff = st.util.fit_gaussian2D_mask(1+image_data,pos_x,pos_y,distance)
-        refined_pos[ii,1] = fitted_diff[0]
-        refined_pos[ii,0] = fitted_diff[1]
-        refined_pos[ii,2:6] = fitted_diff[2:6]
-        refined_pos[ii,-1] = fitted_diff[-1] - 1
-    return refined_pos
+    client = Client(threads_per_worker=threads, processes=True)
+    image_data = st.util.image_normalizer((image_data).astype(float))
+    im_dask = da.from_array(image_data, chunks=('auto', 'auto'))
+    positions = (positions).astype(float)
+    no_pos = len(positions)
+    pos_dask = da.from_array(positions, chunks=('auto', -1))
+    dist = []
+    for ii in np.arange(no_pos):
+        y = delayed(get_dist)(pos_dask, ii)
+        dist.append(y)
+    distance = dask.delayed(med_dist)(dist)
+    refined = []
+    for ii in range(no_pos):
+        pos_x = pos_dask[ii, 1]
+        pos_y = pos_dask[ii, 0]
+        refined_ii = delayed(st.util.fit_gaussian2D_mask)(1+im_dask, pos_x, pos_y, distance)
+        refined.append(refined_ii)
+    refined = np.asarray(dask.compute(*refined))
+    ref_arr = np.empty_like(refined)
+    ref_arr[:, 0:2] = np.fliplr(refined[:, 0:2])
+    ref_arr[:, 2:6] = refined[:, 2:6]
+    ref_arr[:, -1] = refined[:, -1] - 1
+    client.close()
+    return ref_arr
 
 @numba.jit
 def mpfit(main_image,
@@ -170,13 +201,9 @@ def mpfit(main_image,
     
     References:
     -----------
-    Mukherjee, D., Miao, L., Stone, G. and Alem, N., 2019. 
-    MPFit: A robust method for fitting atomic resolution 
-    images with multiple Gaussian peaks. 
-    arXiv preprint arXiv:1910.11948.
-    
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    1]_, SMukherjee, D., Miao, L., Stone, G. and Alem, N., 
+         mpfit: a robust method for fitting atomic resolution images 
+         with multiple Gaussian peaks. Adv Struct Chem Imag 6, 1 (2020).
     """
     warnings.filterwarnings('ignore')
     dist = np.zeros(len(initial_peaks))
