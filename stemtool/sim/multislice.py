@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.special as s2
 import PIL
+import ase
 
 def wavelength_ang(voltage_kV):
     """
@@ -174,3 +175,55 @@ def atomic_potential(atom_no,
     sspot_im = PIL.Image.fromarray(sspot)
     potential = np.array(sspot_im.resize(finalsize,resample=PIL.Image.LANCZOS))
     return potential
+
+def find_uc_pos(atom_pos,cell_dim):
+    uc_pos = np.zeros_like(atom_pos)
+    for ii in numba.prange(len(uc_pos)):
+        for jj in range(len(cell_dim)):
+            cc = atom_pos[ii,:]/cell_dim[jj,:]
+            cc[cc < 0] += 1
+            cc[cc == np.inf] = 0
+            cc[cc > 0.001]
+            uc_pos[ii,jj] = cc[jj]
+    uc_nonzero = uc_pos != 0
+    uc_inv = 1/uc_pos[uc_nonzero]
+    uc_inv[np.abs(uc_inv - np.round(uc_inv)) < 0.001] = np.round(uc_inv[np.abs(uc_inv - np.round(uc_inv)) < 0.001])
+    uc_pos[uc_nonzero] = 1/uc_inv
+    uc_pos[uc_pos == 1] = 0
+    return uc_pos
+
+def miller_inverse(miller):
+    miller_inv = np.empty_like(miller,dtype=np.float)
+    miller_inv[miller==0] = 0
+    miller_inv[miller!=0] = 1/miller[miller!=0]
+    return miller_inv
+
+def get_number_cells(miller_dir, length, cell_dim):
+    minverse = miller_inverse(miller_dir)
+    slicedir = np.matmul(np.transpose(cell_dim), minverse)
+    no_cells = np.round(minverse*(length/np.linalg.norm(slicedir)))
+    return no_cells
+
+def slabbing_2D(miller_dir, no_cells, max_hdist):
+    yy, xx = np.meshgrid(np.arange(0, int(no_cells[1]), 1), 
+                         np.arange(0, int(no_cells[0]), 1))
+    yy = yy.ravel()
+    xx = xx.ravel()
+    xp = np.arange(np.amax((np.amax(yy), np.max(xx))))
+    yp = xp*(miller_dir[0]/miller_dir[1])
+    point_distances = np.abs((miller_dir[1]*yy) - (miller_dir[0]*xx))/(((miller_dir[1]**2) + (miller_dir[0]**2))**0.5)
+    yy_new, xx_new = np.meshgrid(np.arange(0-np.ceil(max_hdist), int(no_cells[1])+np.ceil(max_hdist), 1), 
+                                 np.arange(0-np.ceil(max_hdist), int(no_cells[0])+np.ceil(max_hdist), 1))
+    yy_new = yy_new.ravel()
+    xx_new = xx_new.ravel()
+    dists = np.abs((miller_dir[1]*yy_new) - (miller_dir[0]*xx_new))/(((miller_dir[1]**2) + (miller_dir[0]**2))**0.5)
+    xx_firstpass = xx_new[dists < max_hdist]
+    yy_firstpass = yy_new[dists < max_hdist]
+    dist_angles = np.abs(np.arctan2((yy_firstpass - 0), (xx_firstpass - 0)) - np.arctan2(miller_dir[0],miller_dir[1]))
+    xx_secondpass = xx_firstpass[dist_angles < (np.pi/2)]
+    yy_secondpass = yy_firstpass[dist_angles < (np.pi/2)]
+    dist_angles2 = np.abs(np.arctan2((yy_secondpass - 81), (xx_secondpass - 40)) - np.arctan2(miller_dir[0],miller_dir[1]))
+    xx_thirdpass = xx_secondpass[dist_angles2 > (np.pi/2)]
+    yy_thirdpass = yy_secondpass[dist_angles2 > (np.pi/2)]
+    vals = np.asarray((yy_thirdpass, xx_thirdpass))
+    return vals.transpose()
