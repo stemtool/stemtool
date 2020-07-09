@@ -125,7 +125,7 @@ def numba_stack_corr(image_stack,
     row_mean = np.median(rowshifts, axis=0)
     col_mean = np.median(colshifts, axis=0)
     for ii in numba.prange(len(row_mean)):
-        moved_stack[ii,:,:] = np.abs(st.util.move_by_phase(image_stack[ii,:,:], col_mean[ii], row_mean[ii]))
+        moved_stack[ii, :, :] = np.abs(st.util.move_by_phase(image_stack[ii, :, :], col_mean[ii], row_mean[ii]))
 
 class multi_image_drift(object):
     """
