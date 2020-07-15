@@ -5,6 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText as AT
 import stemtool as st
+import matplotlib.offsetbox as mploff
 import matplotlib.gridspec as mpgs
 import matplotlib_scalebar.scalebar as mpss
 import numba
@@ -317,7 +318,7 @@ class GPA(object):
     Run as:
     
     >>> im_gpa = gpa(imageDC)
-    >>> im_gpa.find_spots((983, 905),(1066, 984))
+    >>> im_gpa.find_spots((983, 905), (1066, 984))
     
     where (983, 905) and (1066, 984) are two diffraction spot
     locations. You can run the `find_spots` method manually
@@ -331,40 +332,38 @@ class GPA(object):
     >>> im_gpa.refine_phase()
     >>> e_xx, e_yy, e_theta, e_diag = im_gpa.get_strain()
     
+    To plot the obtained strain maps:
+    
+    >>> im_gpa.plot_gpa_strain(calib1, calib1_units)
+    
     """
     def __init__(self, 
-                 image, 
-                 ref_iter=20, 
-                 use_blur=True):
-        self.image = image
-        self.blur = use_blur
-        self.ref_iter = int(ref_iter)
-        self.image_ft = np.empty_like(image, dtype=np.complex)
-        self.P_matrix1_ini = np.empty_like(image, dtype=np.float)
-        self.P_matrix2_ini = np.empty_like(image, dtype=np.float)
-        self.P_matrix1_fin = np.empty_like(image, dtype=np.float)
-        self.P_matrix2_fin = np.empty_like(image, dtype=np.float)
-        self.ham = np.empty_like(image)
-        self.imshape = np.asarray(image.shape)
-        self.circ_0 = 0.5*np.asarray(image.shape)
-        self.circ_1 = np.empty(2, dtype=np.float)
-        self.circ_2 = np.empty(2, dtype=np.float)
-        self.gvec_1_ini = np.empty(2, dtype=np.float)
-        self.gvec_2_ini = np.empty(2, dtype=np.float)
-        self.gvec_1_fin = np.empty(2, dtype=np.float)
-        self.gvec_2_fin = np.empty(2, dtype=np.float)
-        self.a_matrix = np.empty((2, 2), dtype=np.float)
-        self.e_xx = np.empty_like(image, dtype=np.float)
-        self.e_dg = np.empty_like(image, dtype=np.float)
-        self.e_th = np.empty_like(image, dtype=np.float)
-        self.e_yy = np.empty_like(image, dtype=np.float)
-        self.spots_check = False
-        self.reference_check = False
-        self.refining_check = False
+                 image,
+                 calib, 
+                 calib_units,
+                 ref_iter= 20, 
+                 use_blur= True):
+        self.image= image
+        self.calib= calib
+        self.calib_units= calib_units 
+        self.blur= use_blur
+        self.ref_iter= int(ref_iter)
+        self.imshape= np.asarray(image.shape)
+        inv_len= 1/(self.calib*self.imshape)
+        if(inv_len[0] == inv_len[1]):
+            self.inv_calib= np.mean(inv_len)
+        else:
+            raise RuntimeError('Please ensure that the image is a square image')
+        self.circ_0= 0.5*self.imshape
+        self.inv_cal_units = '1/'+calib_units
+        self.spots_check= False
+        self.reference_check= False
+        self.refining_check= False
         
     def find_spots(self, 
                    circ1, 
-                   circ2):
+                   circ2, 
+                   imsize=(10, 10)):
         """
         Locate the diffraction spots visually.
 
@@ -391,30 +390,43 @@ class GPA(object):
         circ_to_G
         phase_matrix
         """
-        self.circ_1 = np.asarray(circ1)
-        self.circ_2 = np.asarray(circ2)
+        self.circ_1 = (self.imshape/2) + (np.asarray(circ1)/self.inv_calib)
+        self.circ_2 = (self.imshape/2) + (np.asarray(circ2)/self.inv_calib)
         self.ham = np.sqrt(np.outer(np.hamming(self.imshape[0]), np.hamming(self.imshape[1])))
         self.image_ft = np.fft.fftshift(np.fft.fft2(self.image*self.ham))
         log_abs_ft = scnd.filters.gaussian_filter(np.log10(np.abs(self.image_ft)),3)
         
-        f, ax = plt.subplots(figsize=(15, 15))
-        circ_0_im = plt.Circle(self.circ_0, 15, color='red', alpha=0.33)
-        circ_1_im = plt.Circle(self.circ_1, 15, color='blue', alpha=0.33)
-        circ_2_im = plt.Circle(self.circ_2, 15, color='green', alpha=0.33)
+        pixel_list = np.arange(-0.5*self.inv_calib*self.imshape[0], 
+                               0.5*self.inv_calib*self.imshape[0], 
+                               self.inv_calib)
+        no_labels = 9
+        step_x = int(self.imshape[0]/(no_labels - 1))
+        x_positions = np.arange(0, self.imshape[0], step_x)
+        x_labels = np.round(pixel_list[::step_x], 1)
+        
+        f, ax = plt.subplots(figsize= imsize)
+        circ_0_im = plt.Circle(self.circ_0, 15, color='red', alpha=0.75)
+        circ_1_im = plt.Circle(self.circ_1, 15, color='blue', alpha=0.75)
+        circ_2_im = plt.Circle(self.circ_2, 15, color='green', alpha=0.75)
         ax.imshow(log_abs_ft, cmap='gray')
         ax.add_artist(circ_0_im)
         ax.add_artist(circ_1_im)
         ax.add_artist(circ_2_im)
+        plt.xticks(x_positions, x_labels)
+        plt.yticks(x_positions, x_labels)
+        plt.xlabel('Distance along X-axis ('+self.inv_cal_units+')')
+        plt.ylabel('Distance along Y-axis ('+self.inv_cal_units+')')
         plt.show()
         
-        self.gvec_1_ini = circ_to_G(self.circ_1, self.image)
-        self.gvec_2_ini = circ_to_G(self.circ_2, self.image)
-        self.P_matrix1_ini = phase_matrix(self.gvec_1_ini, self.image, self.blur)
-        self.P_matrix2_ini = phase_matrix(self.gvec_2_ini, self.image, self.blur)
+        self.gvec_1_ini = st.gpa.circ_to_G(self.circ_1, self.image)
+        self.gvec_2_ini = st.gpa.circ_to_G(self.circ_2, self.image)
+        self.P_matrix1_ini = st.gpa.phase_matrix(self.gvec_1_ini, self.image, self.blur)
+        self.P_matrix2_ini = st.gpa.phase_matrix(self.gvec_2_ini, self.image, self.blur)
         self.spots_check = True
     
     def define_reference(self, 
-                         A, B, C, D):
+                         A_pt, B_pt, C_pt, D_pt, 
+                         imsize=(10, 10)):
         """
         Locate the reference image.
 
@@ -433,29 +445,47 @@ class GPA(object):
         """
         if (not self.spots_check):
             raise RuntimeError('Please locate the diffraction spots first as find_spots()')
-        xx, yy = np.meshgrid(np.arange(self.imshape[1]), np.arange(self.imshape[0]))
-        m_AB = (A[1] - B[1])/(A[0] - B[0])
-        c_AB = A[1] - (m_AB*A[0])
-        m_BC = (B[1] - C[1])/(B[0] - C[0])
-        c_BC = B[1] - (m_BC*B[0])
-        m_CD = (C[1] - D[1])/(C[0] - D[0])
-        c_CD = C[1] - (m_CD*C[0])
-        m_DA = (D[1] - A[1])/(D[0] - A[0])
-        c_DA = D[1] - (m_DA*D[0])
+            
+        A = np.asarray(A_pt)/self.calib
+        B = np.asarray(B_pt)/self.calib
+        C = np.asarray(C_pt)/self.calib
+        D = np.asarray(D_pt)/self.calib
+        
+        yy, xx = np.mgrid[0:self.imshape[1], 0:self.imshape[0]]
+        m_AB= (A[1] - B[1])/(A[0] - B[0])
+        c_AB= A[1] - (m_AB*A[0])
+        m_BC= (B[1] - C[1])/(B[0] - C[0])
+        c_BC= B[1] - (m_BC*B[0])
+        m_CD= (C[1] - D[1])/(C[0] - D[0])
+        c_CD= C[1] - (m_CD*C[0])
+        m_DA= (D[1] - A[1])/(D[0] - A[0])
+        c_DA= D[1] - (m_DA*D[0])
         self.ref_reg = np.logical_and(np.logical_and((yy > (m_AB*xx) + c_AB), ((yy - c_BC)/m_BC > xx)), 
                                       np.logical_and((yy < (m_CD*xx) + c_CD), ((yy - c_DA)/m_DA < xx)))
+        self.ref_reg = np.flipud(self.ref_reg)
         
-        plt.figure(figsize=(15, 15))
-        plt.imshow(st.util.image_normalizer(self.image)+ 0.33*self.ref_reg)
-        plt.annotate(A, (A[0]/self.imshape[0], (1 - A[1]/self.imshape[1])), textcoords='axes fraction', size=15, color='w')
-        plt.annotate(B, (B[0]/self.imshape[0], (1 - B[1]/self.imshape[1])), textcoords='axes fraction', size=15, color='w')
-        plt.annotate(C, (C[0]/self.imshape[0], (1 - C[1]/self.imshape[1])), textcoords='axes fraction', size=15, color='w')
-        plt.annotate(D, (D[0]/self.imshape[0], (1 - D[1]/self.imshape[1])), textcoords='axes fraction', size=15, color='w')
-        plt.scatter(A[0], A[1])
-        plt.scatter(B[0], B[1])
-        plt.scatter(C[0], C[1])
-        plt.scatter(D[0], D[1])
-        plt.axis('off')
+        pixel_list = np.arange(0, self.calib*self.imshape[0], self.calib)
+        no_labels = 10
+        step_x = int(self.imshape[0]/(no_labels - 1))
+        x_positions = np.arange(0, self.imshape[0], step_x)
+        x_labels = np.round(pixel_list[::step_x], 1)
+        
+        print('Choose your points in a clockwise fashion, or else you will get a wrong result')
+        
+        plt.figure(figsize= imsize)
+        plt.imshow(np.flipud(st.util.image_normalizer(self.image)+ 0.33*self.ref_reg), cmap='magma', origin='lower')
+        plt.annotate('A='+str(A_pt), A/self.imshape, textcoords='axes fraction', size=15, color='c')
+        plt.annotate('B='+str(B_pt), B/self.imshape, textcoords='axes fraction', size=15, color='c')
+        plt.annotate('C='+str(C_pt), C/self.imshape, textcoords='axes fraction', size=15, color='c')
+        plt.annotate('D='+str(D_pt), D/self.imshape, textcoords='axes fraction', size=15, color='c')
+        plt.scatter(A[0], A[1], c='r')
+        plt.scatter(B[0], B[1], c='r')
+        plt.scatter(C[0], C[1], c='r')
+        plt.scatter(D[0], D[1], c='r')
+        plt.xticks(x_positions, x_labels)
+        plt.yticks(x_positions, x_labels)
+        plt.xlabel('Distance along X-axis ('+self.calib_units+')')
+        plt.ylabel('Distance along Y-axis ('+self.calib_units+')')
         self.reference_check = True
         
     def refine_phase(self):
@@ -477,16 +507,16 @@ class GPA(object):
         """
         if (not self.reference_check):
             raise RuntimeError('Please locate the reference region first as define_reference()')
-        ry = np.arange(start=-self.imshape[0]/2, stop=self.imshape[0]/2, step=1)
-        rx = np.arange(start=-self.imshape[1]/2, stop=self.imshape[1]/2, step=1)
+        ry= np.arange(start=-self.imshape[0]/2, stop=self.imshape[0]/2, step=1)
+        rx= np.arange(start=-self.imshape[1]/2, stop=self.imshape[1]/2, step=1)
         R_x, R_y = np.meshgrid(rx,ry)
         self.gvec_1_fin = self.gvec_1_ini
         self.gvec_2_fin = self.gvec_2_ini
         self.P_matrix1_fin = self.P_matrix1_ini
         self.P_matrix2_fin = self.P_matrix2_ini
         for _ in range(int(self.ref_iter)):
-            G1_x, G1_y = phase_diff(self.P_matrix1_fin)
-            G2_x, G2_y = phase_diff(self.P_matrix2_fin)
+            G1_x, G1_y = st.gpa.phase_diff(self.P_matrix1_fin)
+            G2_x, G2_y = st.gpa.phase_diff(self.P_matrix2_fin)
             g1_r = (G1_x + G1_y)/(2*np.pi)
             g2_r = (G2_x + G2_y)/(2*np.pi)
             del_g1 = np.asarray((np.median(g1_r[self.ref_reg]/R_y[self.ref_reg]), 
@@ -495,8 +525,8 @@ class GPA(object):
                                  np.median(g2_r[self.ref_reg]/R_x[self.ref_reg])))
             self.gvec_1_fin += del_g1
             self.gvec_2_fin += del_g2
-            self.P_matrix1_fin = phase_matrix(self.gvec_1_fin, self.image, self.blur)
-            self.P_matrix2_fin = phase_matrix(self.gvec_2_fin, self.image, self.blur)
+            self.P_matrix1_fin = st.gpa.phase_matrix(self.gvec_1_fin, self.image, self.blur)
+            self.P_matrix2_fin = st.gpa.phase_matrix(self.gvec_2_fin, self.image, self.blur)
         self.refining_check = True
             
     def get_strain(self):
@@ -539,8 +569,8 @@ class GPA(object):
         u_matrix = np.matmul(self.a_matrix, rolled_p)
         u_x = np.reshape(u_matrix[0,:], P1.shape)
         u_y = np.reshape(u_matrix[1,:], P2.shape)
-        self.e_xx, e_xy = phase_diff(u_x)
-        e_yx, self.e_yy = phase_diff(u_y)
+        self.e_xx, e_xy = st.gpa.phase_diff(u_x)
+        e_yx, self.e_yy = st.gpa.phase_diff(u_y)
         self.e_th = 0.5*(e_xy - e_yx)
         self.e_dg = 0.5*(e_xy + e_yx)
         self.e_yy -= np.median(self.e_yy[self.ref_reg])
@@ -550,8 +580,6 @@ class GPA(object):
         return self.e_xx, self.e_yy, self.e_th, self.e_dg
     
     def plot_gpa_strain(self, 
-                        calib, 
-                        calib_units, 
                         imsize= (20, 20)):
         """
         Use the calculated strain matrices to plot the strain maps 
@@ -566,7 +594,6 @@ class GPA(object):
         vm= 100*np.amax(np.abs(np.concatenate((self.e_yy, self.e_xx, self.e_dg, self.e_th), axis= 1)))
         sc_font= {'weight' : 'bold', 'size'   : fontsize}
         mpl.rc('font', **sc_font)
-        title_font= {'weight': 'bold', 'size': int(1.5*fontsize),}
 
         fig= plt.figure(figsize= imsize)
 
@@ -577,62 +604,58 @@ class GPA(object):
         ax4= plt.subplot(gs[1, 1])
 
         ax1.imshow(-100*self.e_xx, vmin= -vm, vmax= vm, cmap= 'RdBu_r')
-        scalebar = mpss.ScaleBar(calib, calib_units)
+        scalebar = mpss.ScaleBar(self.calib, self.calib_units)
         scalebar.location= 'lower right'
         scalebar.box_alpha= 1
         scalebar.color= 'k'
         ax1.add_artist(scalebar)
-        at= AT(r'$\mathrm{\epsilon_{xx}}$', 
-               prop= dict(size= 30), frameon= True,
-               loc= 'upper left')
+        at= mploff.AnchoredText(r'$\mathrm{\epsilon_{xx}}$', 
+                                prop= dict(size= 30), frameon= True,
+                                loc= 'upper left')
         at.patch.set_boxstyle('round, pad= 0., rounding_size= 0.2')
         ax1.add_artist(at)
-        ax1.set_title(label= '(a)', loc= 'left', fontdict= title_font)
         ax1.axis('off')
 
 
         ax2.imshow(-100*self.e_dg, vmin= -vm, vmax= vm, cmap= 'RdBu_r')
-        scalebar= mpss.ScaleBar(calib, calib_units)
+        scalebar= mpss.ScaleBar(self.calib, self.calib_units)
         scalebar.location= 'lower right'
         scalebar.box_alpha= 1
         scalebar.color= 'k'
         ax2.add_artist(scalebar)
-        at= AT(r'$\mathrm{\epsilon_{xy}}$', 
-               prop= dict(size= 30), frameon= True, 
-               loc= 'upper left')
+        at= mploff.AnchoredText(r'$\mathrm{\epsilon_{xy}}$', 
+                                prop= dict(size= 30), frameon= True, 
+                                loc= 'upper left')
         at.patch.set_boxstyle('round, pad= 0., rounding_size= 0.2')
         ax2.add_artist(at)
-        ax2.set_title(label= '(b)', loc= 'left', fontdict= title_font)
         ax2.axis('off')
 
 
         ax3.imshow(-100*self.e_th, vmin= -vm, vmax= vm, cmap= 'RdBu_r')
-        scalebar= mpss.ScaleBar(calib, calib_units)
+        scalebar= mpss.ScaleBar(self.calib, self.calib_units)
         scalebar.location= 'lower right'
         scalebar.box_alpha= 1
         scalebar.color= 'k'
         ax3.add_artist(scalebar)
-        at= AT(r'$\mathrm{\epsilon_{\theta}}$', 
-               prop= dict(size= 30), frameon= True, 
-               loc= 'upper left')
+        at= mploff.AnchoredText(r'$\mathrm{\epsilon_{\theta}}$', 
+                                prop= dict(size= 30), frameon= True, 
+                                loc= 'upper left')
         at.patch.set_boxstyle("round, pad= 0., rounding_size= 0.2")
         ax3.add_artist(at)
-        ax3.set_title(label= '(c)', loc= 'left', fontdict= title_font)
         ax3.axis('off')
 
 
         im= ax4.imshow(-100*self.e_yy, vmin= -vm, vmax= vm, cmap= 'RdBu_r')
-        scalebar= mpss.ScaleBar(calib, calib_units)
+        scalebar= mpss.ScaleBar(self.calib, self.calib_units)
         scalebar.location= 'lower right'
         scalebar.box_alpha= 1
         scalebar.color= 'k'
         ax4.add_artist(scalebar)
-        at= AT(r'$\mathrm{\epsilon_{yy}}$', 
-               prop= dict(size=30), frameon= True, 
-               loc= 'upper left')
+        at= mploff.AnchoredText(r'$\mathrm{\epsilon_{yy}}$', 
+                                prop= dict(size=30), frameon= True, 
+                                loc= 'upper left')
         at.patch.set_boxstyle('round, pad= 0., rounding_size= 0.2')
         ax4.add_artist(at)
-        ax4.set_title(label= '(d)', loc= 'left', fontdict= title_font)
         ax4.axis('off')
 
         p1= ax1.get_position().get_points().flatten()
