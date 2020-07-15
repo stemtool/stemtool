@@ -610,7 +610,7 @@ class GPA(object):
         scalebar.color= 'k'
         ax1.add_artist(scalebar)
         at= mploff.AnchoredText(r'$\mathrm{\epsilon_{xx}}$', 
-                                prop= dict(size= 30), frameon= True,
+                                prop= dict(size= fontsize), frameon= True,
                                 loc= 'upper left')
         at.patch.set_boxstyle('round, pad= 0., rounding_size= 0.2')
         ax1.add_artist(at)
@@ -624,7 +624,7 @@ class GPA(object):
         scalebar.color= 'k'
         ax2.add_artist(scalebar)
         at= mploff.AnchoredText(r'$\mathrm{\epsilon_{xy}}$', 
-                                prop= dict(size= 30), frameon= True, 
+                                prop= dict(size= fontsize), frameon= True, 
                                 loc= 'upper left')
         at.patch.set_boxstyle('round, pad= 0., rounding_size= 0.2')
         ax2.add_artist(at)
@@ -638,7 +638,7 @@ class GPA(object):
         scalebar.color= 'k'
         ax3.add_artist(scalebar)
         at= mploff.AnchoredText(r'$\mathrm{\epsilon_{\theta}}$', 
-                                prop= dict(size= 30), frameon= True, 
+                                prop= dict(size= fontsize), frameon= True, 
                                 loc= 'upper left')
         at.patch.set_boxstyle("round, pad= 0., rounding_size= 0.2")
         ax3.add_artist(at)
@@ -652,7 +652,7 @@ class GPA(object):
         scalebar.color= 'k'
         ax4.add_artist(scalebar)
         at= mploff.AnchoredText(r'$\mathrm{\epsilon_{yy}}$', 
-                                prop= dict(size=30), frameon= True, 
+                                prop= dict(size=fontsize), frameon= True, 
                                 loc= 'upper left')
         at.patch.set_boxstyle('round, pad= 0., rounding_size= 0.2')
         ax4.add_artist(at)
