@@ -444,7 +444,7 @@ class GPA(object):
         x_positions = np.arange(0, self.imshape[0], step_x)
         x_labels = np.round(pixel_list[::step_x], 1)
         
-        f, ax = plt.subplots(figsize= imsize)
+        _, ax = plt.subplots(figsize= imsize)
         circ_0_im = plt.Circle(self.circ_0, 15, color='red', alpha=0.75)
         circ_1_im = plt.Circle(self.circ_1, 15, color='blue', alpha=0.75)
         circ_2_im = plt.Circle(self.circ_2, 15, color='green', alpha=0.75)
@@ -456,7 +456,6 @@ class GPA(object):
         plt.yticks(x_positions, x_labels)
         plt.xlabel('Distance along X-axis ('+self.inv_cal_units+')')
         plt.ylabel('Distance along Y-axis ('+self.inv_cal_units+')')
-        plt.show()
         
         self.gvec_1_ini = st.gpa.circ_to_G(self.circ_1, self.image)
         self.gvec_2_ini = st.gpa.circ_to_G(self.circ_2, self.image)
