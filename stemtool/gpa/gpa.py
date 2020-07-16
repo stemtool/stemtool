@@ -296,16 +296,20 @@ class GPA(object):
     
     Parameters
     ----------
-    image:    ndarray
-              The image from which the strain will
-              be measured from
-    ref_iter: int, optional
-              Number of iterations to run for refining
-              the G vectors and the phase matrixes. 
-              Default is 20.
-    use_blur: bool, optional
-              Use a Gaussian blur to generate the 
-              phase matrix from a g vector. Default is True
+    image:       ndarray
+                 The image from which the strain will
+                 be measured from
+    calib:       float
+                 Size of an individual pixel
+    calib_units: str
+                 Unit of calibration
+    ref_iter:    int, optional
+                 Number of iterations to run for refining
+                 the G vectors and the phase matrixes. 
+                 Default is 20.
+    use_blur:    bool, optional
+                 Use a Gaussian blur to generate the 
+                 phase matrix from a g vector. Default is True
                  
     References
     ----------
@@ -317,16 +321,27 @@ class GPA(object):
     --------
     Run as:
     
-    >>> im_gpa = gpa(imageDC)
-    >>> im_gpa.find_spots((983, 905), (1066, 984))
+    >>> im_gpa = gpa(image=imageDC, calib=calib1, calib_units= calib1_units)
     
-    where (983, 905) and (1066, 984) are two diffraction spot
+    Then to check the image you just loaded
+    
+    >>> im_gpa.show_image()
+    
+    Then, select the diffraction spots in inverse units that you
+    want to be used for GPA. They must not be collinear.
+    
+    >>> im_gpa.find_spots((5, 0), (0, -5))
+    
+    where (5, 0) and (0, -5) are two diffraction spot
     locations. You can run the `find_spots` method manually
-    multiple times till you locate the spots closely,
+    multiple times till you locate the spots closely. After 
+    you have located the spots, you need to define a reference
+    region for the image - with respect to which the strain 
+    will be calculated.
     
-    >>> im_gpa.define_reference((870, 750), (1300, 740), (1310, 1080), (900, 1100))
+    >>> im_gpa.define_reference((6.8, 6.9), (10.1, 6.8), (10.2, 9.5), (7.0, 9.6))
     
-    where (870, 750), (1300, 740), (1310, 1080) and (900, 1100) are
+    where (6.8, 6.9), (10.1, 6.8), (10.2, 9.5) and (7.0, 9.6) are
     the corners of the reference region you are defining. 
     
     >>> im_gpa.refine_phase()
@@ -334,7 +349,7 @@ class GPA(object):
     
     To plot the obtained strain maps:
     
-    >>> im_gpa.plot_gpa_strain(calib1, calib1_units)
+    >>> im_gpa.plot_gpa_strain()
     
     """
     def __init__(self, 
@@ -359,6 +374,27 @@ class GPA(object):
         self.spots_check= False
         self.reference_check= False
         self.refining_check= False
+    
+    def show_image(self, 
+                   imsize= (15, 15), 
+                   colormap= 'inferno'):
+        """
+        Parameters
+        ----------
+        imsize:   tuple, optional
+                  Size in inches of the image with the 
+                  diffraction spots marked. Default is (15, 15)
+        colormap: str, optional
+                  Colormap of the image. Default is inferno
+        """
+        plt.figure(figsize= imsize)
+        plt.imshow(self.image, cmap= colormap)
+        scalebar= mpss.ScaleBar(self.calib, self.calib_units)
+        scalebar.location= 'lower right'
+        scalebar.box_alpha= 1
+        scalebar.color= 'k'
+        plt.gca().add_artist(scalebar)
+        plt.axis('off')
         
     def find_spots(self, 
                    circ1, 
@@ -369,12 +405,16 @@ class GPA(object):
 
         Parameters
         ----------
-        circ1: ndarray
-               Position of the first beam in
-               the Fourier pattern
-        circ2: ndarray
-               Position of the second beam in
-               the Fourier pattern
+        circ1:  ndarray
+                Position of the first beam in
+                the Fourier pattern
+        circ2:  ndarray
+                Position of the second beam in
+                the Fourier pattern
+        imsize: tuple, optional
+                Size in inches of the image with the 
+                diffraction spots marked. Default is 
+                (10, 10)
 
         Notes
         -----
@@ -425,17 +465,31 @@ class GPA(object):
         self.spots_check = True
     
     def define_reference(self, 
-                         A_pt, B_pt, C_pt, D_pt, 
-                         imsize=(10, 10)):
+                         A_pt, 
+                         B_pt, 
+                         C_pt, 
+                         D_pt, 
+                         imsize= (10, 10), 
+                         tColor= 'k'):
         """
         Locate the reference image.
 
         Parameters
         ----------
-        A:      Top left position of reference region in (x, y)
-        B:      Top right position of reference region in (x, y)
-        C:      Bottom right position of reference region in (x, y)
-        D:      Bottom left position of reference region in (x, y)
+        A_pt:   tuple
+                Top left position of reference region in (x, y)
+        B_pt:   tuple
+                Top right position of reference region in (x, y)
+        C_pt:   tuple
+                Bottom right position of reference region in (x, y)
+        D_pt:   tuple
+                Bottom left position of reference region in (x, y)
+        imsize: tuple, optional
+                Size in inches of the image with the 
+                diffraction spots marked. Default is 
+                (10, 10)
+        tColor: str, optional
+                Color of the text on the image
 
         Notes
         -----
@@ -474,10 +528,10 @@ class GPA(object):
         
         plt.figure(figsize= imsize)
         plt.imshow(np.flipud(st.util.image_normalizer(self.image)+ 0.33*self.ref_reg), cmap='magma', origin='lower')
-        plt.annotate('A='+str(A_pt), A/self.imshape, textcoords='axes fraction', size=15, color='c')
-        plt.annotate('B='+str(B_pt), B/self.imshape, textcoords='axes fraction', size=15, color='c')
-        plt.annotate('C='+str(C_pt), C/self.imshape, textcoords='axes fraction', size=15, color='c')
-        plt.annotate('D='+str(D_pt), D/self.imshape, textcoords='axes fraction', size=15, color='c')
+        plt.annotate('A='+str(A_pt), A/self.imshape, textcoords='axes fraction', size=15, color= tColor)
+        plt.annotate('B='+str(B_pt), B/self.imshape, textcoords='axes fraction', size=15, color= tColor)
+        plt.annotate('C='+str(C_pt), C/self.imshape, textcoords='axes fraction', size=15, color= tColor)
+        plt.annotate('D='+str(D_pt), D/self.imshape, textcoords='axes fraction', size=15, color= tColor)
         plt.scatter(A[0], A[1], c='r')
         plt.scatter(B[0], B[1], c='r')
         plt.scatter(C[0], C[1], c='r')
@@ -580,9 +634,22 @@ class GPA(object):
         return self.e_xx, self.e_yy, self.e_th, self.e_dg
     
     def plot_gpa_strain(self, 
+                        mval= 0, 
                         imsize= (20, 20)):
         """
         Use the calculated strain matrices to plot the strain maps 
+        
+        Parameters
+        ----------
+        mval:   float, optional
+                The maximum strain value that will be plotted.
+                Default is 0, upon which the maximum strain 
+                percentage will be calculated, which will be used
+                for plotting.
+        imsize: tuple, optional
+                Size in inches of the image with the 
+                diffraction spots marked. Default is 
+                (20, 20)
         
         Notes
         -----
@@ -591,7 +658,10 @@ class GPA(object):
         analysis.
         """
         fontsize= int(np.mean(np.asarray(imsize)))
-        vm= 100*np.amax(np.abs(np.concatenate((self.e_yy, self.e_xx, self.e_dg, self.e_th), axis= 1)))
+        if (mval==0):
+            vm= 100*np.amax(np.abs(np.concatenate((self.e_yy, self.e_xx, self.e_dg, self.e_th), axis= 1)))
+        else:
+            vm= mval
         sc_font= {'weight' : 'bold', 'size'   : fontsize}
         mpl.rc('font', **sc_font)
 
