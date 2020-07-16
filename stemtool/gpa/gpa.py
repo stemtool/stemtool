@@ -3,7 +3,6 @@ import skimage.restoration as skr
 import scipy.ndimage as scnd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.offsetbox import AnchoredText as AT
 import stemtool as st
 import matplotlib.offsetbox as mploff
 import matplotlib.gridspec as mpgs
