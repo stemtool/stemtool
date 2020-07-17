@@ -491,9 +491,8 @@ class GPA(object):
 
         Notes
         -----
-        Locate visually the unstrained reference region. To prevent 
-        division by zero errors, make sure that all of the individual
-        *x* or *y* of the corners of the reference region are unique.
+        Locates a reference region bounded by the four points given in
+        length units. Choose the points in a clockwise fashion.
         """
         if (not self.spots_check):
             raise RuntimeError('Please locate the diffraction spots first as find_spots()')
@@ -503,17 +502,19 @@ class GPA(object):
         C = np.asarray(C_pt)/self.calib
         D = np.asarray(D_pt)/self.calib
         
-        yy, xx = np.mgrid[0:self.imshape[1], 0:self.imshape[0]]
-        m_AB= (A[1] - B[1])/(A[0] - B[0])
-        c_AB= A[1] - (m_AB*A[0])
-        m_BC= (B[1] - C[1])/(B[0] - C[0])
-        c_BC= B[1] - (m_BC*B[0])
-        m_CD= (C[1] - D[1])/(C[0] - D[0])
-        c_CD= C[1] - (m_CD*C[0])
-        m_DA= (D[1] - A[1])/(D[0] - A[0])
-        c_DA= D[1] - (m_DA*D[0])
-        self.ref_reg = np.logical_and(np.logical_and((yy > (m_AB*xx) + c_AB), ((yy - c_BC)/m_BC > xx)), 
-                                      np.logical_and((yy < (m_CD*xx) + c_CD), ((yy - c_DA)/m_DA < xx)))
+        yy, xx = np.mgrid[0:self.imshape[0], 0:self.imshape[1]]
+        yy = np.ravel(yy)
+        xx = np.ravel(xx)
+        ptAA = np.asarray((xx, yy)).transpose() - A
+        ptBB = np.asarray((xx, yy)).transpose() - B
+        ptCC = np.asarray((xx, yy)).transpose() - C
+        ptDD = np.asarray((xx, yy)).transpose() - D
+        angAABB = np.arccos(np.sum(ptAA*ptBB, axis=1)/(((np.sum(ptAA**2, axis=1))**0.5)*((np.sum(ptBB**2, axis=1))**0.5)))
+        angBBCC = np.arccos(np.sum(ptBB*ptCC, axis=1)/(((np.sum(ptBB**2, axis=1))**0.5)*((np.sum(ptCC**2, axis=1))**0.5)))
+        angCCDD = np.arccos(np.sum(ptCC*ptDD, axis=1)/(((np.sum(ptCC**2, axis=1))**0.5)*((np.sum(ptDD**2, axis=1))**0.5)))
+        angDDAA = np.arccos(np.sum(ptDD*ptAA, axis=1)/(((np.sum(ptDD**2, axis=1))**0.5)*((np.sum(ptAA**2, axis=1))**0.5)))
+        angsum = ((angAABB+ angBBCC+ angCCDD+ angDDAA)/(2*np.pi)).reshape(self.image.shape)
+        self.ref_reg = np.isclose(angsum, 1)
         self.ref_reg = np.flipud(self.ref_reg)
         
         pixel_list = np.arange(0, self.calib*self.imshape[0], self.calib)
@@ -521,23 +522,24 @@ class GPA(object):
         step_x = int(self.imshape[0]/(no_labels - 1))
         x_positions = np.arange(0, self.imshape[0], step_x)
         x_labels = np.round(pixel_list[::step_x], 1)
+        fsize = int(1.5*np.mean(np.asarray(imsize)))
         
         print('Choose your points in a clockwise fashion, or else you will get a wrong result')
         
         plt.figure(figsize= imsize)
         plt.imshow(np.flipud(st.util.image_normalizer(self.image)+ 0.33*self.ref_reg), cmap='magma', origin='lower')
-        plt.annotate('A='+str(A_pt), A/self.imshape, textcoords='axes fraction', size=15, color= tColor)
-        plt.annotate('B='+str(B_pt), B/self.imshape, textcoords='axes fraction', size=15, color= tColor)
-        plt.annotate('C='+str(C_pt), C/self.imshape, textcoords='axes fraction', size=15, color= tColor)
-        plt.annotate('D='+str(D_pt), D/self.imshape, textcoords='axes fraction', size=15, color= tColor)
+        plt.annotate('A='+str(A_pt), A/self.imshape, textcoords='axes fraction', size=fsize, color= tColor)
+        plt.annotate('B='+str(B_pt), B/self.imshape, textcoords='axes fraction', size=fsize, color= tColor)
+        plt.annotate('C='+str(C_pt), C/self.imshape, textcoords='axes fraction', size=fsize, color= tColor)
+        plt.annotate('D='+str(D_pt), D/self.imshape, textcoords='axes fraction', size=fsize, color= tColor)
         plt.scatter(A[0], A[1], c='r')
         plt.scatter(B[0], B[1], c='r')
         plt.scatter(C[0], C[1], c='r')
         plt.scatter(D[0], D[1], c='r')
-        plt.xticks(x_positions, x_labels)
-        plt.yticks(x_positions, x_labels)
-        plt.xlabel('Distance along X-axis ('+self.calib_units+')')
-        plt.ylabel('Distance along Y-axis ('+self.calib_units+')')
+        plt.xticks(x_positions, x_labels, fontsize= fsize)
+        plt.yticks(x_positions, x_labels, fontsize= fsize)
+        plt.xlabel('Distance along X-axis ('+self.calib_units+')', fontsize= fsize)
+        plt.ylabel('Distance along Y-axis ('+self.calib_units+')', fontsize= fsize)
         self.reference_check = True
         
     def refine_phase(self):

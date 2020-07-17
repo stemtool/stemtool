@@ -6,21 +6,19 @@ import scipy.ndimage as scnd
 import scipy.optimize as spo
 import scipy.interpolate as scinterp
 import warnings
+import matplotlib_scalebar.scalebar as mpss
 import stemtool as st
-import dask
-from dask.distributed import Client
-from dask import delayed, compute
-import dask.array as da
 
-def remove_close_vals(input_arr,limit):
+def remove_close_vals(input_arr, 
+                      limit):
     result = np.copy(input_arr) 
     ii = 0
     newlen = len(result)
     while(ii < newlen): 
-        dist = (np.sum(((result[:,0:2] - result[ii,0:2]) ** 2),axis=1)) ** 0.5
+        dist = (np.sum(((result[:, 0:2] - result[ii, 0:2])**2), axis=1))**0.5
         distbool = (dist > limit)
         distbool[ii] = True
-        result = np.copy(result[distbool,:])
+        result = np.copy(result[distbool, :])
         ii = ii + 1
         newlen = len(result)
     return result
@@ -80,25 +78,9 @@ def peaks_vis(data_image,
     plt.scatter(peaks[:,1],peaks[:,0],c='b', s=15)
     return peaks
 
-def get_dist(pos, ii):
-    """
-    Dask mini-function to get distance of a point
-    from every other point
-    """
-    ccd = np.sum(((pos[:, 0:2] - pos[ii, 0:2]) ** 2), axis=1)
-    cc_dist = (np.amin(ccd[ccd > 0])) ** 0.5
-    return cc_dist
-
-def med_dist(dist):
-    """
-    Dask mini-function to get half the median
-    distance
-    """
-    return 0.5*np.median(dist)
-
+@numba.jit(parallel=True)
 def refine_atoms(image_data,
-                 positions, 
-                 threads=2):
+                 positions):
     """
     Single Gaussian Peak Atom Refinement
     
@@ -111,46 +93,31 @@ def refine_atoms(image_data,
     
     Returns
     -------
-    refined_pos: ndarray
-                 List of refined peak positions as y, x
+    ref_arr: ndarray
+             List of refined peak positions as y, x
     
     Notes
     -----
     This is the single Gaussian peak fitting technique
     where the initial atom positions are fitted with a 
     single 2D Gaussian function. The center of the Gaussian
-    is returned as the refined atom position. This is a Dask 
-    based function, that uses two mini-functions, get_dist and 
-    med_dist
-    
-    See Also
-    --------
-    st.afit.get_dist
-    st.afit.med_dist
+    is returned as the refined atom position. 
     """
-    client = Client(threads_per_worker=threads, processes=True)
-    image_data = st.util.image_normalizer((image_data).astype(float))
-    im_dask = da.from_array(image_data, chunks=('auto', 'auto'))
-    positions = (positions).astype(float)
+    warnings.filterwarnings('ignore')
     no_pos = len(positions)
-    pos_dask = da.from_array(positions, chunks=('auto', -1))
-    dist = []
-    for ii in np.arange(no_pos):
-        y = delayed(get_dist)(pos_dask, ii)
-        dist.append(y)
-    distance = dask.delayed(med_dist)(dist)
-    refined = []
-    for ii in range(no_pos):
-        pos_x = pos_dask[ii, 1]
-        pos_y = pos_dask[ii, 0]
-        refined_ii = delayed(st.util.fit_gaussian2D_mask)(1+im_dask, pos_x, pos_y, distance)
-        refined.append(refined_ii)
-    refined = np.asarray(dask.compute(*refined))
-    ref_arr = np.empty_like(refined)
-    ref_arr[:, 0:2] = np.fliplr(refined[:, 0:2])
-    ref_arr[:, 2:6] = refined[:, 2:6]
-    ref_arr[:, -1] = refined[:, -1] - 1
-    client.close()
+    dist = np.empty(no_pos, dtype=np.float)
+    ccd = np.empty(no_pos, dtype=np.float)
+    for ii in numba.prange(no_pos):
+        ccd = np.sum(((positions[:, 0:2] - positions[ii, 0:2]) ** 2), axis=1)
+        dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
+    med_dist = 0.5*np.median(dist)
+    ref_arr = np.empty((no_pos, 7), dtype=np.float)
+    for ii in numba.prange(no_pos):
+        pos_x = positions[ii, 1]
+        pos_y = positions[ii, 0]
+        refined_ii = st.util.fit_gaussian2D_mask(image_data, pos_x, pos_y, med_dist)
+        ref_arr[ii, 0:2] = np.flip(refined_ii[0:2])
+        ref_arr[ii, 2:7] = refined_ii[2:7]
     return ref_arr
 
 @numba.jit
@@ -201,7 +168,7 @@ def mpfit(main_image,
     
     References:
     -----------
-    1]_, SMukherjee, D., Miao, L., Stone, G. and Alem, N., 
+    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N., 
          mpfit: a robust method for fitting atomic resolution images 
          with multiple Gaussian peaks. Adv Struct Chem Imag 6, 1 (2020).
     """
@@ -303,10 +270,9 @@ def mpfit_voronoi(main_image,
     
     References:
     -----------
-    Mukherjee, D., Miao, L., Stone, G. and Alem, N., 2019. 
-    MPFit: A robust method for fitting atomic resolution 
-    images with multiple Gaussian peaks. 
-    arXiv preprint arXiv:1910.11948.
+    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N., 
+         mpfit: a robust method for fitting atomic resolution images 
+         with multiple Gaussian peaks. Adv Struct Chem Imag 6, 1 (2020).
     
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
@@ -781,3 +747,292 @@ def create_circmask(image,
         sub = ((((yV - new_center[1]) ** 2) + ((xV - new_center[0]) ** 2)) ** 0.5) < radius
     masked_image[sub] = image[sub]
     return masked_image, new_center
+
+@numba.jit(parallel=True)
+def med_dist_numba(positions):
+    warnings.filterwarnings('ignore')
+    no_pos = len(positions)
+    dist = np.empty(no_pos, dtype=np.float)
+    ccd = np.empty(no_pos, dtype=np.float)
+    for ii in numba.prange(no_pos):
+        ccd = np.sum(((positions[:, 0:2] - positions[ii, 0:2]) ** 2), axis=1)
+        dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
+    med_dist = 0.5*np.median(dist)
+    return med_dist
+
+@numba.jit(parallel=True)
+def refine_atoms_numba(image_data, 
+                       positions,
+                       ref_arr, 
+                       med_dist):
+    warnings.filterwarnings('ignore')
+    for ii in numba.prange(len(positions)):
+        pos_x = positions[ii, 1]
+        pos_y = positions[ii, 0]
+        refined_ii = st.util.fit_gaussian2D_mask(1+image_data, pos_x, pos_y, med_dist)
+        ref_arr[ii, 0:2] = np.flip(refined_ii[0:2])
+        ref_arr[ii, 2:6] = refined_ii[2:6]
+        ref_arr[ii, -1] = refined_ii[-1] - 1
+        
+class atom_fit(object):
+    """
+    Locate atom columns in atomic resolution STEM images
+    and then subsequently use gaussian peak fitting to
+    refine the column location with sub-pixel precision.
+    
+    Parameters
+    ----------
+    image:       ndarray
+                 The image from which the peak positions
+                 will be ascertained.
+    calib:       float
+                 Size of an individual pixel
+    calib_units: str
+                 Unit of calibration
+                 
+    References
+    ----------
+    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N., 
+         mpfit: a robust method for fitting atomic resolution images 
+         with multiple Gaussian peaks. Adv Struct Chem Imag 6, 1 (2020).
+    
+    Examples
+    --------
+    Run as:
+    
+    >>> atoms = st.afit.atom_fit(stem_image, calibration, 'nm')
+    
+    Then to check the image you just loaded, with the optional parameter
+    `12` determining how many pixels of gaussian blur need to applied to 
+    calculate and separate a background. If in doubt, don't use it.
+    
+    >>> atoms.show_image(12)
+    
+    It is then optional to define a refernce region for the image. 
+    If such a region is defined, atom positions will only be ascertained
+    grom the reference region. If you don't run this step, the entire image
+    will be analyzed
+    
+    >>> atoms.define_reference((17, 7), (26, 7), (26, 24), (17, 24))
+    
+    Then, visualize the peaks:
+    
+    atoms.peaks_vis(dist=12, thresh=0.1). These are relative numbers in pixels
+    indicating the distance between peaks. Play around with the numbers till 
+    you get a satisfactory result. Then run the gaussian peak refinement as:
+    
+    >>> atoms.refine_peaks()
+    
+    You can visualize your fitted peaks as:
+    
+    atoms.show_peaks(style= 'separate')
+    
+    """
+    def __init__(self, 
+                 image,
+                 calib, 
+                 calib_units):
+        self.image= st.util.image_normalizer(image)
+        self.calib= calib
+        self.calib_units= calib_units 
+        self.imshape= np.asarray(image.shape)
+        self.peaks_check= False
+        self.refining_check= False
+    
+    def show_image(self,
+                   gaussval=0, 
+                   imsize= (15, 15), 
+                   colormap= 'inferno'):
+        """
+        Parameters
+        ----------
+        gaussval: int, optional
+                  Extent of Gaussian blurring in pixels
+                  to generate a background image for
+                  subtraction. Default is 0
+        imsize:   tuple, optional
+                  Size in inches of the image with the 
+                  diffraction spots marked. Default is (15, 15)
+        colormap: str, optional
+                  Colormap of the image. Default is inferno
+        """
+        self.gaussval= gaussval
+        if (gaussval > 0):
+            self.gblur= scnd.gaussian_filter(self.image, gaussval)
+            self.image= self.image - self.gblur
+        plt.figure(figsize= imsize)
+        plt.imshow(self.image, cmap= colormap)
+        scalebar= mpss.ScaleBar(self.calib, self.calib_units)
+        scalebar.location= 'lower right'
+        scalebar.box_alpha= 1
+        scalebar.color= 'k'
+        plt.gca().add_artist(scalebar)
+        plt.axis('off')
+        
+    def define_reference(self,
+                         A_pt, 
+                         B_pt, 
+                         C_pt, 
+                         D_pt, 
+                         imsize= (15, 15), 
+                         tColor= 'k'):
+        """
+        Locate the reference image.
+
+        Parameters
+        ----------
+        A_pt:   tuple
+                Top left position of reference region in (x, y)
+        B_pt:   tuple
+                Top right position of reference region in (x, y)
+        C_pt:   tuple
+                Bottom right position of reference region in (x, y)
+        D_pt:   tuple
+                Bottom left position of reference region in (x, y)
+        imsize: tuple, optional
+                Size in inches of the image with the 
+                diffraction spots marked. Default is 
+                (10, 10)
+        tColor: str, optional
+                Color of the text on the image. Default is black
+
+        Notes
+        -----
+        Locates a reference region bounded by the four points given in
+        length units. Choose the points in a clockwise fashion.
+        """
+        A = np.asarray(A_pt)/self.calib
+        B = np.asarray(B_pt)/self.calib
+        C = np.asarray(C_pt)/self.calib
+        D = np.asarray(D_pt)/self.calib
+
+        yy, xx = np.mgrid[0:self.imshape[0], 0:self.imshape[1]]
+        yy = np.ravel(yy)
+        xx = np.ravel(xx)
+        ptAA = np.asarray((xx, yy)).transpose() - A
+        ptBB = np.asarray((xx, yy)).transpose() - B
+        ptCC = np.asarray((xx, yy)).transpose() - C
+        ptDD = np.asarray((xx, yy)).transpose() - D
+        angAABB = np.arccos(np.sum(ptAA*ptBB, axis=1)/(((np.sum(ptAA**2, axis=1))**0.5)*((np.sum(ptBB**2, axis=1))**0.5)))
+        angBBCC = np.arccos(np.sum(ptBB*ptCC, axis=1)/(((np.sum(ptBB**2, axis=1))**0.5)*((np.sum(ptCC**2, axis=1))**0.5)))
+        angCCDD = np.arccos(np.sum(ptCC*ptDD, axis=1)/(((np.sum(ptCC**2, axis=1))**0.5)*((np.sum(ptDD**2, axis=1))**0.5)))
+        angDDAA = np.arccos(np.sum(ptDD*ptAA, axis=1)/(((np.sum(ptDD**2, axis=1))**0.5)*((np.sum(ptAA**2, axis=1))**0.5)))
+        angsum = ((angAABB+ angBBCC+ angCCDD+ angDDAA)/(2*np.pi)).reshape(self.image.shape)
+        self.ref_reg = np.isclose(angsum, 1)
+        self.ref_reg = np.flipud(self.ref_reg)
+
+        pixel_list = np.arange(0, self.calib*self.imshape[0], self.calib)
+        no_labels = 10
+        step_x = int(self.imshape[0]/(no_labels - 1))
+        x_positions = np.arange(0, self.imshape[0], step_x)
+        x_labels = np.round(pixel_list[::step_x], 1)
+        fsize = int(1.5*np.mean(np.asarray(imsize)))
+        
+        print('Choose your points in a clockwise fashion, or else you will get a wrong result')
+
+        plt.figure(figsize= imsize)
+        plt.imshow(np.flipud(self.image+ 0.33*self.ref_reg), cmap='magma', origin='lower')
+        plt.annotate('A='+str(A_pt), A/self.imshape, textcoords='axes fraction', size=fsize, color= tColor)
+        plt.annotate('B='+str(B_pt), B/self.imshape, textcoords='axes fraction', size=fsize, color= tColor)
+        plt.annotate('C='+str(C_pt), C/self.imshape, textcoords='axes fraction', size=fsize, color= tColor)
+        plt.annotate('D='+str(D_pt), D/self.imshape, textcoords='axes fraction', size=fsize, color= tColor)
+        plt.scatter(A[0], A[1], c='r')
+        plt.scatter(B[0], B[1], c='r')
+        plt.scatter(C[0], C[1], c='r')
+        plt.scatter(D[0], D[1], c='r')
+        plt.xticks(x_positions, x_labels, fontsize= fsize)
+        plt.yticks(x_positions, x_labels, fontsize= fsize)
+        plt.xlabel('Distance along X-axis ('+self.calib_units+')', fontsize = fsize)
+        plt.ylabel('Distance along Y-axis ('+self.calib_units+')', fontsize= fsize)
+        self.reference_check = True
+    
+    def peaks_vis(self,
+                  dist,
+                  thresh,
+                  imsize= (15, 15), 
+                  spot_color= 'c'):
+        if (not self.reference_check):
+            self.ref_reg = np.ones_like(self.image, dtype= bool)
+        pixel_dist = dist*self.calib
+        self.threshold = thresh
+        self.data_thresh = ((self.image*self.ref_reg) - self.threshold)/(1 - self.threshold)
+        self.data_thresh[self.data_thresh < 0] = 0
+        data_peaks = skfeat.peak_local_max(self.data_thresh, min_distance=int(dist/3), indices=False)
+        peak_labels = scnd.measurements.label(data_peaks)[0]
+        merged_peaks = scnd.measurements.center_of_mass(data_peaks, peak_labels, range(1, np.max(peak_labels)+1))
+        peaks = np.array(merged_peaks)
+        self.peaks = (st.afit.remove_close_vals(peaks, dist)).astype(np.float)
+        spot_size = int(0.5*np.mean(np.asarray(imsize)))
+        plt.figure(figsize= imsize)
+        plt.imshow(self.image)
+        plt.scatter(self.peaks[:, 1], self.peaks[:, 0], c= spot_color, s=spot_size)
+        scalebar= mpss.ScaleBar(self.calib, self.calib_units)
+        scalebar.location= 'lower right'
+        scalebar.box_alpha= 1
+        scalebar.color= 'k'
+        plt.gca().add_artist(scalebar)
+        plt.axis('off')
+        self.peaks_check= True
+    
+    def refine_peaks(self):
+        """
+        Calls the numba functions `med_dist_numba` and
+        `refine_atoms_numba` to refine the peaks originally
+        calculated.
+        """
+        if (not self.peaks_check):
+            raise RuntimeError('Please locate the initial peaks first as peaks_vis()')
+        test = int(len(self.peaks)/50)
+        st.afit.med_dist_numba(self.peaks[0:test, :])
+        md = st.afit.med_dist_numba(self.peaks)
+        refined_peaks = np.empty((len(self.peaks), 7), dtype=np.float)
+        
+        #Run once on a smaller dataset to initialize JIT
+        st.afit.refine_atoms_numba(self.image, self.peaks[0:test, :], refined_peaks[0:test, :], md)
+        
+        #Run the JIT compiled faster code on the full dataset
+        st.afit.refine_atoms_numba(self.image, self.peaks, refined_peaks, md)
+        self.refined_peaks = refined_peaks
+        self.refining_check= True
+        
+    def show_peaks(self, imsize= (15, 15), style= 'together'):
+        f (not self.refining_check):
+            raise RuntimeError('Please refine the atom peaks first as refine_peaks()')
+        togsize = tuple(np.asarray((2, 1))*np.asarray(imsize))
+        spot_size = int(np.amin(np.asarray(imsize)))
+        big_size = int(np.amax(np.asarray(imsize)))
+        if (style=='together'):
+            plt.figure(figsize= imsize)
+            plt.imshow(self.image)
+            plt.scatter(self.peaks[:, 1], self.peaks[:, 0], c= 'c', s=big_size, label='Original Peaks')
+            plt.scatter(self.refined_peaks[:, 1], self.refined_peaks[:, 0], c= 'y', s=spot_size, label='Fitted Peaks')
+            plt.gca().legend(loc='upper left',markerscale=3,framealpha=1)
+            scalebar= mpss.ScaleBar(self.calib, self.calib_units)
+            scalebar.location= 'lower right'
+            scalebar.box_alpha= 1
+            scalebar.color= 'k'
+            plt.gca().add_artist(scalebar)
+            plt.axis('off')
+        else:
+            plt.figure(figsize= togsize)
+            plt.subplot(1, 2, 1)
+            plt.imshow(self.image)
+            plt.scatter(self.peaks[:, 1], self.peaks[:, 0], c= 'c', s=spot_size, label='Original Peaks')
+            plt.gca().legend(loc='upper left',markerscale=3,framealpha=1)
+            scalebar= mpss.ScaleBar(self.calib, self.calib_units)
+            scalebar.location= 'lower right'
+            scalebar.box_alpha= 1
+            scalebar.color= 'k'
+            plt.gca().add_artist(scalebar)
+            plt.axis('off')
+
+            plt.subplot(1, 2, 2)
+            plt.imshow(self.image)
+            plt.scatter(self.refined_peaks[:, 1], self.refined_peaks[:, 0], c= 'y', s=spot_size, label='Fitted Peaks')
+            plt.gca().legend(loc='upper left',markerscale=3,framealpha=1)
+            scalebar= mpss.ScaleBar(self.calib, self.calib_units)
+            scalebar.location= 'lower right'
+            scalebar.box_alpha= 1
+            scalebar.color= 'k'
+            plt.gca().add_artist(scalebar)
+            plt.axis('off')
