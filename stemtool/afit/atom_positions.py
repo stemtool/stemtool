@@ -817,15 +817,17 @@ class atom_fit(object):
     
     Then, visualize the peaks:
     
-    atoms.peaks_vis(dist=12, thresh=0.1). These are relative numbers in pixels
-    indicating the distance between peaks. Play around with the numbers till 
+    >>> atoms.peaks_vis(dist=0.1, thresh=0.1) 
+    
+    `dist` indicates the distance between the
+    peaks in calibration units. Play around with the numbers till 
     you get a satisfactory result. Then run the gaussian peak refinement as:
     
     >>> atoms.refine_peaks()
     
     You can visualize your fitted peaks as:
     
-    atoms.show_peaks(style= 'separate')
+    >>> atoms.show_peaks(style= 'separate')
     
     """
     def __init__(self, 
@@ -953,15 +955,15 @@ class atom_fit(object):
                   spot_color= 'c'):
         if (not self.reference_check):
             self.ref_reg = np.ones_like(self.image, dtype= bool)
-        pixel_dist = dist*self.calib
+        pixel_dist = dist/self.calib
         self.threshold = thresh
         self.data_thresh = ((self.image*self.ref_reg) - self.threshold)/(1 - self.threshold)
         self.data_thresh[self.data_thresh < 0] = 0
-        data_peaks = skfeat.peak_local_max(self.data_thresh, min_distance=int(dist/3), indices=False)
+        data_peaks = skfeat.peak_local_max(self.data_thresh, min_distance=int(pixel_dist/3), indices=False)
         peak_labels = scnd.measurements.label(data_peaks)[0]
         merged_peaks = scnd.measurements.center_of_mass(data_peaks, peak_labels, range(1, np.max(peak_labels)+1))
         peaks = np.array(merged_peaks)
-        self.peaks = (st.afit.remove_close_vals(peaks, dist)).astype(np.float)
+        self.peaks = (st.afit.remove_close_vals(peaks, pixel_dist)).astype(np.float)
         spot_size = int(0.5*np.mean(np.asarray(imsize)))
         plt.figure(figsize= imsize)
         plt.imshow(self.image)
@@ -996,11 +998,11 @@ class atom_fit(object):
         self.refining_check= True
         
     def show_peaks(self, imsize= (15, 15), style= 'together'):
-        f (not self.refining_check):
+        if (not self.refining_check):
             raise RuntimeError('Please refine the atom peaks first as refine_peaks()')
         togsize = tuple(np.asarray((2, 1))*np.asarray(imsize))
         spot_size = int(np.amin(np.asarray(imsize)))
-        big_size = int(np.amax(np.asarray(imsize)))
+        big_size = int(3*spot_size)
         if (style=='together'):
             plt.figure(figsize= imsize)
             plt.imshow(self.image)
