@@ -6,8 +6,8 @@ import scipy.ndimage as scnd
 import stemtool as st
 import math
 
-def sobel(im,
-          order=3):
+
+def sobel(im, order=3):
     """
     Sobel Filter an Input Image
     
@@ -43,29 +43,36 @@ def sobel(im,
     
     """
     im = im.astype(np.float64)
-    if (order==3):
-        k_x = np.asarray(((-1, 0, 1),
-                          (-2, 0, 2),
-                          (-1, 0, 1)), dtype = np.float64)
-        k_y = np.asarray(((-1, -2, -1),
-                          (0, 0, 0),
-                          (1, 2, 1)), dtype = np.float64)
+    if order == 3:
+        k_x = np.asarray(((-1, 0, 1), (-2, 0, 2), (-1, 0, 1)), dtype=np.float64)
+        k_y = np.asarray(((-1, -2, -1), (0, 0, 0), (1, 2, 1)), dtype=np.float64)
     else:
-        k_x = np.asarray(((-1, -2, 0, 2, 1), 
-                          (-4, -8, 0, 8, 4), 
-                          (-6, -12, 0, 12, 6),
-                          (-4, -8, 0, 8, 4),
-                          (-1, -2, 0, 2, 1)), dtype = np.float64)
-        k_y = np.asarray(((1, 4, 6, 4, 1), 
-                          (2, 8, 12, 8, 2),
-                          (0, 0, 0, 0, 0), 
-                          (-2, -8, -12, -8, -2),
-                          (-1, -4, -6, -4, -1)), dtype = np.float64)
-    g_x = scisig.convolve2d(im, k_x, mode = 'same', boundary = 'symm', fillvalue = 0)
-    g_y = scisig.convolve2d(im, k_y, mode = 'same', boundary = 'symm', fillvalue = 0)
-    mag = ((g_x**2) + (g_y**2))**0.5
+        k_x = np.asarray(
+            (
+                (-1, -2, 0, 2, 1),
+                (-4, -8, 0, 8, 4),
+                (-6, -12, 0, 12, 6),
+                (-4, -8, 0, 8, 4),
+                (-1, -2, 0, 2, 1),
+            ),
+            dtype=np.float64,
+        )
+        k_y = np.asarray(
+            (
+                (1, 4, 6, 4, 1),
+                (2, 8, 12, 8, 2),
+                (0, 0, 0, 0, 0),
+                (-2, -8, -12, -8, -2),
+                (-1, -4, -6, -4, -1),
+            ),
+            dtype=np.float64,
+        )
+    g_x = scisig.convolve2d(im, k_x, mode="same", boundary="symm", fillvalue=0)
+    g_y = scisig.convolve2d(im, k_y, mode="same", boundary="symm", fillvalue=0)
+    mag = ((g_x ** 2) + (g_y ** 2)) ** 0.5
     ang = np.arctan2(g_y, g_x)
     return mag, ang
+
 
 def circle_fit(edge_image):
     """
@@ -97,43 +104,39 @@ def circle_fit(edge_image):
     util.Canny
     """
     size_image = np.asarray(np.shape(edge_image)).astype(int)
-    yV, xV = np.mgrid[0:size_image[0], 0:size_image[1]]
+    yV, xV = np.mgrid[0 : size_image[0], 0 : size_image[1]]
     xValues = np.asarray(xV[edge_image], dtype=np.float64)
     yValues = np.asarray(yV[edge_image], dtype=np.float64)
-    
+
     xCentroid = np.mean(xValues)
     yCentroid = np.mean(yValues)
 
     uValues = xValues - xCentroid
     vValues = yValues - yCentroid
 
-    Suv  = np.sum(uValues * vValues)
-    Suu  = np.sum(uValues ** 2)
-    Svv  = np.sum(vValues ** 2)
+    Suv = np.sum(uValues * vValues)
+    Suu = np.sum(uValues ** 2)
+    Svv = np.sum(vValues ** 2)
     Suuv = np.sum((uValues ** 2) * vValues)
     Suvv = np.sum(uValues * (vValues ** 2))
     Suuu = np.sum(uValues ** 3)
     Svvv = np.sum(vValues ** 3)
 
-    A = np.array([[Suu, Suv], 
-                  [Suv, Svv]])
-    B = np.array([(Suuu + Suvv), 
-                  (Svvv + Suuv)])/2
+    A = np.array([[Suu, Suv], [Suv, Svv]])
+    B = np.array([(Suuu + Suvv), (Svvv + Suuv)]) / 2
     uc, vc = np.linalg.solve(A, B)
 
     xCenter = xCentroid + uc
     yCenter = yCentroid + vc
 
-    Rvalues     = np.sqrt(((xValues-xCenter) ** 2) + ((yValues-yCenter) ** 2))
-    radius      = np.mean(Rvalues)
-    
+    Rvalues = np.sqrt(((xValues - xCenter) ** 2) + ((yValues - yCenter) ** 2))
+    radius = np.mean(Rvalues)
+
     return xCenter, yCenter, radius
 
+
 @numba.jit(parallel=True, cache=True)
-def numba_thinner(pos,
-                  edge,
-                  mag,
-                  ang):
+def numba_thinner(pos, edge, mag, ang):
     """
     Numba JIT Function for thinning Sobel 
     Filtered Edges
@@ -162,28 +165,26 @@ def numba_thinner(pos,
         q = 1
         r = 1
         if (0 <= ang[ii, jj] < 22.5) or (157.5 <= ang[ii, jj] <= 180):
-            q = mag[ii, jj+1]
-            r = mag[ii, jj-1]
-        elif (22.5 <= ang[ii, jj] < 67.5):
-            q = mag[ii+1, jj-1]
-            r = mag[ii-1, jj+1]
-        elif (67.5 <= ang[ii, jj] < 112.5):
-            q = mag[ii+1, jj]
-            r = mag[ii-1, jj]
-        elif (112.5 <= ang[ii, jj] < 157.5):
-            q = mag[ii-1, jj-1]
-            r = mag[ii+1, jj+1]
-        
+            q = mag[ii, jj + 1]
+            r = mag[ii, jj - 1]
+        elif 22.5 <= ang[ii, jj] < 67.5:
+            q = mag[ii + 1, jj - 1]
+            r = mag[ii - 1, jj + 1]
+        elif 67.5 <= ang[ii, jj] < 112.5:
+            q = mag[ii + 1, jj]
+            r = mag[ii - 1, jj]
+        elif 112.5 <= ang[ii, jj] < 157.5:
+            q = mag[ii - 1, jj - 1]
+            r = mag[ii + 1, jj + 1]
+
         if (mag[ii, jj] >= q) and (mag[ii, jj] >= r):
             edge[ii, jj] = mag[ii, jj]
         else:
             edge[ii, jj] = 0
-            
+
+
 @numba.jit(parallel=True, cache=True)
-def numba_joiner(pos,
-                 edge,
-                 upper,
-                 lower):
+def numba_joiner(pos, edge, upper, lower):
     """
     Numba JIT function for joining of Edges
     
@@ -210,18 +211,21 @@ def numba_joiner(pos,
     for pp in numba.prange(len(pos)):
         ii = pos[pp, 0]
         jj = pos[pp, 1]
-        if (edg[ii, jj] == lower):
-            if ((edge[ii-1, jj-1] == upper) #top left
-                or (edge[ii-1, jj] == upper) #top
-                or (edge[ii-1, jj+1] == upper) #top right
-                or (edge[ii, jj-1] == upper) #left
-                or (edge[ii, jj+1] == upper) #right
-                or (edge[ii+1, jj-1] == upper) #bottom left
-                or (edge[ii+1, jj] == upper) #bottom
-                or (edge[ii+1, jj+1] == upper)): #bottom right
+        if edg[ii, jj] == lower:
+            if (
+                (edge[ii - 1, jj - 1] == upper)  # top left
+                or (edge[ii - 1, jj] == upper)  # top
+                or (edge[ii - 1, jj + 1] == upper)  # top right
+                or (edge[ii, jj - 1] == upper)  # left
+                or (edge[ii, jj + 1] == upper)  # right
+                or (edge[ii + 1, jj - 1] == upper)  # bottom left
+                or (edge[ii + 1, jj] == upper)  # bottom
+                or (edge[ii + 1, jj + 1] == upper)
+            ):  # bottom right
                 edge[ii, jj] = upper
             else:
                 edge[ii, jj] = 0
+
 
 class Canny(object):
     """
@@ -276,16 +280,15 @@ class Canny(object):
     .. [4] John Canny, "A computational approach to edge detection." 
        Readings in computer vision. Morgan Kaufmann, 1987. 184-203
     """
-    def __init__(self,
-                 image,
-                 lowThreshold,
-                 highThreshold,
-                 blurVal=5):
+
+    def __init__(self, image, lowThreshold, highThreshold, blurVal=5):
         self.image = image
         self.im_size = (np.asarray(image.shape)).astype(int)
         self.thresh_lower = lowThreshold
         self.thresh_upper = highThreshold
-        self.imblur = st.util.image_normalizer(scnd.gaussian_filter(input_image, blurVal))
+        self.imblur = st.util.image_normalizer(
+            scnd.gaussian_filter(input_image, blurVal)
+        )
         self.sobel_mag = np.empty_like(image)
         self.sobel_ang = np.empty_like(image)
         self.thin_edge = np.empty_like(image)
@@ -293,7 +296,7 @@ class Canny(object):
         self.cannyEdge = np.empty_like(image)
         self.edge_check = False
         self.thresh_check = False
-        
+
     def edge_thinning(self):
         """
         Thinning Sobel Filtered Edges
@@ -310,16 +313,21 @@ class Canny(object):
         numba_thinner
         """
         self.sobel_mag, self.sobel_ang = sobel_filter(self.imblur, order=5)
-        self.sobel_ang = self.sobel_ang*(180/np.pi)
+        self.sobel_ang = self.sobel_ang * (180 / np.pi)
         self.sobel_ang[self.sobel_ang < 0] += 180
-        yRange, xRange = np.mgrid[1:self.im_size[0]-1, 1:self.im_size[1]-1]
+        yRange, xRange = np.mgrid[1 : self.im_size[0] - 1, 1 : self.im_size[1] - 1]
         thin_pos = np.asarray((np.ravel(yRange), np.ravel(xRange))).transpose()
         thin_edge = np.copy(self.thin_edge)
-        
-        #initialize JIT
-        numba_thinner(thin_pos[0:int(len(thin_pos)/10),:], thin_edge, self.sobel_mag, self.sobel_ang)
-        
-        #now run on full dataset
+
+        # initialize JIT
+        numba_thinner(
+            thin_pos[0 : int(len(thin_pos) / 10), :],
+            thin_edge,
+            self.sobel_mag,
+            self.sobel_ang,
+        )
+
+        # now run on full dataset
         numba_thinner(thin_pos, self.thin_edge, self.sobel_mag, self.sobel_ang)
         self.edge_check = True
 
@@ -335,15 +343,17 @@ class Canny(object):
         with it is recommended to use a thresholding algorithm like 
         Otsu thresholding to robustly determine edges.
         """
-        if (not self.edge_check):
-            raise RuntimeError('Please thin the edges first by calling edge_thinner()')
+        if not self.edge_check:
+            raise RuntimeError("Please thin the edges first by calling edge_thinner()")
         highT = np.amax(self.thin_edge) * self.thresh_upper
         lowT = highT * self.thresh_lower
         self.residual[np.where(self.thin_edge > highT)] = highT
-        self.residual[np.where((self.thin_edge <= highT) & (self.thin_edge > lowT))] = lowT
+        self.residual[
+            np.where((self.thin_edge <= highT) & (self.thin_edge > lowT))
+        ] = lowT
         self.residual[self.residual > self.thresh_upper] = self.thresh_upper
         self.thresh_check = True
-    
+
     def edge_joining(self):
         """
         Joining of Edges
@@ -367,19 +377,26 @@ class Canny(object):
         --------
         numba_joiner
         """
-        if (not self.thresh_check):
-            raise RuntimeError('Please threshold the edges first by calling canny_threshold()')
-        yRange, xRange = np.mgrid[1:self.im_size[0]-1, 1:self.im_size[1]-1]
+        if not self.thresh_check:
+            raise RuntimeError(
+                "Please threshold the edges first by calling canny_threshold()"
+            )
+        yRange, xRange = np.mgrid[1 : self.im_size[0] - 1, 1 : self.im_size[1] - 1]
         edge_pos = np.asarray((np.ravel(yRange), np.ravel(xRange))).transpose()
         cannyEdge = np.copy(self.residual)
         self.cannyEdge = np.copy(self.residual)
-        
-        #initialize JIT
-        numba_joiner(edge_pos[0:int(len(thin_pos)/10),:], cannyEdge, self.thresh_upper, self.thresh_lower)
-        
-        #now run on full dataset, twice
+
+        # initialize JIT
+        numba_joiner(
+            edge_pos[0 : int(len(thin_pos) / 10), :],
+            cannyEdge,
+            self.thresh_upper,
+            self.thresh_lower,
+        )
+
+        # now run on full dataset, twice
         numba_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
         numba_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
-        
-        self.cannyEdge = (self.cannyEdge/ np.amax(self.cannyEdge)).astype(bool)
+
+        self.cannyEdge = (self.cannyEdge / np.amax(self.cannyEdge)).astype(bool)
         return self.cannyEdge

@@ -9,6 +9,7 @@ import glob
 import os
 from collections import OrderedDict
 
+
 class Frms6Reader(object):
     """ This class allows to access frm6 files
     """
@@ -17,18 +18,19 @@ class Frms6Reader(object):
     # https://docs.python.org/3/library/struct.html
 
     fileHeaderFormat = (
-        '=' +  # first character indicates byte order. Here: native
-        'H' +  # unsigned short myLength: Number of bytes in file header
-        'H' +  # unsigned short fhLength: Number of bytes in frame header
-        'B' +  # unsigned char nCCDs: Number of CCD to be read out (???)
-        'B' +  # unsigned char width: Number of channels
-        'B' +  # unsigned char maxHeight (maximum) Number of lines
-        'B' +  # unsigned char version Format version
-        '80s' +  # char dataSetID[80]: filename
-        'H' +  # unsigned short the_width The true number of channels
-        'H' +  # unsigned short the_maxHeight the true (maximum) number of
-               # lines
-        '932x'  # char fill[932] reserves space
+        "="
+        + "H"  # first character indicates byte order. Here: native
+        + "H"  # unsigned short myLength: Number of bytes in file header
+        + "B"  # unsigned short fhLength: Number of bytes in frame header
+        + "B"  # unsigned char nCCDs: Number of CCD to be read out (???)
+        + "B"  # unsigned char width: Number of channels
+        + "B"  # unsigned char maxHeight (maximum) Number of lines
+        + "80s"  # unsigned char version Format version
+        + "H"  # char dataSetID[80]: filename
+        + "H"  # unsigned short the_width The true number of channels
+        +  # unsigned short the_maxHeight the true (maximum) number of
+        # lines
+        "932x"  # char fill[932] reserves space
     )
     fileHeaderSizeInBytes = struct.calcsize(fileHeaderFormat)
     fileHeaderStruct = struct.Struct(fileHeaderFormat)
@@ -36,23 +38,27 @@ class Frms6Reader(object):
     # Note:  unsigned <variable name> usually defines unsigned int
     # src: https://stackoverflow.com/questions/1171839/what-is-the-unsigned-datatype
     frameHeaderFormat = (
-        '=' +  # first character indicates byte order. Here: native
-        'B' +  # signed char start: starting line, indicates window mode if not
-        'B' +  # unsigned char info: info byte
-        'B' +  # unsigned char id: CCD id
-        'B' +  # unsigned char height: number of lines in following frame
-        'I' +  # unsigned int tv_sec: start data taking time in seconds
-        'I' +  # unsigned int tv_usec: start data taking time in microseconds
-        'I' +  # unsigned int index: index number
-        'd' +  # double	temp: temperature voltage
-        'H' +  # unsigned short the_start: true starting line, indicates
-               #  window mode if > 0
-        'H' +  # unsigned short the_height: the true number of lines in
-               # following frame
-        'I' +  # unsigned int external_id: Frame ID from an external trigger,
-               # e.g. the bunch ID at DESY/FLASH
+        "="
+        + "B"  # first character indicates byte order. Here: native
+        + "B"  # signed char start: starting line, indicates window mode if not
+        + "B"  # unsigned char info: info byte
+        + "B"  # unsigned char id: CCD id
+        + "I"  # unsigned char height: number of lines in following frame
+        + "I"  # unsigned int tv_sec: start data taking time in seconds
+        + "I"  # unsigned int tv_usec: start data taking time in microseconds
+        + "d"  # unsigned int index: index number
+        + "H"  # double	temp: temperature voltage
+        +  # unsigned short the_start: true starting line, indicates
+        #  window mode if > 0
+        "H"
+        +  # unsigned short the_height: the true number of lines in
+        # following frame
+        "I"
+        +  # unsigned int external_id: Frame ID from an external trigger,
+        # e.g. the bunch ID at DESY/FLASH
         # Here starts the union BunchID_t
-        'Q' +  # uint64_t id. Should be as large as unsigned long long
+        "Q"
+        +  # uint64_t id. Should be as large as unsigned long long
         # Here starts another struct d
         # 'I' +  # unsigned (?) status
         # 'I' +  # unsigned (?) fiducials
@@ -67,14 +73,14 @@ class Frms6Reader(object):
         # Struct detailS ends here
         # '8B' +  # unsigned char raw[8]: byte-wise access
         # Union BunchID_t ends here
-        '24x'  # char fill[24] reserves space
+        "24x"  # char fill[24] reserves space
     )
     frameHeaderSizeInBytes = struct.calcsize(frameHeaderFormat)
     frameHeaderStruct = struct.Struct(frameHeaderFormat)
 
     def __init__(self):
         pass
-    
+
     @staticmethod
     def getFrameSizeInBytes(frameWidth, frameHeight):
         """ Convenience method to determine the frame size (without frame
@@ -88,10 +94,8 @@ class Frms6Reader(object):
             int: Frame size in bytes
 
         """
-        return struct.calcsize(
-            str(frameWidth * frameHeight) + 'h'
-        )
-    
+        return struct.calcsize(str(frameWidth * frameHeight) + "h")
+
     @classmethod
     def getFrameHeaders(cls, fn):
         """ Reads the frame headers of an entire frms6 file. The frame header
@@ -145,7 +149,7 @@ class Frms6Reader(object):
         frameTemp = []
         frameMaxHeight = []
 
-        with open(fn, 'rb') as fh:
+        with open(fn, "rb") as fh:
             # When reading the file, we'll jump directly to the frame startIdx
             fh.seek(cls.fileHeaderSizeInBytes)
             for frameIdx in range(numberOfFrames):
@@ -166,22 +170,21 @@ class Frms6Reader(object):
 
                 # Jump to byte after the frame contents
                 fh.seek(
-                    frameSizeInBytes,
-                    1  # force seek relative to the current position
+                    frameSizeInBytes, 1  # force seek relative to the current position
                 )
 
         return {
-           "start": frameStart,
-           "info": frameInfo,
-           "id": frameId,
-           "height": frameHeight,
-           "tv_sec": frameTvSec,
-           "tv_usec": frameTvUsec,
-           "index": frameIndex,
-           "temp": frameTemp,
-           "maxHeight": frameMaxHeight
+            "start": frameStart,
+            "info": frameInfo,
+            "id": frameId,
+            "height": frameHeight,
+            "tv_sec": frameTvSec,
+            "tv_usec": frameTvUsec,
+            "index": frameIndex,
+            "temp": frameTemp,
+            "maxHeight": frameMaxHeight,
         }
-    
+
     @classmethod
     def readData(cls, fn, *args, image_range, **kwargs):
         """ Reads chunks of data from a frm6 file. Compatible with ChunkedReader
@@ -215,9 +218,7 @@ class Frms6Reader(object):
 
         # When reading the file, we'll jump directly to the frame startIdx
         offset = cls.fileHeaderSizeInBytes
-        offset += startIdx * (
-            cls.frameHeaderSizeInBytes + frameSizeInBytes
-        )
+        offset += startIdx * (cls.frameHeaderSizeInBytes + frameSizeInBytes)
 
         # chunk will record the frames retrieved from file
         # TODO: Check indexing in pyDetLib
@@ -225,16 +226,13 @@ class Frms6Reader(object):
         #     (pixelsY, pixelsX, numberOfFrames),
         #     np.uint16
         # )
-        chunk = np.zeros(
-            (pixelsX, pixelsY, numberOfFrames),
-            np.uint16
-        )
+        chunk = np.zeros((pixelsX, pixelsY, numberOfFrames), np.uint16)
 
         #
         # Seek & read, each chunks re-opens file
         #
         # Entering the context manager opens the file
-        with open(fn, 'rb') as fh:
+        with open(fn, "rb") as fh:
             # Jump to the byte after the file header (and
             # any frames that might already have been read)
             fh.seek(offset)
@@ -242,14 +240,11 @@ class Frms6Reader(object):
                 # Jump to byte after the frame header
                 fh.seek(
                     cls.frameHeaderSizeInBytes,
-                    1  # force seek relative to the current position
+                    1,  # force seek relative to the current position
                 )
                 # Read from file handle. Note: contents of the frame
                 # are given as unsigned 16 bit integers
-                currentFrame = np.frombuffer(
-                    fh.read(frameSizeInBytes),
-                    np.uint16
-                )
+                currentFrame = np.frombuffer(fh.read(frameSizeInBytes), np.uint16)
                 # Since the currentFrame data is flat, we must re-shape.
                 # Numpy defaults to C-order (aka row-major aka index WITHIN
                 # a row aka last index changes fastest). In the reshape,
@@ -270,7 +265,7 @@ class Frms6Reader(object):
                 # )
 
         return chunk
-    
+
     @classmethod
     def getFileHeader(cls, fn):
         """ Returns the file header associated with a frm6 file.
@@ -282,25 +277,27 @@ class Frms6Reader(object):
             OrderedDict: Contents of the file header
 
         """
-        with open(fn, 'rb') as fh:
+        with open(fn, "rb") as fh:
             # Only read the header portion of the file
             fileHeaderRaw = fh.read(cls.fileHeaderSizeInBytes)
             # Intepret binary data as described above
             fileHeaderItems = cls.fileHeaderStruct.unpack(fileHeaderRaw)
             # Collect in OrderedDictionary
-            fileHeaderDict = OrderedDict([
-                ("fileHeaderSize", fileHeaderItems[0]),
-                ("frameHeaderSize", fileHeaderItems[1]),
-                ("nCCDs", fileHeaderItems[2]),
-                ("maxWidth", fileHeaderItems[3]),
-                ("maxHeight", fileHeaderItems[4]),
-                ("version", fileHeaderItems[5]),
-                ("dataSetId", fileHeaderItems[6].rstrip(b'\x00')),
-                ("width", fileHeaderItems[7]),
-                ("height", fileHeaderItems[8])
-            ])
+            fileHeaderDict = OrderedDict(
+                [
+                    ("fileHeaderSize", fileHeaderItems[0]),
+                    ("frameHeaderSize", fileHeaderItems[1]),
+                    ("nCCDs", fileHeaderItems[2]),
+                    ("maxWidth", fileHeaderItems[3]),
+                    ("maxHeight", fileHeaderItems[4]),
+                    ("version", fileHeaderItems[5]),
+                    ("dataSetId", fileHeaderItems[6].rstrip(b"\x00")),
+                    ("width", fileHeaderItems[7]),
+                    ("height", fileHeaderItems[8]),
+                ]
+            )
         return fileHeaderDict
-    
+
     @classmethod
     def getDataShape(cls, fn, path=None):
         """ Returns the size of the set of image in the given file,
@@ -317,8 +314,8 @@ class Frms6Reader(object):
         # Get file header and ..
         fileHeader = cls.getFileHeader(fn)
         # .. retrieve frame width and height
-        frameWidth = int(fileHeader['width'])
-        frameHeight = int(fileHeader['height'])
+        frameWidth = int(fileHeader["width"])
+        frameHeight = int(fileHeader["height"])
         # Now we can calculate the size of frame and frame header (in bytes)
         frameAndHeaderSizeInBytes = cls.frameHeaderSizeInBytes
         frameAndHeaderSizeInBytes += cls.getFrameSizeInBytes(frameWidth, frameHeight)
@@ -326,17 +323,18 @@ class Frms6Reader(object):
         fileSize = os.path.getsize(fn)
         # Do the math ..
         numberOfFrames = (
-            (fileSize - cls.fileHeaderSizeInBytes) / frameAndHeaderSizeInBytes
-        )
+            fileSize - cls.fileHeaderSizeInBytes
+        ) / frameAndHeaderSizeInBytes
         # .. and verify that the number of frames is integer!
         if not float(numberOfFrames).is_integer():
-            raise Warning('read_frames -- Number of frames is not integer!')
+            raise Warning("read_frames -- Number of frames is not integer!")
         else:
             numberOfFrames = int(numberOfFrames)
 
         return (frameWidth, frameHeight, numberOfFrames)
-    
-def readData(filename, path='/stream', **kwargs):
+
+
+def readData(filename, path="/stream", **kwargs):
     """ Reads data from a given file (family) and output reordered images
     in stacks
     
@@ -375,8 +373,9 @@ def readData(filename, path='/stream', **kwargs):
     if filename.find("00000") != -1:
         filenameFam = filename.replace("00000", "%05d")
 
-        f = h5py.File(filenameFam, "r", driver='family',
-                      memb_size=20 * 1024 ** 3)  # 20GB chunks
+        f = h5py.File(
+            filenameFam, "r", driver="family", memb_size=20 * 1024 ** 3
+        )  # 20GB chunks
     else:
         f = h5py.File(filename, "r")
 
@@ -385,9 +384,9 @@ def readData(filename, path='/stream', **kwargs):
         din = f[path]
     else:
         if not simulated:
-            din = f[path][:, :, imageRange[0]:imageRange[1]]
+            din = f[path][:, :, imageRange[0] : imageRange[1]]
         else:
-            din = f[path][imageRange[0]:imageRange[1], :, :]
+            din = f[path][imageRange[0] : imageRange[1], :, :]
 
     if simulated:
         din = np.squeeze(din)
@@ -399,14 +398,16 @@ def readData(filename, path='/stream', **kwargs):
 
     d = None
     if pixelXRange == None and pixelYRange == None:
-        d = np.array(din[:, :,:])
+        d = np.array(din[:, :, :])
     else:
         d = np.array(
-            din[pixelXRange[0]:pixelXRange[1], pixelYRange[0]:pixelYRange[1],:])
+            din[pixelXRange[0] : pixelXRange[1], pixelYRange[0] : pixelYRange[1], :]
+        )
     f.close()
     return np.asarray(d, np.float64)
 
-def getDataSize(filename, path='/stream'):
+
+def getDataSize(filename, path="/stream"):
     """ Returns the number of image in a given file (family)
     
     Args:
@@ -422,83 +423,103 @@ def getDataSize(filename, path='/stream'):
     if filename.find("00000") != -1:
         filenameFam = filename.replace("00000", "%05d")
         # print filenameFam
-        f = h5py.File(filenameFam, "r", driver='family',
-                      memb_size=20 * 1024 ** 3)  # 20GB chunks
+        f = h5py.File(
+            filenameFam, "r", driver="family", memb_size=20 * 1024 ** 3
+        )  # 20GB chunks
     else:
         f = h5py.File(filename, "r")
 
     return f[path].shape
 
+
 def get_data_ref(data_dir):
     os.chdir(data_dir)
     data_class = st.util.Frms6Reader()
     tot_files = 0
-    for file in glob.glob('*.frms6'):
+    for file in glob.glob("*.frms6"):
         tot_files += 1
     filesizes = np.empty((tot_files, 4), dtype=int)
 
     ii = 0
-    for file in glob.glob('*.frms6'):
-        fname = data_dir+file
+    for file in glob.glob("*.frms6"):
+        fname = data_dir + file
         dshape = np.asarray(data_class.getDataShape(fname), dtype=int)
-        filesizes[ii, 0:3] = dshape 
+        filesizes[ii, 0:3] = dshape
         filesizes[ii, -1] = fname[-7]
         ii += 1
 
-    dref_shape = filesizes[filesizes[:, -1]==0, 0:3][0]
+    dref_shape = filesizes[filesizes[:, -1] == 0, 0:3][0]
     data_shape = np.copy(dref_shape)
     data_shape[-1] = (np.sum(filesizes[:, -2]) - np.amin(filesizes[:, -2])).astype(int)
     data_3D = np.empty(data_shape)
-    draw_shape = (np.mean(filesizes[filesizes[:, -1]!=0, 0:3], axis=0)).astype(int)
+    draw_shape = (np.mean(filesizes[filesizes[:, -1] != 0, 0:3], axis=0)).astype(int)
 
     ii = 0
-    for file in glob.glob('*.frms6'):
-        fname = data_dir+file
-        if (filesizes[ii, -1] == 0):
-            dark_ref = data_class.readData(fname, image_range=(0, dref_shape[-1]), 
-                                           pixels_x = dref_shape[0], 
-                                           pixels_y = dref_shape[1])
+    for file in glob.glob("*.frms6"):
+        fname = data_dir + file
+        if filesizes[ii, -1] == 0:
+            dark_ref = data_class.readData(
+                fname,
+                image_range=(0, dref_shape[-1]),
+                pixels_x=dref_shape[0],
+                pixels_y=dref_shape[1],
+            )
         else:
             frms6_num = filesizes[ii, -1]
-            start_fill = int((frms6_num - 1)*draw_shape[-1])
-            stop_fill = int(frms6_num*draw_shape[-1])
-            data_3D[:, :, start_fill:stop_fill] = data_class.readData(fname, 
-                                                                      image_range=(0, draw_shape[-1]), 
-                                                                      pixels_x = draw_shape[0], 
-                                                                      pixels_y = draw_shape[1])
+            start_fill = int((frms6_num - 1) * draw_shape[-1])
+            stop_fill = int(frms6_num * draw_shape[-1])
+            data_3D[:, :, start_fill:stop_fill] = data_class.readData(
+                fname,
+                image_range=(0, draw_shape[-1]),
+                pixels_x=draw_shape[0],
+                pixels_y=draw_shape[1],
+            )
             ii += 1
     return data_3D, dark_ref
+
 
 @numba.jit(cache=True, parallel=True)
 def reconstruct_im(data_3D, dark_ref, numba_init=20):
     data_3D = data_3D.astype(np.float)
     data_shape = data_3D.shape
     md_ref = np.mean(dark_ref.astype(np.float), axis=-1)
-    dref = np.empty((int(data_shape[0]*0.5), int(data_shape[1]*2)), dtype=data_3D.dtype)
-    dref[:, 0:md_ref.shape[1]] = md_ref[0:dref.shape[0], :]
-    dref[:, md_ref.shape[1]:dref.shape[1]] = np.flipud(np.fliplr(md_ref[dref.shape[0]:md_ref.shape[0], :]))
-    
+    dref = np.empty(
+        (int(data_shape[0] * 0.5), int(data_shape[1] * 2)), dtype=data_3D.dtype
+    )
+    dref[:, 0 : md_ref.shape[1]] = md_ref[0 : dref.shape[0], :]
+    dref[:, md_ref.shape[1] : dref.shape[1]] = np.flipud(
+        np.fliplr(md_ref[dref.shape[0] : md_ref.shape[0], :])
+    )
+
     im_raw = np.empty((data_shape[0], data_shape[1]), dtype=data_3D.dtype)
-    im_con = np.empty((int(data_shape[0]*0.5), int(data_shape[1]*2)), dtype=data_3D.dtype)
-    
+    im_con = np.empty(
+        (int(data_shape[0] * 0.5), int(data_shape[1] * 2)), dtype=data_3D.dtype
+    )
+
     xyvals = data_3D.shape[2]
     xvals = int(xyvals ** 0.5)
     yV, xV = np.mgrid[0:xvals, 0:xvals]
     yV = np.ravel(yV)
     xV = np.ravel(xV)
-    data_4D = np.empty((int(data_3D.shape[0]*0.5), int(data_3D.shape[1]*2), xvals, xvals), dtype=data_3D.dtype)
+    data_4D = np.empty(
+        (int(data_3D.shape[0] * 0.5), int(data_3D.shape[1] * 2), xvals, xvals),
+        dtype=data_3D.dtype,
+    )
     for ii in numba.prange(xyvals):
-        im_raw = data_3D[:,:,ii]
-        im_con[:, 0:im_raw.shape[1]] = im_raw[0:im_con.shape[0], :]
-        im_con[:, im_raw.shape[1]:im_con.shape[1]] = np.flipud(np.fliplr(im_raw[im_con.shape[0]:im_raw.shape[0], :]))
+        im_raw = data_3D[:, :, ii]
+        im_con[:, 0 : im_raw.shape[1]] = im_raw[0 : im_con.shape[0], :]
+        im_con[:, im_raw.shape[1] : im_con.shape[1]] = np.flipud(
+            np.fliplr(im_raw[im_con.shape[0] : im_raw.shape[0], :])
+        )
         data_4D[:, :, yV[ii], xV[ii]] = im_con - dref
     return data_4D
-        
-@numba.jit(cache=True, parallel=True)  
+
+
+@numba.jit(cache=True, parallel=True)
 def remove_dark_ref(data3D, dark_ref):
-    data_fin = np.empty(data3D.shape,dtype=np.float)
+    data_fin = np.empty(data3D.shape, dtype=np.float)
     dref = np.mean(dark_ref, axis=-1)
     data3D = data3D.astype(np.float)
     for ii in numba.prange(data3D.shape[-1]):
-        data_fin[:,:,ii] = data3D[:,:,ii] - dref
+        data_fin[:, :, ii] = data3D[:, :, ii] - dref
     return data_fin

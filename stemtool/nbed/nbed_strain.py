@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 import stemtool as st
 import warnings
 
-def angle_fun(angle,
-              image_orig,
-              axis=0,):
+
+def angle_fun(
+    angle, image_orig, axis=0,
+):
     """
     Rotation Sum Finder
     
@@ -40,13 +41,13 @@ def angle_fun(angle,
     --------
     rotation_finder 
     """
-    rotated_image = scnd.rotate(image_orig,angle,order=5,reshape=False)
-    rotsum = (-1)*(np.sum(rotated_image,1))
+    rotated_image = scnd.rotate(image_orig, angle, order=5, reshape=False)
+    rotsum = (-1) * (np.sum(rotated_image, 1))
     rotmin = np.amin(rotsum)
     return rotmin
 
-def rotation_finder(image_orig,
-                    axis=0):
+
+def rotation_finder(image_orig, axis=0):
     """
     Angle Finder
     
@@ -77,10 +78,8 @@ def rotation_finder(image_orig,
     min_x = x.x
     return min_x
 
-def rotate_and_center_ROI(data4D_ROI,
-                          rotangle,
-                          xcenter,
-                          ycenter):
+
+def rotate_and_center_ROI(data4D_ROI, rotangle, xcenter, ycenter):
     """
     Rotation Corrector
     
@@ -113,12 +112,17 @@ def rotate_and_center_ROI(data4D_ROI,
     corrected_ROI = np.zeros_like(data4D_ROI)
     for ii in range(data4D_ROI.shape[0]):
         cbed_pattern = data4D_ROI[ii, :, :]
-        moved_cbed = np.abs(st.util.move_by_phase(cbed_pattern,
-                                                 (-xcenter+ (0.5* data_size[-1])), 
-                                                 (-ycenter+ (0.5* data_size[-2]))))
+        moved_cbed = np.abs(
+            st.util.move_by_phase(
+                cbed_pattern,
+                (-xcenter + (0.5 * data_size[-1])),
+                (-ycenter + (0.5 * data_size[-2])),
+            )
+        )
         rotated_cbed = scnd.rotate(moved_cbed, rotangle, order=5, reshape=False)
         corrected_ROI[ii, :, :] = rotated_cbed
     return corrected_ROI
+
 
 def data4Dto2D(data4D):
     """
@@ -140,42 +144,43 @@ def data4Dto2D(data4D):
     """
     data2D = np.transpose(data4D, (2, 3, 0, 1))
     data_shape = data2D.shape
-    data2D.shape = (data_shape[0]* data_shape[1], data_shape[2]* data_shape[3])
+    data2D.shape = (data_shape[0] * data_shape[1], data_shape[2] * data_shape[3])
     return data2D
 
-@numba.jit(parallel=True,cache=True)
-def resizer1D_numbaopt(data,
-                       res,
-                       N):   
-    M= data.size
-    carry= 0
-    m= 0
+
+@numba.jit(parallel=True, cache=True)
+def resizer1D_numbaopt(data, res, N):
+    M = data.size
+    carry = 0
+    m = 0
     for n in range(int(N)):
         data_sum = carry
-        while (((m* N)- (n* M)) < M):
-            data_sum+= data[m]
-            m+= 1
-        carry= (m- (n+ 1)* (M/N))* data[m-1]
-        data_sum-= carry
-        res[n]= data_sum* (N/ M)
+        while ((m * N) - (n * M)) < M:
+            data_sum += data[m]
+            m += 1
+        carry = (m - (n + 1) * (M / N)) * data[m - 1]
+        data_sum -= carry
+        res[n] = data_sum * (N / M)
     return res
 
-@numba.jit(parallel=True,cache=True)
-def resizer2D_numbaopt(data2D,
-                       resampled_x,
-                       resampled_f,
-                       sampling):
-    data_shape= np.asarray(data2D.shape)
-    sampled_shape= (np.round(data_shape/ sampling)).astype(int)
+
+@numba.jit(parallel=True, cache=True)
+def resizer2D_numbaopt(data2D, resampled_x, resampled_f, sampling):
+    data_shape = np.asarray(data2D.shape)
+    sampled_shape = (np.round(data_shape / sampling)).astype(int)
     for yy in numba.prange(data_shape[0]):
-        resampled_x[yy, :] = resizer1D_numbaopt(data2D[yy,:], resampled_x[yy,:], sampled_shape[1])
+        resampled_x[yy, :] = resizer1D_numbaopt(
+            data2D[yy, :], resampled_x[yy, :], sampled_shape[1]
+        )
     for xx in numba.prange(sampled_shape[1]):
-        resampled_f[:, xx] = resizer1D_numbaopt(resampled_x[:,xx], resampled_f[:,xx], sampled_shape[0])
+        resampled_f[:, xx] = resizer1D_numbaopt(
+            resampled_x[:, xx], resampled_f[:, xx], sampled_shape[0]
+        )
     return resampled_f
 
+
 @numba.jit
-def bin4D(data4D,
-          bin_factor):
+def bin4D(data4D, bin_factor):
     """
     Bin 4D data in spectral dimensions
     
@@ -204,22 +209,27 @@ def bin4D(data4D,
     resizer1D_numbaopt
     resizer2D_numbaopt
     """
-    data4D_flat = np.reshape(data4D,(data4D.shape[0],data4D.shape[1],data4D.shape[2]*data4D.shape[3]))
+    data4D_flat = np.reshape(
+        data4D, (data4D.shape[0], data4D.shape[1], data4D.shape[2] * data4D.shape[3])
+    )
     datashape = np.asarray(data4D_flat.shape)
     res_shape = np.copy(datashape)
-    res_shape[0:2] = np.round(datashape[0:2]/bin_factor)
-    data4D_res = np.zeros(res_shape.astype(int),dtype=data4D_flat.dtype)
-    resampled_x = np.zeros((datashape[0],res_shape[1]),data4D_flat.dtype)
-    resampled_f = np.zeros(res_shape[0:2],dtype=data4D_flat.dtype)
+    res_shape[0:2] = np.round(datashape[0:2] / bin_factor)
+    data4D_res = np.zeros(res_shape.astype(int), dtype=data4D_flat.dtype)
+    resampled_x = np.zeros((datashape[0], res_shape[1]), data4D_flat.dtype)
+    resampled_f = np.zeros(res_shape[0:2], dtype=data4D_flat.dtype)
     for zz in range(data4D_flat.shape[-1]):
-        data4D_res[:,:,zz] = resizer2D_numbaopt(data4D_flat[:,:,zz],resampled_x,resampled_f,bin_factor)
-    binned_data = np.reshape(data4D_res,(resampled_f.shape[0],resampled_f.shape[1],data4D.shape[2],data4D.shape[3]))
+        data4D_res[:, :, zz] = resizer2D_numbaopt(
+            data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor
+        )
+    binned_data = np.reshape(
+        data4D_res,
+        (resampled_f.shape[0], resampled_f.shape[1], data4D.shape[2], data4D.shape[3]),
+    )
     return binned_data
 
-def test_aperture(pattern,
-                  center,
-                  radius,
-                  showfig=True):
+
+def test_aperture(pattern, center, radius, showfig=True):
     """
     Test an aperture position for Virtual DF image
     
@@ -250,20 +260,19 @@ def test_aperture(pattern,
     location with varying parameters
     """
     center = np.asarray(center)
-    yy,xx = np.mgrid[0:pattern.shape[0],0:pattern.shape[1]]
+    yy, xx = np.mgrid[0 : pattern.shape[0], 0 : pattern.shape[1]]
     yy = yy - center[1]
     xx = xx - center[0]
     rr = ((yy ** 2) + (xx ** 2)) ** 0.5
-    aperture = np.asarray(rr<=radius, dtype=np.double)
+    aperture = np.asarray(rr <= radius, dtype=np.double)
     if showfig:
-        plt.figure(figsize=(15,15))
-        plt.imshow(st.util.image_normalizer(pattern)+aperture,cmap='Spectral')
-        plt.scatter(center[0],center[1],c='w', s=25)
+        plt.figure(figsize=(15, 15))
+        plt.imshow(st.util.image_normalizer(pattern) + aperture, cmap="Spectral")
+        plt.scatter(center[0], center[1], c="w", s=25)
     return aperture
 
-def aperture_image(data4D,
-                   center,
-                   radius):
+
+def aperture_image(data4D, center, radius):
     """
     Generate Virtual DF image for a given aperture
     
@@ -293,23 +302,22 @@ def aperture_image(data4D,
     and then sum it along the two Fourier directions.
     """
     center = np.array(center)
-    yy,xx = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
+    yy, xx = np.mgrid[0 : data4D.shape[0], 0 : data4D.shape[1]]
     yy = yy - center[1]
     xx = xx - center[0]
     rr = ((yy ** 2) + (xx ** 2)) ** 0.5
-    aperture = np.asarray(rr<=radius, dtype=data4D.dtype)
-    apt_copy = np.empty((data4D.shape[2],data4D.shape[3]) + aperture.shape,dtype=data4D.dtype)
+    aperture = np.asarray(rr <= radius, dtype=data4D.dtype)
+    apt_copy = np.empty(
+        (data4D.shape[2], data4D.shape[3]) + aperture.shape, dtype=data4D.dtype
+    )
     apt_copy[:] = aperture
-    apt_copy = np.transpose(apt_copy,(2,3,0,1))
+    apt_copy = np.transpose(apt_copy, (2, 3, 0, 1))
     apt_mult = apt_copy * data4D
-    df_image = np.sum(np.sum(apt_mult,axis=0),axis=0)
+    df_image = np.sum(np.sum(apt_mult, axis=0), axis=0)
     return df_image
 
-def custom_detector(data4D,
-                    det_inner,
-                    det_outer,
-                    det_center=(0,0),
-                    mrad_calib=0):
+
+def custom_detector(data4D, det_inner, det_outer, det_center=(0, 0), mrad_calib=0):
     """
     Generate an image with a custom annular detector 
     located anywhere in diffraction space
@@ -339,64 +347,63 @@ def custom_detector(data4D,
     multiplication of this aperture 4D data with the 4D data
     and then sum it along the two Fourier directions.
     """
-    if (mrad_calib > 0):
+    if mrad_calib > 0:
         det_inner = det_inner * mrad_calib
         det_outer = det_outer * mrad_calib
         det_center = np.asarray(det_center) * mrad_calib
     det_center = np.asarray(det_center)
-    yy,xx = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
-    yy -= (0.5*data4D.shape[0])
-    xx -= (0.5*data4D.shape[1])
+    yy, xx = np.mgrid[0 : data4D.shape[0], 0 : data4D.shape[1]]
+    yy -= 0.5 * data4D.shape[0]
+    xx -= 0.5 * data4D.shape[1]
     yy = yy - det_center[1]
     xx = xx - det_center[0]
     rr = (yy ** 2) + (xx ** 2)
-    aperture = np.logical_and((rr<=det_outer),(rr>=det_inner))
-    apt_copy = np.empty((data4D.shape[2],data4D.shape[3]) + aperture.shape,dtype=data4D.dtype)
+    aperture = np.logical_and((rr <= det_outer), (rr >= det_inner))
+    apt_copy = np.empty(
+        (data4D.shape[2], data4D.shape[3]) + aperture.shape, dtype=data4D.dtype
+    )
     apt_copy[:] = aperture
-    apt_copy = np.transpose(apt_copy,(2,3,0,1))
+    apt_copy = np.transpose(apt_copy, (2, 3, 0, 1))
     apt_mult = apt_copy * data4D
-    df_image = np.sum(np.sum(apt_mult,axis=0),axis=0)
+    df_image = np.sum(np.sum(apt_mult, axis=0), axis=0)
     return df_image
 
-def ROI_from_image(image,
-                   med_val,
-                   style='over',
-                   showfig=True):
-    if style == 'over':
-        ROI = np.asarray(image > (med_val*np.median(image)),dtype=np.double)
+
+def ROI_from_image(image, med_val, style="over", showfig=True):
+    if style == "over":
+        ROI = np.asarray(image > (med_val * np.median(image)), dtype=np.double)
     else:
-        ROI = np.asarray(image < (med_val*np.median(image)),dtype=np.double)
+        ROI = np.asarray(image < (med_val * np.median(image)), dtype=np.double)
     if showfig:
         plt.figure(figsize=(15, 15))
-        plt.imshow(ROI+st.util.image_normalizer(image),cmap='viridis')
-        plt.title('ROI overlaid')
+        plt.imshow(ROI + st.util.image_normalizer(image), cmap="viridis")
+        plt.title("ROI overlaid")
     ROI = ROI.astype(bool)
     return ROI
 
-@numba.jit
-def colored_mcr(conc_data,
-                data_shape):
-    no_spectra = np.shape(conc_data)[1]
-    color_hues = np.arange(no_spectra,dtype=np.float64)/no_spectra
-    norm_conc = (conc_data - np.amin(conc_data)) / (np.amax(conc_data) - np.amin(conc_data))
-    saturation_matrix = np.ones(data_shape,dtype=np.float64)
-    hsv_calc = np.zeros((data_shape[0],data_shape[1],3),dtype=np.float64)
-    rgb_calc = np.zeros((data_shape[0],data_shape[1],3),dtype=np.float64)
-    hsv_calc[:,:,1] = saturation_matrix
-    for ii in range(no_spectra):
-        conc_image = (np.reshape(norm_conc[:,ii],data_shape)).astype(np.float64)
-        hsv_calc[:,:,0] = saturation_matrix * color_hues[ii]
-        hsv_calc[:,:,2] = conc_image
-        rgb_calc = rgb_calc + mplc.hsv_to_rgb(hsv_calc)
-    rgb_image = rgb_calc/np.amax(rgb_calc)
-    return rgb_image
 
 @numba.jit
-def fit_nbed_disks(corr_image,
-                   disk_size,
-                   positions,
-                   diff_spots,
-                   nan_cutoff=0):
+def colored_mcr(conc_data, data_shape):
+    no_spectra = np.shape(conc_data)[1]
+    color_hues = np.arange(no_spectra, dtype=np.float64) / no_spectra
+    norm_conc = (conc_data - np.amin(conc_data)) / (
+        np.amax(conc_data) - np.amin(conc_data)
+    )
+    saturation_matrix = np.ones(data_shape, dtype=np.float64)
+    hsv_calc = np.zeros((data_shape[0], data_shape[1], 3), dtype=np.float64)
+    rgb_calc = np.zeros((data_shape[0], data_shape[1], 3), dtype=np.float64)
+    hsv_calc[:, :, 1] = saturation_matrix
+    for ii in range(no_spectra):
+        conc_image = (np.reshape(norm_conc[:, ii], data_shape)).astype(np.float64)
+        hsv_calc[:, :, 0] = saturation_matrix * color_hues[ii]
+        hsv_calc[:, :, 2] = conc_image
+        rgb_calc = rgb_calc + mplc.hsv_to_rgb(hsv_calc)
+    rgb_image = rgb_calc / np.amax(rgb_calc)
+    return rgb_image
+
+
+@numba.jit
+def fit_nbed_disks(corr_image, disk_size, positions, diff_spots, nan_cutoff=0):
     """
     Disk Fitting algorithm for a single NBED pattern
     
@@ -442,43 +449,61 @@ def fit_nbed_disks(corr_image,
     parameter carefully, because in some cases this may result in no disks being fitted
     and the program throwing weird errors at you. 
     """
-    warnings.filterwarnings('ignore')
+    warnings.filterwarnings("ignore")
     no_pos = int(np.shape(positions)[0])
-    diff_spots = np.asarray(diff_spots,dtype=np.float64)
+    diff_spots = np.asarray(diff_spots, dtype=np.float64)
     fitted_disk_list = np.zeros_like(positions)
-    yy,xx = np.mgrid[0:(corr_image.shape[0]),0:(corr_image.shape[1])]
+    yy, xx = np.mgrid[0 : (corr_image.shape[0]), 0 : (corr_image.shape[1])]
     for ii in range(no_pos):
-        posx = positions[ii,0]
-        posy = positions[ii,1]
+        posx = positions[ii, 0]
+        posy = positions[ii, 1]
         reg = ((yy - posy) ** 2) + ((xx - posx) ** 2) <= (disk_size ** 2)
-        peak_ratio = np.amax(corr_image[reg])/np.median(corr_image[reg])
-        if peak_ratio < (1+nan_cutoff):
-            fitted_disk_list[ii,0:2] = np.nan
+        peak_ratio = np.amax(corr_image[reg]) / np.median(corr_image[reg])
+        if peak_ratio < (1 + nan_cutoff):
+            fitted_disk_list[ii, 0:2] = np.nan
         else:
-            par = st.util.fit_gaussian2D_mask(corr_image,posx,posy,disk_size)
-            fitted_disk_list[ii,0:2] = par[0:2]
-    nancount = np.int(np.sum(np.isnan(fitted_disk_list))/2)
+            par = st.util.fit_gaussian2D_mask(corr_image, posx, posy, disk_size)
+            fitted_disk_list[ii, 0:2] = par[0:2]
+    nancount = np.int(np.sum(np.isnan(fitted_disk_list)) / 2)
     if nancount == no_pos:
-        center_position = np.nan*np.ones((1,2))
+        center_position = np.nan * np.ones((1, 2))
         fit_deviation = np.nan
         lcbed = np.nan
     else:
-        diff_spots = (diff_spots[~np.isnan(fitted_disk_list)]).reshape((no_pos - nancount),2)
-        fitted_disk_list = (fitted_disk_list[~np.isnan(fitted_disk_list)]).reshape((no_pos - nancount),2)
+        diff_spots = (diff_spots[~np.isnan(fitted_disk_list)]).reshape(
+            (no_pos - nancount), 2
+        )
+        fitted_disk_list = (fitted_disk_list[~np.isnan(fitted_disk_list)]).reshape(
+            (no_pos - nancount), 2
+        )
         disk_locations = np.copy(fitted_disk_list)
-        disk_locations[:,1] = (-1)*disk_locations[:,1]
-        center = disk_locations[np.logical_and((diff_spots[:,0] == 0),(diff_spots[:,1] == 0)),:]
+        disk_locations[:, 1] = (-1) * disk_locations[:, 1]
+        center = disk_locations[
+            np.logical_and((diff_spots[:, 0] == 0), (diff_spots[:, 1] == 0)), :
+        ]
         if center.shape[0] > 0:
-            cx = center[0,0]
-            cy = center[0,1]
-            center_position = np.asarray((cx,-cy),dtype=np.float64)
-            if (nancount/no_pos) < 0.5: 
-                disk_locations[:,0:2] = disk_locations[:,0:2] - np.asarray((cx,cy),dtype=np.float64)
-                lcbed,_,_,_ = np.linalg.lstsq(diff_spots,disk_locations,rcond=None)
-                calc_points = np.matmul(diff_spots,lcbed)
-                stdx = np.std(np.divide(disk_locations[np.where(calc_points[:,0] != 0),0],calc_points[np.where(calc_points[:,0] != 0),0]))
-                stdy = np.std(np.divide(disk_locations[np.where(calc_points[:,1] != 0),1],calc_points[np.where(calc_points[:,1] != 0),1]))
-                fit_deviation = np.asarray((stdx,stdy),dtype=np.float64)
+            cx = center[0, 0]
+            cy = center[0, 1]
+            center_position = np.asarray((cx, -cy), dtype=np.float64)
+            if (nancount / no_pos) < 0.5:
+                disk_locations[:, 0:2] = disk_locations[:, 0:2] - np.asarray(
+                    (cx, cy), dtype=np.float64
+                )
+                lcbed, _, _, _ = np.linalg.lstsq(diff_spots, disk_locations, rcond=None)
+                calc_points = np.matmul(diff_spots, lcbed)
+                stdx = np.std(
+                    np.divide(
+                        disk_locations[np.where(calc_points[:, 0] != 0), 0],
+                        calc_points[np.where(calc_points[:, 0] != 0), 0],
+                    )
+                )
+                stdy = np.std(
+                    np.divide(
+                        disk_locations[np.where(calc_points[:, 1] != 0), 1],
+                        calc_points[np.where(calc_points[:, 1] != 0), 1],
+                    )
+                )
+                fit_deviation = np.asarray((stdx, stdy), dtype=np.float64)
             else:
                 fit_deviation = np.nan
                 lcbed = np.nan
@@ -486,19 +511,22 @@ def fit_nbed_disks(corr_image,
             center_position = np.nan
             fit_deviation = np.nan
             lcbed = np.nan
-    return fitted_disk_list,center_position,fit_deviation,lcbed
+    return fitted_disk_list, center_position, fit_deviation, lcbed
+
 
 @numba.jit
-def strain_in_ROI(data4D,
-                  ROI,
-                  center_disk,
-                  disk_list,
-                  pos_list,
-                  reference_axes=0,
-                  med_factor=10,
-                  gauss_val=3,
-                  hybrid_cc=0.1,
-                  nan_cutoff=0.5):
+def strain_in_ROI(
+    data4D,
+    ROI,
+    center_disk,
+    disk_list,
+    pos_list,
+    reference_axes=0,
+    med_factor=10,
+    gauss_val=3,
+    hybrid_cc=0.1,
+    nan_cutoff=0.5,
+):
     """
     Get strain from a region of interest
     
@@ -565,155 +593,164 @@ def strain_in_ROI(data4D,
     template disk. If the pattern axes return a numerical value, then the strain
     is calculated for that scan position, else it is NaN
     """
-    warnings.filterwarnings('ignore')
+    warnings.filterwarnings("ignore")
     # Calculate needed values
-    scan_y,scan_x = np.mgrid[0:data4D.shape[2],0:data4D.shape[3]]
-    data4D_ROI = data4D[:,:,scan_y[ROI],scan_x[ROI]]
+    scan_y, scan_x = np.mgrid[0 : data4D.shape[2], 0 : data4D.shape[3]]
+    data4D_ROI = data4D[:, :, scan_y[ROI], scan_x[ROI]]
     no_of_disks = data4D_ROI.shape[-1]
-    disk_size = (np.sum(st.util.image_normalizer(center_disk))/np.pi) ** 0.5
+    disk_size = (np.sum(st.util.image_normalizer(center_disk)) / np.pi) ** 0.5
     i_matrix = (np.eye(2)).astype(np.float64)
-    sobel_center_disk,_ = st.util.sobel(center_disk)
+    sobel_center_disk, _ = st.util.sobel(center_disk)
     # Initialize matrices
-    e_xx_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
-    e_xy_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
-    e_th_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
-    e_yy_ROI = np.nan*(np.ones(no_of_disks,dtype=np.float64))
-    fit_std = np.nan*(np.ones((no_of_disks,2),dtype=np.float64))
-    e_xx_map = np.nan*np.ones_like(scan_y)
-    e_xy_map = np.nan*np.ones_like(scan_y)
-    e_th_map = np.nan*np.ones_like(scan_y)
-    e_yy_map = np.nan*np.ones_like(scan_y)
-    #Calculate for mean CBED if no reference
-    #axes present
+    e_xx_ROI = np.nan * (np.ones(no_of_disks, dtype=np.float64))
+    e_xy_ROI = np.nan * (np.ones(no_of_disks, dtype=np.float64))
+    e_th_ROI = np.nan * (np.ones(no_of_disks, dtype=np.float64))
+    e_yy_ROI = np.nan * (np.ones(no_of_disks, dtype=np.float64))
+    fit_std = np.nan * (np.ones((no_of_disks, 2), dtype=np.float64))
+    e_xx_map = np.nan * np.ones_like(scan_y)
+    e_xy_map = np.nan * np.ones_like(scan_y)
+    e_th_map = np.nan * np.ones_like(scan_y)
+    e_yy_map = np.nan * np.ones_like(scan_y)
+    # Calculate for mean CBED if no reference
+    # axes present
     if np.size(reference_axes) < 2:
-        mean_cbed = np.mean(data4D_ROI,axis=-1)
-        sobel_lm_cbed,_ = st.util.sobel(st.util.image_logarizer(mean_cbed))
-        sobel_lm_cbed[sobel_lm_cbed > med_factor*np.median(sobel_lm_cbed)] = np.median(sobel_lm_cbed)
-        lsc_mean = st.util.cross_corr(sobel_lm_cbed,sobel_center_disk,hybridizer=hybrid_cc)
-        _,_,_,mean_axes = fit_nbed_disks(lsc_mean,disk_size,disk_list,pos_list)
+        mean_cbed = np.mean(data4D_ROI, axis=-1)
+        sobel_lm_cbed, _ = st.util.sobel(st.util.image_logarizer(mean_cbed))
+        sobel_lm_cbed[
+            sobel_lm_cbed > med_factor * np.median(sobel_lm_cbed)
+        ] = np.median(sobel_lm_cbed)
+        lsc_mean = st.util.cross_corr(
+            sobel_lm_cbed, sobel_center_disk, hybridizer=hybrid_cc
+        )
+        _, _, _, mean_axes = fit_nbed_disks(lsc_mean, disk_size, disk_list, pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
-        pattern = data4D_ROI[:,:,ii]
-        sobel_log_pattern,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val))
-        sobel_log_pattern[sobel_log_pattern > med_factor*np.median(sobel_log_pattern)] = np.median(sobel_log_pattern)*med_factor
-        sobel_log_pattern[sobel_log_pattern < np.median(sobel_log_pattern)/med_factor] = np.median(sobel_log_pattern)/med_factor
-        lsc_pattern = st.util.cross_corr(sobel_log_pattern,sobel_center_disk,hybridizer=hybrid_cc)
-        _,_,std,pattern_axes = fit_nbed_disks(lsc_pattern,disk_size,disk_list,pos_list,nan_cutoff)
+        pattern = data4D_ROI[:, :, ii]
+        sobel_log_pattern, _ = st.util.sobel(
+            scnd.gaussian_filter(st.util.image_logarizer(pattern), gauss_val)
+        )
+        sobel_log_pattern[
+            sobel_log_pattern > med_factor * np.median(sobel_log_pattern)
+        ] = (np.median(sobel_log_pattern) * med_factor)
+        sobel_log_pattern[
+            sobel_log_pattern < np.median(sobel_log_pattern) / med_factor
+        ] = (np.median(sobel_log_pattern) / med_factor)
+        lsc_pattern = st.util.cross_corr(
+            sobel_log_pattern, sobel_center_disk, hybridizer=hybrid_cc
+        )
+        _, _, std, pattern_axes = fit_nbed_disks(
+            lsc_pattern, disk_size, disk_list, pos_list, nan_cutoff
+        )
         if ~(np.isnan(np.ravel(pattern_axes))[0]):
-            fit_std[ii,:] = std
-            t_pattern = np.matmul(pattern_axes,inverse_axes)
+            fit_std[ii, :] = std
+            t_pattern = np.matmul(pattern_axes, inverse_axes)
             s_pattern = t_pattern - i_matrix
-            e_xx_ROI[ii] = -s_pattern[0,0]
-            e_xy_ROI[ii] = -(s_pattern[0,1] + s_pattern[1,0])
-            e_th_ROI[ii] = s_pattern[0,1] - s_pattern[1,0]
-            e_yy_ROI[ii] = -s_pattern[1,1]
+            e_xx_ROI[ii] = -s_pattern[0, 0]
+            e_xy_ROI[ii] = -(s_pattern[0, 1] + s_pattern[1, 0])
+            e_th_ROI[ii] = s_pattern[0, 1] - s_pattern[1, 0]
+            e_yy_ROI[ii] = -s_pattern[1, 1]
     e_xx_map[ROI] = e_xx_ROI
     e_xx_map[np.isnan(e_xx_map)] = 0
-    e_xx_map = scnd.gaussian_filter(e_xx_map,1)
+    e_xx_map = scnd.gaussian_filter(e_xx_map, 1)
     e_xy_map[ROI] = e_xy_ROI
     e_xy_map[np.isnan(e_xy_map)] = 0
-    e_xy_map = scnd.gaussian_filter(e_xy_map,1)
+    e_xy_map = scnd.gaussian_filter(e_xy_map, 1)
     e_th_map[ROI] = e_th_ROI
     e_th_map[np.isnan(e_th_map)] = 0
-    e_th_map = scnd.gaussian_filter(e_th_map,1)
+    e_th_map = scnd.gaussian_filter(e_th_map, 1)
     e_yy_map[ROI] = e_yy_ROI
     e_yy_map[np.isnan(e_yy_map)] = 0
-    e_yy_map = scnd.gaussian_filter(e_yy_map,1)
-    return e_xx_map,e_xy_map,e_th_map,e_yy_map,fit_std
+    e_yy_map = scnd.gaussian_filter(e_yy_map, 1)
+    return e_xx_map, e_xy_map, e_th_map, e_yy_map, fit_std
+
 
 @numba.jit
-def strain_log(data4D_ROI,
-               center_disk,
-               disk_list,
-               pos_list,
-               reference_axes=0,
-               med_factor=10):
-    warnings.filterwarnings('ignore')
+def strain_log(
+    data4D_ROI, center_disk, disk_list, pos_list, reference_axes=0, med_factor=10
+):
+    warnings.filterwarnings("ignore")
     # Calculate needed values
     no_of_disks = data4D_ROI.shape[-1]
-    disk_size = (np.sum(center_disk)/np.pi) ** 0.5
+    disk_size = (np.sum(center_disk) / np.pi) ** 0.5
     i_matrix = (np.eye(2)).astype(np.float64)
     # Initialize matrices
-    e_xx_log = np.zeros(no_of_disks,dtype=np.float64)
-    e_xy_log = np.zeros(no_of_disks,dtype=np.float64)
-    e_th_log = np.zeros(no_of_disks,dtype=np.float64)
-    e_yy_log = np.zeros(no_of_disks,dtype=np.float64)
-    #Calculate for mean CBED if no reference
-    #axes present
+    e_xx_log = np.zeros(no_of_disks, dtype=np.float64)
+    e_xy_log = np.zeros(no_of_disks, dtype=np.float64)
+    e_th_log = np.zeros(no_of_disks, dtype=np.float64)
+    e_yy_log = np.zeros(no_of_disks, dtype=np.float64)
+    # Calculate for mean CBED if no reference
+    # axes present
     if np.size(reference_axes) < 2:
-        mean_cbed = np.mean(data4D_ROI,axis=-1)
-        log_cbed,_ = st.util.image_logarizer(mean_cbed)
-        log_cc_mean = st.util.cross_corr(log_cbed,center_disk,hybridizer=0.1)
-        _,_,mean_axes = fit_nbed_disks(log_cc_mean,disk_size,disk_list,pos_list)
+        mean_cbed = np.mean(data4D_ROI, axis=-1)
+        log_cbed, _ = st.util.image_logarizer(mean_cbed)
+        log_cc_mean = st.util.cross_corr(log_cbed, center_disk, hybridizer=0.1)
+        _, _, mean_axes = fit_nbed_disks(log_cc_mean, disk_size, disk_list, pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
-        pattern = data4D_ROI[:,:,ii]
-        log_pattern,_ = st.util.image_logarizer(pattern)
-        log_cc_pattern = st.util.cross_corr(log_pattern,center_disk,hybridizer=0.1)
-        _,_,pattern_axes = fit_nbed_disks(log_cc_pattern,disk_size,disk_list,pos_list)
-        t_pattern = np.matmul(pattern_axes,inverse_axes)
+        pattern = data4D_ROI[:, :, ii]
+        log_pattern, _ = st.util.image_logarizer(pattern)
+        log_cc_pattern = st.util.cross_corr(log_pattern, center_disk, hybridizer=0.1)
+        _, _, pattern_axes = fit_nbed_disks(
+            log_cc_pattern, disk_size, disk_list, pos_list
+        )
+        t_pattern = np.matmul(pattern_axes, inverse_axes)
         s_pattern = t_pattern - i_matrix
-        e_xx_log[ii] = -s_pattern[0,0]
-        e_xy_log[ii] = -(s_pattern[0,1] + s_pattern[1,0])
-        e_th_log[ii] = s_pattern[0,1] - s_pattern[1,0]
-        e_yy_log[ii] = -s_pattern[1,1]
-    return e_xx_log,e_xy_log,e_th_log,e_yy_log
+        e_xx_log[ii] = -s_pattern[0, 0]
+        e_xy_log[ii] = -(s_pattern[0, 1] + s_pattern[1, 0])
+        e_th_log[ii] = s_pattern[0, 1] - s_pattern[1, 0]
+        e_yy_log[ii] = -s_pattern[1, 1]
+    return e_xx_log, e_xy_log, e_th_log, e_yy_log
+
 
 @numba.jit
-def strain_oldstyle(data4D_ROI,
-                    center_disk,
-                    disk_list,
-                    pos_list,
-                    reference_axes=0):
-    warnings.filterwarnings('ignore')
+def strain_oldstyle(data4D_ROI, center_disk, disk_list, pos_list, reference_axes=0):
+    warnings.filterwarnings("ignore")
     # Calculate needed values
     no_of_disks = data4D_ROI.shape[-1]
-    disk_size = (np.sum(center_disk)/np.pi) ** 0.5
+    disk_size = (np.sum(center_disk) / np.pi) ** 0.5
     i_matrix = (np.eye(2)).astype(np.float64)
     # Initialize matrices
-    e_xx_ROI = np.zeros(no_of_disks,dtype=np.float64)
-    e_xy_ROI = np.zeros(no_of_disks,dtype=np.float64)
-    e_th_ROI = np.zeros(no_of_disks,dtype=np.float64)
-    e_yy_ROI = np.zeros(no_of_disks,dtype=np.float64)
-    #Calculate for mean CBED if no reference
-    #axes present
+    e_xx_ROI = np.zeros(no_of_disks, dtype=np.float64)
+    e_xy_ROI = np.zeros(no_of_disks, dtype=np.float64)
+    e_th_ROI = np.zeros(no_of_disks, dtype=np.float64)
+    e_yy_ROI = np.zeros(no_of_disks, dtype=np.float64)
+    # Calculate for mean CBED if no reference
+    # axes present
     if np.size(reference_axes) < 2:
-        mean_cbed = np.mean(data4D_ROI,axis=-1)
-        cc_mean = st.util.cross_corr(mean_cbed,center_disk,hybridizer=0.1)
-        _,_,mean_axes = fit_nbed_disks(cc_mean,disk_size,disk_list,pos_list)
+        mean_cbed = np.mean(data4D_ROI, axis=-1)
+        cc_mean = st.util.cross_corr(mean_cbed, center_disk, hybridizer=0.1)
+        _, _, mean_axes = fit_nbed_disks(cc_mean, disk_size, disk_list, pos_list)
         inverse_axes = np.linalg.inv(mean_axes)
     else:
         inverse_axes = np.linalg.inv(reference_axes)
     for ii in range(int(no_of_disks)):
-        pattern = data4D_ROI[:,:,ii]
-        cc_pattern = st.util.cross_corr(pattern,center_disk,hybridizer=0.1)
-        _,_,pattern_axes = fit_nbed_disks(cc_pattern,disk_size,disk_list,pos_list)
-        t_pattern = np.matmul(pattern_axes,inverse_axes)
+        pattern = data4D_ROI[:, :, ii]
+        cc_pattern = st.util.cross_corr(pattern, center_disk, hybridizer=0.1)
+        _, _, pattern_axes = fit_nbed_disks(cc_pattern, disk_size, disk_list, pos_list)
+        t_pattern = np.matmul(pattern_axes, inverse_axes)
         s_pattern = t_pattern - i_matrix
-        e_xx_ROI[ii] = -s_pattern[0,0]
-        e_xy_ROI[ii] = -(s_pattern[0,1] + s_pattern[1,0])
-        e_th_ROI[ii] = s_pattern[0,1] - s_pattern[1,0]
-        e_yy_ROI[ii] = -s_pattern[1,1]
-    return e_xx_ROI,e_xy_ROI,e_th_ROI,e_yy_ROI
+        e_xx_ROI[ii] = -s_pattern[0, 0]
+        e_xy_ROI[ii] = -(s_pattern[0, 1] + s_pattern[1, 0])
+        e_th_ROI[ii] = s_pattern[0, 1] - s_pattern[1, 0]
+        e_yy_ROI[ii] = -s_pattern[1, 1]
+    return e_xx_ROI, e_xy_ROI, e_th_ROI, e_yy_ROI
 
-def ROI_strain_map(strain_ROI,
-                   ROI):
+
+def ROI_strain_map(strain_ROI, ROI):
     """
     Convert the strain in the ROI array to a strain map
     """
-    strain_map = np.zeros_like(ROI,dtype=np.float64)
+    strain_map = np.zeros_like(ROI, dtype=np.float64)
     strain_map[ROI] = (strain_ROI).astype(np.float64)
     return strain_map
 
-@numba.jit(cache=True,parallel=True)
-def log_sobel4D(data4D,
-                scan_dims,
-                med_factor=30,
-                gauss_val=3):
+
+@numba.jit(cache=True, parallel=True)
+def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     """
     Take the Log-Sobel of a pattern. 
     
@@ -761,119 +798,164 @@ def log_sobel4D(data4D,
     scan_dims = np.asarray(scan_dims)
     scan_dims[scan_dims < 0] = 4 + scan_dims[scan_dims < 0]
     sum_dims = np.sum(scan_dims)
-    if (sum_dims < 2):
-        data4D = np.transpose(data4D,(2,3,0,1))
-    data_lsb = np.zeros_like(data4D,dtype=np.float)
+    if sum_dims < 2:
+        data4D = np.transpose(data4D, (2, 3, 0, 1))
+    data_lsb = np.zeros_like(data4D, dtype=np.float)
     for jj in numba.prange(data4D.shape[int(scan_dims[1])]):
         for ii in range(data4D.shape[int(scan_dims[0])]):
-            pattern = data4D[:,:,ii,jj]
-            pattern = 1000*(1 + st.util.image_normalizer(pattern))
-            lsb_pattern,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(pattern),gauss_val),5)
-            lsb_pattern[lsb_pattern > med_factor*np.median(lsb_pattern)] = np.median(lsb_pattern)*med_factor
-            lsb_pattern[lsb_pattern < np.median(lsb_pattern)/med_factor] = np.median(lsb_pattern)/med_factor
-            data_lsb[:,:,ii,jj] = lsb_pattern
-    if (sum_dims < 2):
-        data_lsb = np.transpose(data_lsb,(2,3,0,1))
+            pattern = data4D[:, :, ii, jj]
+            pattern = 1000 * (1 + st.util.image_normalizer(pattern))
+            lsb_pattern, _ = st.util.sobel(
+                scnd.gaussian_filter(st.util.image_logarizer(pattern), gauss_val), 5
+            )
+            lsb_pattern[lsb_pattern > med_factor * np.median(lsb_pattern)] = (
+                np.median(lsb_pattern) * med_factor
+            )
+            lsb_pattern[lsb_pattern < np.median(lsb_pattern) / med_factor] = (
+                np.median(lsb_pattern) / med_factor
+            )
+            data_lsb[:, :, ii, jj] = lsb_pattern
+    if sum_dims < 2:
+        data_lsb = np.transpose(data_lsb, (2, 3, 0, 1))
     return data_lsb
 
-def spectra_finder(data4D,yvals,xvals):
-    spectra_data = np.ravel(np.mean(data4D[:,:,yvals[0]:yvals[1],xvals[0]:xvals[1]],axis=(-1,-2),dtype=np.float64))
-    data_im = np.sum(data4D,axis=(0,1))
-    data_im = (data_im - np.amin(data_im))/(np.amax(data_im) - np.amin(data_im))
-    overlay = np.zeros_like(data_im)
-    overlay[yvals[0]:yvals[1],xvals[0]:xvals[1]] = 1
-    return spectra_data,0.5*(data_im+overlay)
 
-def sort_edges(edge_map,edge_distance=5):
-    yV, xV = np.mgrid[0:np.shape(edge_map)[0],0:np.shape(edge_map)[1]]
+def spectra_finder(data4D, yvals, xvals):
+    spectra_data = np.ravel(
+        np.mean(
+            data4D[:, :, yvals[0] : yvals[1], xvals[0] : xvals[1]],
+            axis=(-1, -2),
+            dtype=np.float64,
+        )
+    )
+    data_im = np.sum(data4D, axis=(0, 1))
+    data_im = (data_im - np.amin(data_im)) / (np.amax(data_im) - np.amin(data_im))
+    overlay = np.zeros_like(data_im)
+    overlay[yvals[0] : yvals[1], xvals[0] : xvals[1]] = 1
+    return spectra_data, 0.5 * (data_im + overlay)
+
+
+def sort_edges(edge_map, edge_distance=5):
+    yV, xV = np.mgrid[0 : np.shape(edge_map)[0], 0 : np.shape(edge_map)[1]]
     dist_points = np.zeros_like(yV)
     yy = yV[edge_map]
     xx = xV[edge_map]
     no_points = np.size(yy)
     points = np.arange(no_points)
-    point_list = np.transpose(np.asarray((yV[edge_map],xV[edge_map])))
-    truth_list = np.zeros((no_points,2),dtype=bool)
-    edge_list_1 = np.zeros((no_points,2))
+    point_list = np.transpose(np.asarray((yV[edge_map], xV[edge_map])))
+    truth_list = np.zeros((no_points, 2), dtype=bool)
+    edge_list_1 = np.zeros((no_points, 2))
     point_number = 0
-    edge_list_1[int(point_number),0:2] = np.asarray((yy[0],xx[0]))
-    truth_list[int(point_number),0:2] = True
+    edge_list_1[int(point_number), 0:2] = np.asarray((yy[0], xx[0]))
+    truth_list[int(point_number), 0:2] = True
     edge_points = 1
     for ii in np.arange(no_points):
-        last_yy = edge_list_1[int(edge_points - 1),0]
-        last_xx = edge_list_1[int(edge_points - 1),1]
-        other_points = np.reshape(point_list[~truth_list],(int(no_points-edge_points),2))
-        dist_vals = (((other_points[:,0] - last_yy) ** 2) + ((other_points[:,1] - last_xx) ** 2)) ** 0.5
+        last_yy = edge_list_1[int(edge_points - 1), 0]
+        last_xx = edge_list_1[int(edge_points - 1), 1]
+        other_points = np.reshape(
+            point_list[~truth_list], (int(no_points - edge_points), 2)
+        )
+        dist_vals = (
+            ((other_points[:, 0] - last_yy) ** 2)
+            + ((other_points[:, 1] - last_xx) ** 2)
+        ) ** 0.5
         min_dist = np.amin(dist_vals)
-        if (min_dist < edge_distance):
-            n_yy = other_points[dist_vals == min_dist,0][0]
-            n_xx = other_points[dist_vals == min_dist,1][0]
-            point_number = points[(point_list[:,0] == n_yy) & (point_list[:,1] == n_xx)][0]
-            edge_list_1[int(edge_points),0:2] = np.asarray((n_yy,n_xx))
-            truth_list[int(point_number),0:2] = True
-            edge_points = edge_points + 1.
-    list_1 = np.reshape(point_list[truth_list],(int(edge_points),2))
-    list_2 = np.reshape(point_list[~truth_list],(int(no_points-edge_points),2))
+        if min_dist < edge_distance:
+            n_yy = other_points[dist_vals == min_dist, 0][0]
+            n_xx = other_points[dist_vals == min_dist, 1][0]
+            point_number = points[
+                (point_list[:, 0] == n_yy) & (point_list[:, 1] == n_xx)
+            ][0]
+            edge_list_1[int(edge_points), 0:2] = np.asarray((n_yy, n_xx))
+            truth_list[int(point_number), 0:2] = True
+            edge_points = edge_points + 1.0
+    list_1 = np.reshape(point_list[truth_list], (int(edge_points), 2))
+    list_2 = np.reshape(point_list[~truth_list], (int(no_points - edge_points), 2))
     edge1 = np.zeros_like(edge_map)
-    edge1[list_1[:,0],list_1[:,1]] = 1
+    edge1[list_1[:, 0], list_1[:, 1]] = 1
     edge2 = np.zeros_like(edge_map)
-    edge2[list_2[:,0],list_2[:,1]] = 1
+    edge2[list_2[:, 0], list_2[:, 1]] = 1
     edge1_sum = np.sum(edge1)
     edge2_sum = np.sum(edge2)
-    if (edge1_sum > edge2_sum):
+    if edge1_sum > edge2_sum:
         outer_edge = np.copy(edge1)
         inner_edge = np.copy(edge2)
     else:
         outer_edge = np.copy(edge2)
         inner_edge = np.copy(edge1)
-    return outer_edge,inner_edge
+    return outer_edge, inner_edge
+
 
 @numba.jit
-def get_inside(edges,
-               cutoff=0.95):
-    big_size = (2.5*np.asarray(edges.shape)).astype(int)
-    starter = (0.5*(big_size - np.asarray(edges.shape))).astype(int)
+def get_inside(edges, cutoff=0.95):
+    big_size = (2.5 * np.asarray(edges.shape)).astype(int)
+    starter = (0.5 * (big_size - np.asarray(edges.shape))).astype(int)
     bigger_aa = np.zeros(big_size)
-    bigger_aa[starter[0]:starter[0]+edges.shape[0],starter[1]:starter[1]+edges.shape[1]] = edges
+    bigger_aa[
+        starter[0] : starter[0] + edges.shape[0],
+        starter[1] : starter[1] + edges.shape[1],
+    ] = edges
     aa1 = bigger_aa.astype(bool)
     aa2 = (np.fliplr(bigger_aa)).astype(bool)
-    yy, xx = np.mgrid[0:big_size[0],0:big_size[1]]
-    positions = np.zeros((bigger_aa.size,2),dtype=int)
-    positions[:,0] = np.ravel(yy)
-    positions[:,1] = np.ravel(xx)
+    yy, xx = np.mgrid[0 : big_size[0], 0 : big_size[1]]
+    positions = np.zeros((bigger_aa.size, 2), dtype=int)
+    positions[:, 0] = np.ravel(yy)
+    positions[:, 1] = np.ravel(xx)
     yy_aa1 = yy[aa1]
     xx_aa1 = xx[aa1]
     yy_aa2 = yy[aa2]
     xx_aa2 = xx[aa2]
-    ang_range1 = np.zeros_like(yy,dtype=np.float)
-    ang_range2 = np.zeros_like(yy,dtype=np.float)
+    ang_range1 = np.zeros_like(yy, dtype=np.float)
+    ang_range2 = np.zeros_like(yy, dtype=np.float)
     for ii in numba.prange(len(positions)):
-        angles1 = (180/np.pi)*np.arctan2(yy_aa1 - positions[ii,0],xx_aa1 - positions[ii,1])
-        ang_range1[positions[ii,0],positions[ii,1]] = np.amax(angles1) - np.amin(angles1)
+        angles1 = (180 / np.pi) * np.arctan2(
+            yy_aa1 - positions[ii, 0], xx_aa1 - positions[ii, 1]
+        )
+        ang_range1[positions[ii, 0], positions[ii, 1]] = np.amax(angles1) - np.amin(
+            angles1
+        )
     for jj in numba.prange(len(positions)):
-        angles2 = (180/np.pi)*np.arctan2(yy_aa2 - positions[jj,0],xx_aa2 - positions[jj,1])
-        ang_range2[positions[jj,0],positions[jj,1]] = np.amax(angles2) - np.amin(angles2)
+        angles2 = (180 / np.pi) * np.arctan2(
+            yy_aa2 - positions[jj, 0], xx_aa2 - positions[jj, 1]
+        )
+        ang_range2[positions[jj, 0], positions[jj, 1]] = np.amax(angles2) - np.amin(
+            angles2
+        )
     ang_range2 = np.fliplr(ang_range2)
-    ang_range = np.logical_and(ang_range1 > cutoff*np.amax(ang_range1),ang_range2 > cutoff*np.amax(ang_range2))
-    real_ang_range = np.zeros_like(edges,dtype=bool)
-    real_ang_range = ang_range[starter[0]:starter[0]+edges.shape[0],starter[1]:starter[1]+edges.shape[1]]
+    ang_range = np.logical_and(
+        ang_range1 > cutoff * np.amax(ang_range1),
+        ang_range2 > cutoff * np.amax(ang_range2),
+    )
+    real_ang_range = np.zeros_like(edges, dtype=bool)
+    real_ang_range = ang_range[
+        starter[0] : starter[0] + edges.shape[0],
+        starter[1] : starter[1] + edges.shape[1],
+    ]
     return real_ang_range
 
-def sobel_filter(image,
-                 med_filter=50):
-    ls_image,_ = st.util.sobel(st.util.image_logarizer(image))
-    ls_image[ls_image > (med_filter*np.median(ls_image))] = med_filter*np.median(ls_image)
-    ls_image[ls_image < (np.median(ls_image)/med_filter)] = np.median(ls_image)/med_filter
+
+def sobel_filter(image, med_filter=50):
+    ls_image, _ = st.util.sobel(st.util.image_logarizer(image))
+    ls_image[ls_image > (med_filter * np.median(ls_image))] = med_filter * np.median(
+        ls_image
+    )
+    ls_image[ls_image < (np.median(ls_image) / med_filter)] = (
+        np.median(ls_image) / med_filter
+    )
     return ls_image
 
+
 @numba.jit
-def strain4D_general(data4D,
-                     disk_radius,
-                     ROI=0,
-                     disk_center=np.nan,
-                     rotangle=0,
-                     med_factor=30,
-                     gauss_val=3,
-                     hybrid_cc=0.2):
+def strain4D_general(
+    data4D,
+    disk_radius,
+    ROI=0,
+    disk_center=np.nan,
+    rotangle=0,
+    med_factor=30,
+    gauss_val=3,
+    hybrid_cc=0.2,
+):
     """
     Get strain from a ROI without the need for
     specifying Miller indices of diffraction spots
@@ -933,69 +1015,91 @@ def strain4D_general(data4D,
     higher order disk locations for the median pattern to generate strain maps.
     """
     rotangle = np.deg2rad(rotangle)
-    rotmatrix = np.asarray(((np.cos(rotangle),-np.sin(rotangle)),
-                            (np.sin(rotangle),np.cos(rotangle))))
-    diff_y, diff_x = np.mgrid[0:data4D.shape[0],0:data4D.shape[1]]
+    rotmatrix = np.asarray(
+        ((np.cos(rotangle), -np.sin(rotangle)), (np.sin(rotangle), np.cos(rotangle)))
+    )
+    diff_y, diff_x = np.mgrid[0 : data4D.shape[0], 0 : data4D.shape[1]]
     if np.isnan(np.mean(disk_center)):
-        disk_center = np.asarray(np.shape(diff_y))/2
+        disk_center = np.asarray(np.shape(diff_y)) / 2
     else:
         disk_center = np.asarray(disk_center)
-    e_xx_map = np.nan*np.ones((data4D.shape[2],data4D.shape[3]))
-    e_xy_map = np.nan*np.ones((data4D.shape[2],data4D.shape[3]))
-    e_th_map = np.nan*np.ones((data4D.shape[2],data4D.shape[3]))
-    e_yy_map = np.nan*np.ones((data4D.shape[2],data4D.shape[3]))
-    radiating = ((diff_y -disk_center[0])**2) + ((diff_x - disk_center[1])**2)
+    e_xx_map = np.nan * np.ones((data4D.shape[2], data4D.shape[3]))
+    e_xy_map = np.nan * np.ones((data4D.shape[2], data4D.shape[3]))
+    e_th_map = np.nan * np.ones((data4D.shape[2], data4D.shape[3]))
+    e_yy_map = np.nan * np.ones((data4D.shape[2], data4D.shape[3]))
+    radiating = ((diff_y - disk_center[0]) ** 2) + ((diff_x - disk_center[1]) ** 2)
     disk = np.zeros_like(radiating)
-    disk[radiating < (disk_radius**2)] = 1
-    sobel_disk,_ = st.util.sobel(disk)
-    if (np.sum(ROI)==0):
-        imROI = np.ones_like(e_xx_map,dtype=bool)
+    disk[radiating < (disk_radius ** 2)] = 1
+    sobel_disk, _ = st.util.sobel(disk)
+    if np.sum(ROI) == 0:
+        imROI = np.ones_like(e_xx_map, dtype=bool)
     else:
         imROI = ROI
-    ROI_4D = data4D[:,:,imROI]
+    ROI_4D = data4D[:, :, imROI]
     no_of_disks = ROI_4D.shape[-1]
-    LSB_ROI = np.zeros_like(ROI_4D,dtype=np.float)
+    LSB_ROI = np.zeros_like(ROI_4D, dtype=np.float)
     for ii in range(no_of_disks):
-        cbed = ROI_4D[:,:,ii]
-        cbed = 1000*(1 + st.util.image_normalizer(cbed))
-        lsb_cbed,_ = st.util.sobel(scnd.gaussian_filter(st.util.image_logarizer(cbed),gauss_val))
-        lsb_cbed[lsb_cbed > med_factor*np.median(lsb_cbed)] = np.median(lsb_cbed)*med_factor
-        lsb_cbed[lsb_cbed < np.median(lsb_cbed)/med_factor] = np.median(lsb_cbed)/med_factor
-        LSB_ROI[:,:,ii] = lsb_cbed
-    Mean_LSB = np.median(LSB_ROI,axis=(-1))
-    LSB_CC = st.util.cross_corr(Mean_LSB,sobel_disk,hybrid_cc)
-    data_peaks = skfeat.peak_local_max(LSB_CC,min_distance=int(2*disk_radius),indices=False)
+        cbed = ROI_4D[:, :, ii]
+        cbed = 1000 * (1 + st.util.image_normalizer(cbed))
+        lsb_cbed, _ = st.util.sobel(
+            scnd.gaussian_filter(st.util.image_logarizer(cbed), gauss_val)
+        )
+        lsb_cbed[lsb_cbed > med_factor * np.median(lsb_cbed)] = (
+            np.median(lsb_cbed) * med_factor
+        )
+        lsb_cbed[lsb_cbed < np.median(lsb_cbed) / med_factor] = (
+            np.median(lsb_cbed) / med_factor
+        )
+        LSB_ROI[:, :, ii] = lsb_cbed
+    Mean_LSB = np.median(LSB_ROI, axis=(-1))
+    LSB_CC = st.util.cross_corr(Mean_LSB, sobel_disk, hybrid_cc)
+    data_peaks = skfeat.peak_local_max(
+        LSB_CC, min_distance=int(2 * disk_radius), indices=False
+    )
     peak_labels = scnd.measurements.label(data_peaks)[0]
-    merged_peaks = np.asarray(scnd.measurements.center_of_mass(data_peaks, peak_labels, range(1, np.max(peak_labels)+1)))
-    fitted_mean = np.zeros_like(merged_peaks,dtype=np.float64)
-    fitted_scan = np.zeros_like(merged_peaks,dtype=np.float64)
+    merged_peaks = np.asarray(
+        scnd.measurements.center_of_mass(
+            data_peaks, peak_labels, range(1, np.max(peak_labels) + 1)
+        )
+    )
+    fitted_mean = np.zeros_like(merged_peaks, dtype=np.float64)
+    fitted_scan = np.zeros_like(merged_peaks, dtype=np.float64)
     for jj in range(merged_peaks.shape[0]):
-        par = st.util.fit_gaussian2D_mask(LSB_CC,merged_peaks[jj,1],merged_peaks[jj,0],disk_radius)
-        fitted_mean[jj,0:2] = np.flip(par[0:2])
-    distarr = (np.sum(((fitted_mean - np.asarray(LSB_CC.shape)/2)**2),axis=1))**0.5
-    peaks_mean = fitted_mean[distarr != np.amin(distarr),:] - fitted_mean[distarr == np.amin(distarr),:]
-    list_pos = np.zeros((int(np.sum(imROI)),peaks_mean.shape[0], peaks_mean.shape[1]))
+        par = st.util.fit_gaussian2D_mask(
+            LSB_CC, merged_peaks[jj, 1], merged_peaks[jj, 0], disk_radius
+        )
+        fitted_mean[jj, 0:2] = np.flip(par[0:2])
+    distarr = (
+        np.sum(((fitted_mean - np.asarray(LSB_CC.shape) / 2) ** 2), axis=1)
+    ) ** 0.5
+    peaks_mean = (
+        fitted_mean[distarr != np.amin(distarr), :]
+        - fitted_mean[distarr == np.amin(distarr), :]
+    )
+    list_pos = np.zeros((int(np.sum(imROI)), peaks_mean.shape[0], peaks_mean.shape[1]))
     exx_ROI = np.ones(no_of_disks, dtype=np.float64)
     exy_ROI = np.ones(no_of_disks, dtype=np.float64)
     eth_ROI = np.ones(no_of_disks, dtype=np.float64)
     eyy_ROI = np.ones(no_of_disks, dtype=np.float64)
     for kk in range(no_of_disks):
-        scan_LSB = LSB_ROI[:,:,kk]
-        scan_CC = st.util.cross_corr(scan_LSB,sobel_disk,hybrid_cc)
+        scan_LSB = LSB_ROI[:, :, kk]
+        scan_CC = st.util.cross_corr(scan_LSB, sobel_disk, hybrid_cc)
         for qq in range(merged_peaks.shape[0]):
-            scan_par = st.util.fit_gaussian2D_mask(scan_CC, 
-                                                   fitted_mean[qq, 1], 
-                                                   fitted_mean[qq, 0], 
-                                                   disk_radius)
+            scan_par = st.util.fit_gaussian2D_mask(
+                scan_CC, fitted_mean[qq, 1], fitted_mean[qq, 0], disk_radius
+            )
             fitted_scan[qq, 0:2] = np.flip(scan_par[0:2])
-        peaks_scan = fitted_scan[distarr != np.amin(distarr), :] - fitted_scan[distarr == np.amin(distarr), :]
-        list_pos[kk, :, :] = peaks_scan         
-        scan_strain, _, _, _ = np.linalg.lstsq(peaks_mean, peaks_scan,rcond=None)
+        peaks_scan = (
+            fitted_scan[distarr != np.amin(distarr), :]
+            - fitted_scan[distarr == np.amin(distarr), :]
+        )
+        list_pos[kk, :, :] = peaks_scan
+        scan_strain, _, _, _ = np.linalg.lstsq(peaks_mean, peaks_scan, rcond=None)
         scan_strain = np.matmul(scan_strain, rotmatrix)
         scan_strain = scan_strain - np.eye(2)
         exx_ROI[kk] = scan_strain[0, 0]
-        exy_ROI[kk] = (scan_strain[0, 1] + scan_strain[1, 0])/2
-        eth_ROI[kk] = (scan_strain[0, 1] - scan_strain[1, 0])/2
+        exy_ROI[kk] = (scan_strain[0, 1] + scan_strain[1, 0]) / 2
+        eth_ROI[kk] = (scan_strain[0, 1] - scan_strain[1, 0]) / 2
         eyy_ROI[kk] = scan_strain[1, 1]
     e_xx_map[imROI] = exx_ROI
     e_xx_map[np.isnan(e_xx_map)] = 0
