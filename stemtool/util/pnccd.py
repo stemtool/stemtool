@@ -479,46 +479,31 @@ def get_data_ref(data_dir):
 
 
 @numba.jit(cache=True, parallel=True)
-def reconstruct_im(data_3D, dark_ref, numba_init=20):
+def reconstruct_im(data_3D, dark_ref):
     data_3D = data_3D.astype(np.float)
     data_shape = data_3D.shape
-    md_ref = np.mean(dark_ref.astype(np.float), axis=-1)
-    dref = np.empty(
-        (int(data_shape[0] * 0.5), int(data_shape[1] * 2)), dtype=data_3D.dtype
-    )
-    dref[:, 0 : md_ref.shape[1]] = md_ref[0 : dref.shape[0], :]
-    dref[:, md_ref.shape[1] : dref.shape[1]] = np.flipud(
-        np.fliplr(md_ref[dref.shape[0] : md_ref.shape[0], :])
-    )
-
-    im_raw = np.empty((data_shape[0], data_shape[1]), dtype=data_3D.dtype)
-    im_con = np.empty(
-        (int(data_shape[0] * 0.5), int(data_shape[1] * 2)), dtype=data_3D.dtype
-    )
-
-    xyvals = data_3D.shape[2]
-    xvals = int(xyvals ** 0.5)
-    yV, xV = np.mgrid[0:xvals, 0:xvals]
-    yV = np.ravel(yV)
-    xV = np.ravel(xV)
-    data_4D = np.empty(
-        (int(data_3D.shape[0] * 0.5), int(data_3D.shape[1] * 2), xvals, xvals),
-        dtype=data_3D.dtype,
-    )
-    for ii in numba.prange(xyvals):
-        im_raw = data_3D[:, :, ii]
-        im_con[:, 0 : im_raw.shape[1]] = im_raw[0 : im_con.shape[0], :]
-        im_con[:, im_raw.shape[1] : im_con.shape[1]] = np.flipud(
-            np.fliplr(im_raw[im_con.shape[0] : im_raw.shape[0], :])
-        )
-        data_4D[:, :, yV[ii], xV[ii]] = im_con - dref
+    mean_dark_ref = np.mean(dark_ref.astype(np.float), axis=-1)
+    im_raw = np.zeros(data_shape[0:2], dtype=np.float)
+    con_shape = tuple((np.asarray(data_shape[0:2]) * np.asarray((0.5, 2))).astype(int))
+    im_con = np.zeros(con_shape, dtype=np.float)
+    data_copy = np.zeros((con_shape[0], con_shape[1], data_shape[-1]), dtype=np.float)
+    xvals = int(data_shape[-1] ** 0.5)
+    shape4d = (con_shape[0], con_shape[1], xvals, xvals)
+    for ii in range(data_shape[-1]):
+        im_raw = data_3D[:, :, ii] - mean_dark_ref
+        top_part = im_raw[0 : im_con.shape[0], :]
+        bot_part = im_raw[im_con.shape[0] : im_raw.shape[0], :]
+        im_con[:, 0 : im_raw.shape[1]] = bot_part
+        im_con[:, im_raw.shape[1] : im_con.shape[1]] = np.flipud(np.fliplr(top_part))
+        data_copy[:, :, ii] = im_con
+    data_4D = np.reshape(data_copy, shape4d)
     return data_4D
 
 
 @numba.jit(cache=True, parallel=True)
 def remove_dark_ref(data3D, dark_ref):
     data_fin = np.empty(data3D.shape, dtype=np.float)
-    dref = np.mean(dark_ref, axis=-1)
+    dref = np.mean(dark_ref.astype(np.float), axis=-1)
     data3D = data3D.astype(np.float)
     for ii in numba.prange(data3D.shape[-1]):
         data_fin[:, :, ii] = data3D[:, :, ii] - dref
