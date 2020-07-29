@@ -165,7 +165,7 @@ def g_matrix(g_vector, image):
     return G_r
 
 
-def phase_matrix(gvec, image, g_blur=True):
+def phase_matrix(gvec, image, circ_size=0, g_blur=True):
     """
     Use the g vector in Fourier coordinates
     to select only the subset of phases
@@ -174,12 +174,14 @@ def phase_matrix(gvec, image, g_blur=True):
     
     Parameters
     ----------
-    g_vec:  ndarray
-            Shape is (2, 1) which is the G
-            vector in Fourier space in inverse pixels
-    image:  ndarray
-            The image matrix
-    g_blur: bool, optional
+    g_vec:     ndarray
+               Shape is (2, 1) which is the G
+               vector in Fourier space in inverse pixels
+    image:     ndarray
+               The image matrix
+    circ_size: float, optional
+               Size of the circle in pixels
+    g_blur:    bool, optional
 
     Returns
     -------
@@ -203,7 +205,10 @@ def phase_matrix(gvec, image, g_blur=True):
     g_matrix
     """
     imshape = np.asarray(np.shape(image))
-    circ_rad = np.amin(0.01 * np.asarray(imshape))
+    if circ_size == 0:
+        circ_rad = np.amin(0.01 * np.asarray(imshape))
+    else:
+        circ_rad = circ_size
     yy, xx = np.mgrid[0 : imshape[0], 0 : imshape[1]]
     circ_pos = np.multiply(np.flip(gvec), imshape) + (0.5 * imshape)
     circ_mask = (
@@ -397,22 +402,24 @@ class GPA(object):
         plt.gca().add_artist(scalebar)
         plt.axis("off")
 
-    def find_spots(self, circ1, circ2, imsize=(10, 10)):
+    def find_spots(self, circ1, circ2, circ_size=15, imsize=(10, 10)):
         """
         Locate the diffraction spots visually.
 
         Parameters
         ----------
-        circ1:  ndarray
-                Position of the first beam in
-                the Fourier pattern
-        circ2:  ndarray
-                Position of the second beam in
-                the Fourier pattern
-        imsize: tuple, optional
-                Size in inches of the image with the 
-                diffraction spots marked. Default is 
-                (10, 10)
+        circ1:     ndarray
+                   Position of the first beam in
+                   the Fourier pattern
+        circ2:     ndarray
+                   Position of the second beam in
+                   the Fourier pattern
+        circ_size: float
+                   Size of the circle in pixels
+        imsize:    tuple, optional
+                   Size in inches of the image with the 
+                   diffraction spots marked. Default is 
+                   (10, 10)
 
         Notes
         -----
@@ -430,6 +437,7 @@ class GPA(object):
         """
         self.circ_1 = (self.imshape / 2) + (np.asarray(circ1) / self.inv_calib)
         self.circ_2 = (self.imshape / 2) + (np.asarray(circ2) / self.inv_calib)
+        self.circ_size = circ_size
         self.ham = np.sqrt(
             np.outer(np.hamming(self.imshape[0]), np.hamming(self.imshape[1]))
         )
@@ -447,9 +455,9 @@ class GPA(object):
         x_labels = np.round(pixel_list[::step_x], 1)
 
         _, ax = plt.subplots(figsize=imsize)
-        circ_0_im = plt.Circle(self.circ_0, 15, color="red", alpha=0.75)
-        circ_1_im = plt.Circle(self.circ_1, 15, color="blue", alpha=0.75)
-        circ_2_im = plt.Circle(self.circ_2, 15, color="green", alpha=0.75)
+        circ_0_im = plt.Circle(self.circ_0, self.circ_size, color="red", alpha=0.75)
+        circ_1_im = plt.Circle(self.circ_1, self.circ_size, color="blue", alpha=0.75)
+        circ_2_im = plt.Circle(self.circ_2, self.circ_size, color="green", alpha=0.75)
         ax.imshow(log_abs_ft, cmap="gray")
         ax.add_artist(circ_0_im)
         ax.add_artist(circ_1_im)
@@ -461,8 +469,12 @@ class GPA(object):
 
         self.gvec_1_ini = st.gpa.circ_to_G(self.circ_1, self.image)
         self.gvec_2_ini = st.gpa.circ_to_G(self.circ_2, self.image)
-        self.P_matrix1_ini = st.gpa.phase_matrix(self.gvec_1_ini, self.image, self.blur)
-        self.P_matrix2_ini = st.gpa.phase_matrix(self.gvec_2_ini, self.image, self.blur)
+        self.P_matrix1_ini = st.gpa.phase_matrix(
+            self.gvec_1_ini, self.image, self.circ_size, self.blur
+        )
+        self.P_matrix2_ini = st.gpa.phase_matrix(
+            self.gvec_2_ini, self.image, self.circ_size, self.blur
+        )
         self.spots_check = True
 
     def define_reference(self, A_pt, B_pt, C_pt, D_pt, imsize=(10, 10), tColor="k"):
@@ -645,10 +657,10 @@ class GPA(object):
             self.gvec_1_fin += del_g1
             self.gvec_2_fin += del_g2
             self.P_matrix1_fin = st.gpa.phase_matrix(
-                self.gvec_1_fin, self.image, self.blur
+                self.gvec_1_fin, self.image, self.circ_size, self.blur
             )
             self.P_matrix2_fin = st.gpa.phase_matrix(
-                self.gvec_2_fin, self.image, self.blur
+                self.gvec_2_fin, self.image, self.circ_size, self.blur
             )
         self.refining_check = True
 
