@@ -5,6 +5,6 @@ Python based codes for analysis of 4D-STEM and aberration corrected vanilla STEM
 Cite as:
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3369427.svg)](https://doi.org/10.5281/zenodo.3369427)
 
-I recently gave an talk on STEMTool at 2020 M&M virtual conference. Watch the talk here to get an idea of STEMTool's capabilities:
+I recently gave a small talk on STEMTool at the 2020 M&M virtual conference. Watch the talk here to get an idea of STEMTool's capabilities:
 
 [![Watch the video](https://i.imgur.com/iBhmcTT.png)](https://youtu.be/qIaplVNAQ_k)
