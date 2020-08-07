@@ -47,7 +47,7 @@ MOCK_MODULES = [
     "pywt",
     "pywavelets", 
     "matplotlib.image", 
-    "matplotlib"
+    "matplotlib",
     "matplotlib.colors",
     "matplotlib.gridspec",
     "matplotlib.cm",
