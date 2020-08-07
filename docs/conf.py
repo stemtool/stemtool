@@ -37,7 +37,6 @@ MOCK_MODULES = [
     "matplotlib.axes",
     "numba",
     "imagecodecs",
-    "matplotlib",
     "scipy.optimize",
     "scipy.ndimage",
     "matplotlib.pyplot",
@@ -45,7 +44,9 @@ MOCK_MODULES = [
     "scipy.interpolate",
     "skimage.feature",
     "pywt",
-    "pywavelets",
+    "pywavelets", 
+    "matplotlib.image", 
+    "matplotlib"
     "matplotlib.colors",
     "matplotlib.gridspec",
     "matplotlib.cm",
