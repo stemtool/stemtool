@@ -11,6 +11,14 @@ stemtool.afit.atom\_positions module
    :members:
    :undoc-members:
    :show-inheritance:
+   
+stemtool.afit.drift\_corr module
+------------------------------------
+
+.. automodule:: stemtool.afit.atom_positions
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 
 Module contents
