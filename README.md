@@ -7,4 +7,4 @@ Cite as:
 
 I recently gave an talk on STEMTool at 2020 M&M virtual conference. 
 
-[![Watch the video](https://img.youtube.com/vi/qIaplVNAQ_k/hqdefault.jpg)](https://youtu.be/qIaplVNAQ_k)
+[![Watch the video](https://imgur.com/a/ZnZ4CT6)](https://youtu.be/qIaplVNAQ_k)
