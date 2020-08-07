@@ -25,6 +25,7 @@ class Mock(MagicMock):
 MOCK_MODULES = [
     "pygtk",
     "gtk",
+    "cv2", 
     "gobject",
     "argparse",
     "numpy",
