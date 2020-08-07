@@ -61,7 +61,7 @@ MOCK_MODULES = [
     "matplotlib.gridspec", 
     "matplotlib_scalebar", 
     "matplotlib_scalebar.scalebar", 
-    "numpy.core.multiarray"
+    "numpy.core.multiarray",
 ]
 
 for mod_name in MOCK_MODULES:
