@@ -23,7 +23,8 @@ class Mock(MagicMock):
 
 
 MOCK_MODULES = [
-    "pygtk",
+    "pygtk", 
+    "h5py", 
     "gtk", 
     "ase", 
     "cv2", 
