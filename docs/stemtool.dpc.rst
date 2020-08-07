@@ -11,6 +11,14 @@ stemtool.dpc.atomic\_dpc module
    :members:
    :undoc-members:
    :show-inheritance:
+   
+stemtool.dpc.dpc\_utils module
+-------------------------------
+
+.. automodule:: stemtool.dpc.atomic_dpc
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 stemtool.dpc.nbed\_dpc module
 -----------------------------
