@@ -1,4 +1,5 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Documentation Status](https://readthedocs.org/projects/stemtool/badge/?version=latest)](https://stemtool.readthedocs.io/en/latest/?badge=latest)
 
 Python based codes for analysis of 4D-STEM and aberration corrected vanilla STEM datasets. 
 
