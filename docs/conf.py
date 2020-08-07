@@ -57,7 +57,9 @@ MOCK_MODULES = [
     "scipy.interpolate",
     "skimage.restoration",
     "scipy.special",
-    "matplotlib.gridspec",
+    "matplotlib.gridspec", 
+    "matplotlib_scalebar", 
+    "matplotlib_scalebar.scalebar"
 ]
 
 for mod_name in MOCK_MODULES:
