@@ -1,7 +1,6 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Documentation Status](https://readthedocs.org/projects/stemtool/badge/?version=latest)](https://stemtool.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/stemtool.svg)](https://badge.fury.io/py/stemtool)
-[![Github Downloads (total)](https://img.shields.io/github/downloads/stemtool/stemtool/total.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Python based codes for analysis of 4D-STEM and aberration corrected vanilla STEM datasets. 
