@@ -8,3 +8,4 @@ pyfftw
 numba
 pywavelets
 matplotlib-scalebar
+pillow
