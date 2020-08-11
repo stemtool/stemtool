@@ -1,2 +1,7 @@
 numpydoc
 matplotlib
+ase
+h5py
+scipy
+scikit-image
+pyfftw
