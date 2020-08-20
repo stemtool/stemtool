@@ -23,11 +23,11 @@ class Mock(MagicMock):
 
 
 MOCK_MODULES = [
-    "pygtk", 
-    "h5py", 
-    "gtk", 
-    "ase", 
-    "cv2", 
+    "pygtk",
+    "h5py",
+    "gtk",
+    "ase",
+    "cv2",
     "gobject",
     "argparse",
     "numpy",
@@ -47,8 +47,8 @@ MOCK_MODULES = [
     "scipy.interpolate",
     "skimage.feature",
     "pywt",
-    "pywavelets", 
-    "matplotlib.image", 
+    "pywavelets",
+    "matplotlib.image",
     "matplotlib",
     "matplotlib.colors",
     "matplotlib.gridspec",
@@ -61,10 +61,10 @@ MOCK_MODULES = [
     "scipy.interpolate",
     "skimage.restoration",
     "scipy.special",
-    "matplotlib.gridspec", 
-    "matplotlib_scalebar", 
-    "matplotlib_scalebar.scalebar", 
-    "numpy.core.multiarray", 
+    "matplotlib.gridspec",
+    "matplotlib_scalebar",
+    "matplotlib_scalebar.scalebar",
+    "numpy.core.multiarray",
     "matplotlib.offsetbox",
 ]
 

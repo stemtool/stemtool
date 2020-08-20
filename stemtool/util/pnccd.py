@@ -431,6 +431,7 @@ def getDataSize(filename, path="/stream"):
 
     return f[path].shape
 
+
 def get_data_ref(data_dir):
     current_dir = os.getcwd()
     os.chdir(data_dir)
@@ -476,6 +477,7 @@ def get_data_ref(data_dir):
             )
     os.chdir(current_dir)
     return data_3D, dark_ref
+
 
 @numba.jit(cache=True, parallel=True)
 def reconstruct_im(data_3D, dark_ref):
