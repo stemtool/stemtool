@@ -431,14 +431,15 @@ def getDataSize(filename, path="/stream"):
 
     return f[path].shape
 
-
 def get_data_ref(data_dir):
+    current_dir = os.getcwd()
     os.chdir(data_dir)
     data_class = st.util.Frms6Reader()
     tot_files = 0
     for file in glob.glob("*.frms6"):
         tot_files += 1
-    filesizes = np.empty((tot_files, 4), dtype=int)
+    filesizes = np.zeros((tot_files, 4), dtype=int)
+    filenames = np.zeros(tot_files, dtype=object)
 
     ii = 0
     for file in glob.glob("*.frms6"):
@@ -446,20 +447,19 @@ def get_data_ref(data_dir):
         dshape = np.asarray(data_class.getDataShape(fname), dtype=int)
         filesizes[ii, 0:3] = dshape
         filesizes[ii, -1] = fname[-7]
+        filenames[ii] = fname
         ii += 1
 
     dref_shape = filesizes[filesizes[:, -1] == 0, 0:3][0]
     data_shape = np.copy(dref_shape)
     data_shape[-1] = (np.sum(filesizes[:, -2]) - np.amin(filesizes[:, -2])).astype(int)
-    data_3D = np.empty(data_shape)
+    data_3D = np.zeros(data_shape)
     draw_shape = (np.mean(filesizes[filesizes[:, -1] != 0, 0:3], axis=0)).astype(int)
 
-    ii = 0
-    for file in glob.glob("*.frms6"):
-        fname = data_dir + file
+    for ii in np.arange(tot_files):
         if filesizes[ii, -1] == 0:
             dark_ref = data_class.readData(
-                fname,
+                filenames[ii],
                 image_range=(0, dref_shape[-1]),
                 pixels_x=dref_shape[0],
                 pixels_y=dref_shape[1],
@@ -469,14 +469,13 @@ def get_data_ref(data_dir):
             start_fill = int((frms6_num - 1) * draw_shape[-1])
             stop_fill = int(frms6_num * draw_shape[-1])
             data_3D[:, :, start_fill:stop_fill] = data_class.readData(
-                fname,
+                filenames[ii],
                 image_range=(0, draw_shape[-1]),
                 pixels_x=draw_shape[0],
                 pixels_y=draw_shape[1],
             )
-            ii += 1
+    os.chdir(current_dir)
     return data_3D, dark_ref
-
 
 @numba.jit(cache=True, parallel=True)
 def reconstruct_im(data_3D, dark_ref):
