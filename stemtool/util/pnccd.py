@@ -509,3 +509,10 @@ def remove_dark_ref(data3D, dark_ref):
     for ii in numba.prange(data3D.shape[-1]):
         data_fin[:, :, ii] = data3D[:, :, ii] - dref
     return data_fin
+
+
+def generate4D_frms6(data_dir, numba_init=900):
+    data_3D, dark_ref = st.util.get_data_ref(data_dir)
+    temp4D = st.util.reconstruct_im(data_3D[:, :, 0 : int(numba_int)], dark_ref)
+    data_4D = st.util.reconstruct_im(data_3D, dark_ref)
+    return data_4D
