@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3780732.svg)](https://doi.org/10.5281/zenodo.3780732)
 
-[STEMTool is now a part of the Pycroscopy ecosystem](https://github.com/pycroscopy/stemtool). Issues will be only tracked from that repo. 
+[**STEMTool is now a part of the Pycroscopy ecosystem**](https://github.com/pycroscopy/stemtool). Issues will be only tracked from that repo. 
 
 Python based codes for analysis of 4D-STEM and aberration corrected vanilla STEM datasets. 
 
