@@ -1169,8 +1169,9 @@ def bin_scan(data4D, bin_factor):
             stopper_ii = int(bin_factor[2] * (ii + 1))
             starter_jj = int(bin_factor[3] * jj)
             stopper_jj = int(bin_factor[3] * (jj + 1))
-            binned_4D[:, :, ii : (ii + 1), jj : (jj + 1)] = np.sum(
+            summed_cbed = np.sum(
                 big4D[:, :, starter_ii:stopper_ii, starter_jj:stopper_jj], axis=(-1, -2)
             )
+            binned_4D[:, :, ii, jj] = summed_cbed
     binned_4D = binned_4D / (bin_factor[2] * bin_factor[3])
     return binned_4D
