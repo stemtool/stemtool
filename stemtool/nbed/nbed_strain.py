@@ -1170,7 +1170,7 @@ def bin_scan(data4D, bin_factor):
             starter_jj = int(bin_factor[3] * jj)
             stopper_jj = int(bin_factor[3] * (jj + 1))
             binned_4D[:, :, ii : (ii + 1), jj : (jj + 1)] = np.sum(
-                big4D[:, :, starter_ii:stopper_ii, starter_jj:stopper_jj]
+                big4D[:, :, starter_ii:stopper_ii, starter_jj:stopper_jj], axis=(-1, -2)
             )
     binned_4D = binned_4D / (bin_factor[2] * bin_factor[3])
     return binned_4D
