@@ -1114,3 +1114,63 @@ def strain4D_general(
     e_yy_map[np.isnan(e_yy_map)] = 0
     e_yy_map = scnd.gaussian_filter(e_yy_map, 1)
     return e_xx_map, e_xy_map, e_th_map, e_yy_map, list_pos
+
+
+def bin_scan(data4D, bin_factor):
+    """
+    Bin the data in the scan dimensions
+     
+    Parameters
+    ----------
+    data4D:     ndarray
+                This is a 4D dataset where the first two dimensions
+                are the dffraction dimensions and the next two 
+                dimensions are the scan dimensions
+    bin_factor: int or tuple
+                Binning factor for scan dimensions
+    
+    Returns
+    -------
+    binned_4D: ndarray
+               The data binned in the scanned dimensions.
+     
+    Notes
+    -----
+    You can specify the bin factor to be either an integer or
+    a tuple. If you specify an integer the same binning will 
+    be used in both the scan X and scan Y dimensions, while if
+    you specify a tuple then different binning factors for each 
+    dimensions.
+    
+    Examples
+    --------
+    Run as:
+    
+    >>> binned_4D = bin_scan(data4D, 4)
+    
+    This will bin the scan dimensions by 4. This is functionally
+    identical to:
+    
+    >>> binned_4D = bin_scan(data4D, (4, 4))
+    """
+    bin_factor = np.array(bin_factor, ndmin=1)
+    bf = np.copy(bin_factor)
+    bin_factor = np.ones(4)
+    bin_factor[2:4] = bf
+    ini_shape = np.asarray(data4D.shape)
+    fin_shape = (np.ceil(ini_shape / bin_factor)).astype(int)
+    big_shape = (fin_shape * bin_factor).astype(int)
+    binned_4D = np.zeros(fin_shape[0:4], dtype=data4D.dtype)
+    big4D = np.zeros(big_shape[0:4], dtype=data4D.dtype)
+    big4D[:, :, 0 : ini_shape[2], 0 : ini_shape[3]] = data4D
+    for ii in range(fin_shape[2]):
+        for jj in range(fin_shape[3]):
+            starter_ii = int(bin_factor[2] * ii)
+            stopper_ii = int(bin_factor[2] * (ii + 1))
+            starter_jj = int(bin_factor[3] * jj)
+            stopper_jj = int(bin_factor[3] * (jj + 1))
+            binned_4D[:, :, ii : (ii + 1), jj : (jj + 1)] = np.sum(
+                big4D[:, :, starter_ii:stopper_ii, starter_jj:stopper_jj]
+            )
+    binned_4D = binned_4D / (bin_factor[2] * bin_factor[3])
+    return binned_4D
