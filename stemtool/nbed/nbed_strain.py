@@ -1174,4 +1174,4 @@ def bin_scan(data4D, bin_factor):
             )
             binned_4D[:, :, ii, jj] = summed_cbed
     binned_4D = binned_4D / (bin_factor[2] * bin_factor[3])
-    return binned_4D
+    return (binned_4D).astype(data4D.dtype)
