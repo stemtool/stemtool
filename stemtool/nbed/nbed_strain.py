@@ -1175,3 +1175,96 @@ def bin_scan(data4D, bin_factor):
             binned_4D[:, :, ii, jj] = summed_cbed
     binned_4D = binned_4D / (bin_factor[2] * bin_factor[3])
     return (binned_4D).astype(data4D.dtype)
+
+
+def cbed_filter(image, circ_vals, med_val=50, hybridizer=0.25, bit_depth=32):
+    """
+    Generate the filtered cross-correlated image for locating disk
+    positions
+     
+    Parameters
+    ----------
+    image:      ndarray
+                The image to be filtered
+    circ_vals:  tuple
+                Three valued tuple that holds the cross
+                correlating circle values where the first
+                position is the X position of the cnter, 
+                second value is the Y coordinate of the 
+                center and the third value is the circle radius.
+    med_val:    float, optional
+                Deviation from median value to accept in the 
+                Sobel filtered image. Default is 50
+    hybridizer: float, optional
+                The value to use for hybrid cross-correlation.
+                Default is 0.25. 0 gives pure cross correlation,
+                while 1 gives pure phase correlation
+    bit_depth:  int, optional
+                Maximum power of 2 to be used for scaling the image
+                when taking logarithms. Default is 32
+    
+    Returns
+    -------
+    slm_image: ndarray
+               The filtered image.
+               
+    lsc_image: ndarray
+               The filtered image cross-correlated with the circle edge
+     
+    Notes
+    -----
+    We first generate the circle centered at the X and Y co-ordinates, with 
+    the radius given inside the circ_vals tuple. This generated circle is 
+    the Sobel filtered to generate an edge of the circle.
+    
+    Often due to detector issues, or stray muons a single pixel may be 
+    much brighter. Also dead pixels can cause individual pixels to be 
+    much darker. To remove such errors, and values in the image, we take 
+    the median value of the image and then throw any values that are med_val 
+    times larger or med_val times smaller than the median. Then we normalize 
+    the image from 1 to the 2^bit_depth and then take the log of that image. 
+    This generates an image whose scale is between 0 and the bit_depth. To 
+    further decrease detector noise, this scaled image is then Gaussian filtered 
+    with a single pixel blur, and then finally Sobel filtered. This Sobel
+    filtered image is then cross-correlated with the Sobel filtered circle edge.
+    
+    If there are disks in the image whose size is close to the radius of the 
+    circle, then the locations of them now become 2D peaks. If the 
+    circle radius is however too small/large rather than 2D peaks at 
+    diffraction disk locations, we will observe circles.
+    
+    Examples
+    --------
+    This is extremely useful for locating NBED diffraction positions. If you know
+    the size and location of the central disk which you can obtain by running 
+    `st.util.sobel_circle` on the undiffracted CBED pattern on vacuum as:
+    
+    >>> beam_x, beam_y, beam_r = st.util.sobel_circle(nodiff_cbed)
+    
+    Then use the on the Mean_CBED to calculate the disk positions from:
+    
+    >>> slm_reference, lsc_reference = st.nbed.cbed_filter(Mean_CBED, (beam_x, beam_y, beam_r))
+    
+    """
+    # Generating the circle edge
+    center_disk = st.util.make_circle(
+        np.asarray(nodiff_cbed.shape), circ_vals[0], circ_vals[1], circ_vals[2]
+    )
+    sobel_center_disk, _ = st.util.sobel(center_disk)
+
+    # Throwing away stray pixel values
+    med_image[med_image > med_val * np.median(med_image)] = med_val * np.median(
+        med_image
+    )
+    med_image[med_image < np.median(med_image) / med_val] = (
+        np.median(med_image) / med_val
+    )
+
+    # Filtering the image
+    slm_image, _ = st.util.sobel(
+        scnd.gaussian_filter(st.util.image_logarizer(med_image, bit_depth), 1)
+    )
+
+    # Cross-correlating it
+    lsc_image = st.util.cross_corr(sobel_lm_cbed, sobel_center_disk, hybridizer)
+    return slm_image, lsc_image
