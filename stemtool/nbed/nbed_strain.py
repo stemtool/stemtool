@@ -1177,7 +1177,9 @@ def bin_scan(data4D, bin_factor):
     return (binned_4D).astype(data4D.dtype)
 
 
-def cbed_filter(image, circ_vals, med_val=50, hybridizer=0.25, bit_depth=32):
+def cbed_filter(
+    image, circ_vals, med_val=50, sec_med=True, hybridizer=0.25, bit_depth=32
+):
     """
     Generate the filtered cross-correlated image for locating disk
     positions
@@ -1195,6 +1197,9 @@ def cbed_filter(image, circ_vals, med_val=50, hybridizer=0.25, bit_depth=32):
     med_val:    float, optional
                 Deviation from median value to accept in the 
                 Sobel filtered image. Default is 50
+    sec_med:    bool, Optional
+                Tamps out deviation from median values in the
+                Sobel filtered image too if True
     hybridizer: float, optional
                 The value to use for hybrid cross-correlation.
                 Default is 0.25. 0 gives pure cross correlation,
@@ -1248,11 +1253,12 @@ def cbed_filter(image, circ_vals, med_val=50, hybridizer=0.25, bit_depth=32):
     """
     # Generating the circle edge
     center_disk = st.util.make_circle(
-        np.asarray(nodiff_cbed.shape), circ_vals[0], circ_vals[1], circ_vals[2]
+        np.asarray(image.shape), circ_vals[0], circ_vals[1], circ_vals[2]
     )
     sobel_center_disk, _ = st.util.sobel(center_disk)
 
     # Throwing away stray pixel values
+    med_image = np.copy(image)
     med_image[med_image > med_val * np.median(med_image)] = med_val * np.median(
         med_image
     )
@@ -1264,7 +1270,14 @@ def cbed_filter(image, circ_vals, med_val=50, hybridizer=0.25, bit_depth=32):
     slm_image, _ = st.util.sobel(
         scnd.gaussian_filter(st.util.image_logarizer(med_image, bit_depth), 1)
     )
+    if sec_med:
+        slm_image[slm_image > med_val * np.median(slm_image)] = med_val * np.median(
+            slm_image
+        )
+        slm_image[slm_image < np.median(slm_image) / med_val] = (
+            np.median(slm_image) / med_val
+        )
 
     # Cross-correlating it
-    lsc_image = st.util.cross_corr(sobel_lm_cbed, sobel_center_disk, hybridizer)
+    lsc_image = st.util.cross_corr(slm_image, sobel_center_disk, hybridizer)
     return slm_image, lsc_image
