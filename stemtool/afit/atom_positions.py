@@ -920,6 +920,7 @@ class atom_fit(object):
         self.imshape = np.asarray(image.shape)
         self.peaks_check = False
         self.refining_check = False
+        self.reference_check = False
 
     def show_image(self, gaussval=0, imsize=(15, 15), colormap="inferno"):
         """
