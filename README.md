@@ -3,6 +3,7 @@
 [![PyPI version](https://badge.fury.io/py/stemtool.svg)](https://badge.fury.io/py/stemtool)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3780732.svg)](https://doi.org/10.5281/zenodo.3780732)
+[![Downloads](https://pepy.tech/badge/stemtool)](https://pepy.tech/project/stemtool)
 
 [**STEMTool is now a part of the Pycroscopy ecosystem**](https://github.com/pycroscopy/stemtool). Issues will be only tracked from that repo. 
 
