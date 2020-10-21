@@ -1178,7 +1178,7 @@ def bin_scan(data4D, bin_factor):
 
 
 def cbed_filter(
-    image, circ_vals, med_val=50, sec_med=True, hybridizer=0.25, bit_depth=32
+    image, beam_rad, med_val=50, sec_med=True, hybridizer=0.25, bit_depth=32
 ):
     """
     Generate the filtered cross-correlated image for locating disk
@@ -1188,12 +1188,9 @@ def cbed_filter(
     ----------
     image:      ndarray
                 The image to be filtered
-    circ_vals:  tuple
-                Three valued tuple that holds the cross
-                correlating circle values where the first
-                position is the X position of the cnter, 
-                second value is the Y coordinate of the 
-                center and the third value is the circle radius.
+    beam_rad:   float
+                Radius of the circle. The circle used for 
+                cross-correlating is always centered at the image center. 
     med_val:    float, optional
                 Deviation from median value to accept in the 
                 Sobel filtered image. Default is 50
@@ -1241,19 +1238,15 @@ def cbed_filter(
     Examples
     --------
     This is extremely useful for locating NBED diffraction positions. If you know
-    the size and location of the central disk which you can obtain by running 
-    `st.util.sobel_circle` on the undiffracted CBED pattern on vacuum as:
+    the size and of the central disk you use the on the Mean_CBED to calculate the 
+    disk positions from:
     
-    >>> beam_x, beam_y, beam_r = st.util.sobel_circle(nodiff_cbed)
-    
-    Then use the on the Mean_CBED to calculate the disk positions from:
-    
-    >>> slm_reference, lsc_reference = st.nbed.cbed_filter(Mean_CBED, (beam_x, beam_y, beam_r))
+    >>> slm_reference, lsc_reference = st.nbed.cbed_filter(Mean_CBED, beam_r)
     
     """
     # Generating the circle edge
     center_disk = st.util.make_circle(
-        np.asarray(image.shape), circ_vals[0], circ_vals[1], circ_vals[2]
+        np.asarray(image.shape), image.shape[1] / 2, image.shape[0] / 2, beam_rad
     )
     sobel_center_disk, _ = st.util.sobel(center_disk)
 
@@ -1281,3 +1274,55 @@ def cbed_filter(
     # Cross-correlating it
     lsc_image = st.util.cross_corr(slm_image, sobel_center_disk, hybridizer)
     return slm_image, lsc_image
+
+
+def get_radius(cbed_image, ubound=0.2, tol=0.01):
+    """
+    Find the size of the central disk from diffraction 
+    patterns.
+
+    Parameters
+    ----------
+    cbed_image: ndarray
+                The CBED image to be used for calculating
+                the central convergence angle size from
+    ubound:     float, optional
+                The ratio of the size of the image to be used
+                as the upper bound for the radius size. Default
+                is 0.2. The lower bound is always 1 pixels
+    tol:        float, optional
+                The tolerance of the scipy.optimize fitting function
+                Default is 0.01
+    
+    Returns
+    -------
+    rad: float
+         The radius in pixels of the convergence aperture
+
+    Notes
+    -----
+    This is based on the idea that if a Sobel filtered CBED pattern
+    is cross-correlated with a circle edge, a sharp peak is obtained
+    only if the radius of that circle is the same as the radius in
+    pixels of the CBED pattern. If the circle is a lot smaller or larger,
+    then a donut like ring is formed at the center of the cross-correlated
+    pattern. If the radius is a bit off - then the peak is a bit diffuse.
+    Thus the correct radius in pixels will give the sharpest peak, which
+    is how we find the radius by using `scipy.optimize.minimize_scalar`
+
+    See Also
+    --------
+    cbed_filter
+    """
+    imshape = np.asarray(cbed_image.shape)
+    lb = 1
+    ub = ubound * np.amax(imshape)
+
+    def rad_func(radius):
+        _, test_corr = st.nbed.cbed_filter(cbed_image, radius)
+        rad_val = test_corr[int(test_corr.shape[0] / 2), int(test_corr.shape[1] / 2)]
+        return -rad_val
+
+    res = sio.minimize_scalar(rad_func, bounds=(lb, ub), tol=tol, method="brent")
+    rad = res.x
+    return rad
