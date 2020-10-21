@@ -11,42 +11,6 @@ import stemtool as st
 import warnings
 
 
-def angle_fun(
-    angle, image_orig, axis=0,
-):
-    """
-    Rotation Sum Finder
-    
-    Parameters
-    ----------
-    angle:      float 
-                Angle to rotate 
-    image_orig: (2,2) shape ndarray
-                Input Image
-    axis:       int, optional
-                Axis along which to perform sum
-                     
-    Returns
-    -------
-    rotmin: float
-            Sum of the rotated image multiplied by -1 along 
-            the axis specified
-
-    Notes
-    -----
-    This is an internal minimization function for finding the 
-    minimum sum of the image at a particular rotation angle.
-
-    See Also
-    --------
-    rotation_finder 
-    """
-    rotated_image = scnd.rotate(image_orig, angle, order=5, reshape=False)
-    rotsum = (-1) * (np.sum(rotated_image, 1))
-    rotmin = np.amin(rotsum)
-    return rotmin
-
-
 def rotation_finder(image_orig, axis=0):
     """
     Angle Finder
@@ -67,14 +31,19 @@ def rotation_finder(image_orig, axis=0):
     
     Notes
     -----
-    Uses the `angle_fun` function as the minimizer.
-
-    See Also
-    --------
-    angle_fun
+    Uses an internal `angle_fun` to sum the intensity along
+    a particular axis. This will give the angle at which that
+    sum is highest along the axis specified.
     """
+
+    def angle_fun(angle, axis=axis):
+        rotated_image = scnd.rotate(image_orig, angle, order=5, reshape=False)
+        rotsum = (-1) * (np.sum(rotated_image, axis))
+        rotmin = np.amin(rotsum)
+        return rotmin
+
     x0 = 90
-    x = sio.minimize(angle_fun, x0, args=(image_orig))
+    x = sio.minimize(angle_fun, x0)
     min_x = x.x
     return min_x
 
