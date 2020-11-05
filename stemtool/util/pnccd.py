@@ -1,4 +1,6 @@
 from __future__ import print_function, division, absolute_import
+import multiprocessing
+import dask.array as da
 import os
 import struct
 import numpy as np
@@ -476,43 +478,39 @@ def get_data_ref(data_dir):
                 pixels_y=draw_shape[1],
             )
     os.chdir(current_dir)
-    return data_3D, dark_ref
+    return data_3D.astype(np.float32), dark_ref.astype(np.float32)
 
 
-@numba.jit(cache=True, parallel=True)
 def reconstruct_im(data_3D, dark_ref):
-    data_3D = data_3D.astype(np.float)
+    core_count = multiprocessing.cpu_count()
     data_shape = data_3D.shape
-    mean_dark_ref = np.mean(dark_ref.astype(np.float), axis=-1)
-    im_raw = np.zeros(data_shape[0:2], dtype=np.float)
     con_shape = tuple((np.asarray(data_shape[0:2]) * np.asarray((0.5, 2))).astype(int))
-    im_con = np.zeros(con_shape, dtype=np.float)
-    data_copy = np.zeros((con_shape[0], con_shape[1], data_shape[-1]), dtype=np.float)
     xvals = int(data_shape[-1] ** 0.5)
+    data3d_dask = da.from_array(data_3D, chunks=(-1, -1, "auto"))
+    data_shape = data3d_dask.shape
+    mean_dark_ref = np.mean(dref.astype(np.float), axis=-1)
+    d3r = da.transpose(data3d_dask, (2, 0, 1))
+    d3s = d3r - mean_dark_ref
+    d3D_dref = da.transpose(d3s, (1, 2, 0))
+    top_part = d3D_dref[0 : con_shape[0], :, :]
+    bot_part = d3D_dref[con_shape[0] : data_shape[0], :, :]
+    top_part_rs = top_part[::-1, ::-1, :]
+    data3d_arranged = da.concatenate([bot_part, top_part_rs], axis=1)
     shape4d = (con_shape[0], con_shape[1], xvals, xvals)
-    for ii in range(data_shape[-1]):
-        im_raw = data_3D[:, :, ii] - mean_dark_ref
-        top_part = im_raw[0 : im_con.shape[0], :]
-        bot_part = im_raw[im_con.shape[0] : im_raw.shape[0], :]
-        im_con[:, 0 : im_raw.shape[1]] = bot_part
-        im_con[:, im_raw.shape[1] : im_con.shape[1]] = np.flipud(np.fliplr(top_part))
-        data_copy[:, :, ii] = im_con
-    data_4D = np.reshape(data_copy, shape4d)
-    return data_4D
+    data4d_dask = da.reshape(data3d_arranged, shape4d)
+    data4D = data4d_dask.compute(num_workers=core_count)
+    return data4D
 
 
-@numba.jit(cache=True, parallel=True)
 def remove_dark_ref(data3D, dark_ref):
-    data_fin = np.empty(data3D.shape, dtype=np.float)
-    dref = np.mean(dark_ref.astype(np.float), axis=-1)
-    data3D = data3D.astype(np.float)
-    for ii in numba.prange(data3D.shape[-1]):
-        data_fin[:, :, ii] = data3D[:, :, ii] - dref
+    d3r = np.reshape(data3D, np.roll(data3D.shape, 1))
+    mdref = np.mean(dark_ref.astype(np.float), axis=-1)
+    d3s = d3r - mdref
+    data_fin = np.reshape(d3s, np.roll(d3s.shape, -1))
     return data_fin
 
 
-def generate4D_frms6(data_dir, numba_init=900):
+def generate4D_frms6(data_dir):
     data_3D, dark_ref = st.util.get_data_ref(data_dir)
-    temp4D = st.util.reconstruct_im(data_3D[:, :, 0 : int(numba_init)], dark_ref)
     data_4D = st.util.reconstruct_im(data_3D, dark_ref)
     return data_4D
