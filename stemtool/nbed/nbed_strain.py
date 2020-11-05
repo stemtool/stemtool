@@ -1245,7 +1245,7 @@ def cbed_filter(
     return slm_image, lsc_image
 
 
-def get_radius(cbed_image, ubound=0.2, tol=0.01):
+def get_radius(cbed_image, ubound=0.2, tol=0.0001):
     """
     Find the size of the central disk from diffraction 
     patterns.
