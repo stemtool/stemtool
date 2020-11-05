@@ -1284,14 +1284,29 @@ def get_radius(cbed_image, ubound=0.2, tol=0.01):
     cbed_filter
     """
     imshape = np.asarray(cbed_image.shape)
-    lb = 1
-    ub = ubound * np.amax(imshape)
+    # Find the maxima first with decent precision
+
+    test_precison = int((1 / tol) / 20)
+    test_vals = np.zeros((test_precison, 2))
+    test_vals[:, 0] = (1 + np.arange(test_precison)) * (
+        (ubound * np.amax(imshape)) / test_precison
+    )
+    for ii in range(test_precison):
+        _, test_corr = st.nbed.cbed_filter(cbed_image, test_vals[ii, 0])
+        test_vals[ii, 1] = test_corr[
+            int(test_corr.shape[0] / 2), int(test_corr.shape[1] / 2)
+        ]
+
+    first_max = test_vals[test_vals[:, 1] == np.max(test_vals[:, 1]), 0][0]
+    variation = (ubound * np.amax(imshape)) / 10
+    lb = first_max - variation
+    ub = first_max + variation
 
     def rad_func(radius):
         _, test_corr = st.nbed.cbed_filter(cbed_image, radius)
         rad_val = test_corr[int(test_corr.shape[0] / 2), int(test_corr.shape[1] / 2)]
         return -rad_val
 
-    res = sio.minimize_scalar(rad_func, bounds=(lb, ub), tol=tol, method="brent")
+    res = sio.minimize_scalar(rad_func, bounds=(lb, ub), tol=tol, method="bounded")
     rad = res.x
     return rad
