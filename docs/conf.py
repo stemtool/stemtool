@@ -65,7 +65,9 @@ MOCK_MODULES = [
     "matplotlib_scalebar",
     "matplotlib_scalebar.scalebar",
     "numpy.core.multiarray",
-    "matplotlib.offsetbox",
+    "matplotlib.offsetbox", 
+    "multiprocessing", 
+    "dask.array",
 ]
 
 for mod_name in MOCK_MODULES:

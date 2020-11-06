@@ -488,7 +488,7 @@ def reconstruct_im(data_3D, dark_ref):
     xvals = int(data_shape[-1] ** 0.5)
     data3d_dask = da.from_array(data_3D, chunks=(-1, -1, "auto"))
     data_shape = data3d_dask.shape
-    mean_dark_ref = np.mean(dref.astype(np.float), axis=-1)
+    mean_dark_ref = np.mean(dark_ref.astype(np.float), axis=-1)
     d3r = da.transpose(data3d_dask, (2, 0, 1))
     d3s = d3r - mean_dark_ref
     d3D_dref = da.transpose(d3s, (1, 2, 0))
