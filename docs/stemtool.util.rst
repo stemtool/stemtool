@@ -35,14 +35,6 @@ stemtool.util.pnccd module
    :members:
    :undoc-members:
    :show-inheritance:
-   
-stemtool.util.sobel\_canny module
----------------------------------
-
-.. automodule:: stemtool.util.image_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 
 Module contents

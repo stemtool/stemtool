@@ -1284,18 +1284,19 @@ def get_radius(cbed_image, ubound=0.2, tol=0.0001):
     cbed_filter
     """
     imshape = np.asarray(cbed_image.shape)
-    # Find the maxima first with decent precision
-
+    sobel_cbed, _ = st.util.sobel(cbed_image)
     test_precison = int((1 / tol) / 20)
     test_vals = np.zeros((test_precison, 2))
     test_vals[:, 0] = (1 + np.arange(test_precison)) * (
         (ubound * np.amax(imshape)) / test_precison
     )
     for ii in range(test_precison):
-        _, test_corr = st.nbed.cbed_filter(cbed_image, test_vals[ii, 0])
-        test_vals[ii, 1] = test_corr[
-            int(test_corr.shape[0] / 2), int(test_corr.shape[1] / 2)
-        ]
+        center_disk = st.util.make_circle(
+            np.asarray(imshape), imshape[1] / 2, imshape[0] / 2, test_vals[ii, 0]
+        )
+        sobel_center_disk, _ = st.util.sobel(center_disk)
+        tc = st.util.cross_corr(sobel_cbed, sobel_center_disk)
+        test_vals[ii, 1] = tc[int(tc.shape[0] / 2), int(tc.shape[1] / 2)]
 
     first_max = test_vals[test_vals[:, 1] == np.max(test_vals[:, 1]), 0][0]
     variation = (ubound * np.amax(imshape)) / 10
@@ -1303,10 +1304,122 @@ def get_radius(cbed_image, ubound=0.2, tol=0.0001):
     ub = first_max + variation
 
     def rad_func(radius):
-        _, test_corr = st.nbed.cbed_filter(cbed_image, radius)
+        cd = st.util.make_circle(
+            np.asarray(imshape), imshape[1] / 2, imshape[0] / 2, radius
+        )
+        sobel_cd, _ = st.util.sobel(cd)
+        test_corr = st.util.cross_corr(sobel_cbed, sobel_cd)
         rad_val = test_corr[int(test_corr.shape[0] / 2), int(test_corr.shape[1] / 2)]
         return -rad_val
 
     res = sio.minimize_scalar(rad_func, bounds=(lb, ub), tol=tol, method="bounded")
     rad = res.x
     return rad
+
+
+def bin_scan_test(big4D, bin_factor):
+    bin_factor = np.array(bin_factor, ndmin=1)
+    bf = np.copy(bin_factor)
+    bin_factor = np.ones(4)
+    bin_factor[2:4] = bf
+    ini_shape = np.asarray(big4D.shape)
+    fin_shape = (np.ceil(ini_shape / bin_factor)).astype(int)
+
+    dbiny = ini_shape[2] / fin_shape[2]
+    dbinx = ini_shape[3] / fin_shape[3]
+
+    bin_y = np.zeros((fin_shape[2], 2))
+    bin_x = np.zeros((fin_shape[3], 2))
+
+    bin_y[:, 0] = (np.linspace(start=0, stop=ini_shape[2], num=(fin_shape[2] + 1)))[
+        0 : fin_shape[2]
+    ]
+    bin_y[:, 1] = (np.linspace(start=0, stop=ini_shape[2], num=(fin_shape[2] + 1)))[
+        1 : (fin_shape[2] + 1)
+    ]
+    bin_x[:, 0] = (np.linspace(start=0, stop=ini_shape[3], num=(fin_shape[3] + 1)))[
+        0 : fin_shape[3]
+    ]
+    bin_x[:, 1] = (np.linspace(start=0, stop=ini_shape[3], num=(fin_shape[3] + 1)))[
+        1 : (fin_shape[3] + 1)
+    ]
+
+    binned_4D = np.zeros(fin_shape[0:4], dtype=big4D.dtype)
+
+    stopper_0i = int(np.floor(bin_y[0, 1]))
+    topper_0i = np.mod(bin_y[0, 1], 1)
+    stopper_0j = int(np.floor(bin_x[0, 1]))
+    topper_0j = np.mod(bin_x[0, 1], 1)
+    binned_4D[:, :, 0, 0] = np.sum(
+        big4D[:, :, 0:stopper_0i, 0:stopper_0j], axis=(-1, -2)
+    )
+    binned_4D[:, :, 0, 0] = (
+        binned_4D[:, :, 0, 0]
+        + (topper_0i * big4D[:, :, int(stopper_0i + 1), stopper_0j])
+        + (topper_0j * big4D[:, :, stopper_0i, int(stopper_0j + 1)])
+        + (
+            topper_0i
+            * topper_0j
+            * big4D[:, :, int(stopper_0i + 1), int(stopper_0j + 1)]
+        )
+    )
+
+    starter_1i = int(np.ceil(bin_y[-1, 0]))
+    lower_1i = 1 - np.mod(bin_y[-1, 0], 1)
+    starter_1j = int(np.ceil(bin_y[-1, 0]))
+    lower_1j = 1 - np.mod(bin_x[-1, 0], 1)
+    binned_4D[:, :, -1, -1] = np.sum(
+        big4D[:, :, starter_1i : int(bin_y[-1, 1]), starter_1j : int(bin_x[-1, 1])],
+        axis=(-1, -2),
+    )
+    binned_4D[:, :, -1, -1] = (
+        binned_4D[:, :, -1, -1]
+        + (lower_1i * big4D[:, :, int(starter_1i - 1), starter_1j])
+        + (lower_1j * big4D[:, :, starter_1i, int(starter_1j - 1)])
+        + (lower_1i * lower_1j * big4D[:, :, int(starter_1i - 1), int(starter_1j - 1)])
+    )
+
+    for ii in np.arange(1, fin_shape[2] - 1):
+        for jj in np.arange(1, fin_shape[3] - 1):
+            starter_ii = int(np.ceil(bin_y[ii, 0]))
+            stopper_ii = int(np.floor(bin_y[ii, 1]))
+            lower_ii = 1 - np.mod(bin_y[ii, 0], 1)
+            topper_ii = np.mod(bin_y[ii, 1], 1)
+
+            starter_jj = int(np.ceil(bin_x[jj, 0]))
+            stopper_jj = int(np.floor(bin_x[jj, 1]))
+            lower_jj = 1 - np.mod(bin_x[jj, 0], 1)
+            topper_jj = np.mod(bin_x[jj, 1], 1)
+
+            summed_cbed = np.sum(
+                big4D[:, :, starter_ii:stopper_ii, starter_jj:stopper_jj], axis=(-1, -2)
+            )
+
+            # get low vals
+            summed_cbed = (
+                summed_cbed
+                + (lower_ii * big4D[:, :, int(starter_ii - 1), starter_jj])
+                + (lower_jj * big4D[:, :, starter_ii, int(starter_jj - 1)])
+                + (
+                    lower_ii
+                    * lower_jj
+                    * big4D[:, :, int(starter_ii - 1), int(starter_jj - 1)]
+                )
+            )
+
+            # get top vals
+            summed_cbed = (
+                summed_cbed
+                + (topper_ii * big4D[:, :, int(stopper_ii + 1), stopper_jj])
+                + (topper_jj * big4D[:, :, stopper_ii, int(stopper_jj + 1)])
+                + (
+                    topper_ii
+                    * topper_jj
+                    * big4D[:, :, int(stopper_ii + 1), int(stopper_jj + 1)]
+                )
+            )
+
+            binned_4D[:, :, ii, jj] = summed_cbed
+
+    binned_4D = binned_4D / (dbinx * dbiny)
+    return binned_4D
