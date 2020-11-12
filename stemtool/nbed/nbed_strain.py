@@ -7,7 +7,11 @@ import scipy.signal as scisig
 import skimage.feature as skfeat
 import matplotlib.colors as mplc
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import stemtool as st
+import matplotlib.offsetbox as mploff
+import matplotlib.gridspec as mpgs
+import matplotlib_scalebar.scalebar as mpss
 import warnings
 
 
@@ -1423,3 +1427,155 @@ def bin_scan_test(big4D, bin_factor):
 
     binned_4D = binned_4D / (dbinx * dbiny)
     return binned_4D
+
+
+def strain_figure(exx, exy, eth, eyy, ROI, scale=0, scale_unit="nm", figsize=(22, 21)):
+    """
+    Plot the strain maps from a given set of strains, where the strain is
+    mapped only in the region of interest, while anything outside the region
+    of interest is black.
+
+    Parameters
+    ----------
+    exx:        ndarray
+                2D array of e_xx strains
+    eyy:        ndarray
+                2D array of e_yy strains
+    eth:        ndarray
+                2D array of e_theta strains
+    eyy:        ndarray
+                2D array of e_yy strains
+    ROI:        ndarray of type bool
+                Region of interest
+    scale:      float, optional
+                Pixel size. Default is 0
+    scale_unit: char, optional
+                Units of the calibration. Default is 'nm'
+    figsize:    tuple, optional
+                Size of the final figure
+
+    Notes
+    -----
+    This is basically a nice function for plotting calculated strain maps
+    from a region of interest. We use the RdBu_r, which is the RdBu reversed
+    color scheme, where 0 is white, negative values are increasingly blue the 
+    more negative they are, while positive values are increasingly red the more
+    positive they are. Anything outside the region of interest is black, and thus
+    to an observer the ROI can be visualized clearly. Optionally, a scalebar can
+    be assigned too.
+    """
+
+    def ROI_RdBu_map(valmap, roi, valrange):
+        plot_col = np.zeros((256, 3), dtype=np.float)
+        for ii in range(255):
+            plot_col[ii, 0:3] = np.asarray(mpl.cm.RdBu_r(ii)[0:3])
+        map_col = np.zeros((valmap.shape[0], valmap.shape[1], 3))
+        colorvals = (255 * ((valmap[roi] + valrange) / (2 * valrange))).astype(int)
+        map_col[roi, 0:3] = plot_col[colorvals, :]
+        return map_col
+
+    vm = 100 * np.amax(
+        np.asarray(
+            (
+                np.amax(np.abs(exx)),
+                np.amax(np.abs(exy)),
+                np.amax(np.abs(eth)),
+                np.amax(np.abs(eyy)),
+            )
+        )
+    )
+    fontsize = int(1.25 * np.max(figsize))
+    sc_font = {"weight": "bold", "size": fontsize}
+    mpl.rc("font", **sc_font)
+    fig = plt.figure(figsize=figsize)
+
+    gs = mpgs.GridSpec(21, 22)
+    ax1 = plt.subplot(gs[0:10, 0:10])
+    ax2 = plt.subplot(gs[0:10, 12:22])
+    ax3 = plt.subplot(gs[10:20, 0:10])
+    ax4 = plt.subplot(gs[10:20, 12:22])
+    ax5 = plt.subplot(gs[20:21, :])
+
+    ax1.imshow(ROI_RdBu_map(100 * exx, ROI, vm))
+    at = mploff.AnchoredText(
+        r"$\mathrm{\epsilon_{xx}}$",
+        prop=dict(size=fontsize),
+        frameon=True,
+        loc="lower right",
+    )
+    at.patch.set_boxstyle("round, pad= 0., rounding_size= 0.2")
+    ax1.add_artist(at)
+    if scale > 0:
+        scalebar = mpss.ScaleBar(scale, scale_unit)
+        scalebar.location = "lower left"
+        scalebar.box_alpha = 1
+        scalebar.color = "k"
+        ax1.add_artist(scalebar)
+    ax1.axis("off")
+
+    ax2.imshow(ROI_RdBu_map(100 * exy, ROI, vm))
+    at = mploff.AnchoredText(
+        r"$\mathrm{\epsilon_{xy}}$",
+        prop=dict(size=fontsize),
+        frameon=True,
+        loc="lower right",
+    )
+    at.patch.set_boxstyle("round, pad= 0., rounding_size= 0.2")
+    ax2.add_artist(at)
+    if scale > 0:
+        scalebar = mpss.ScaleBar(scale, scale_unit)
+        scalebar.location = "lower left"
+        scalebar.box_alpha = 1
+        scalebar.color = "k"
+        ax2.add_artist(scalebar)
+    ax2.axis("off")
+
+    ax3.imshow(ROI_RdBu_map(100 * eth, ROI, vm))
+    at = mploff.AnchoredText(
+        r"$\mathrm{\epsilon_{\theta}}$",
+        prop=dict(size=fontsize),
+        frameon=True,
+        loc="lower right",
+    )
+    at.patch.set_boxstyle("round, pad= 0., rounding_size= 0.2")
+    ax3.add_artist(at)
+    if scale > 0:
+        scalebar = mpss.ScaleBar(scale, scale_unit)
+        scalebar.location = "lower left"
+        scalebar.box_alpha = 1
+        scalebar.color = "k"
+        ax3.add_artist(scalebar)
+    ax3.axis("off")
+
+    ax4.imshow(ROI_RdBu_map(100 * eyy, ROI, vm))
+    at = mploff.AnchoredText(
+        r"$\mathrm{\epsilon_{yy}}$",
+        prop=dict(size=fontsize),
+        frameon=True,
+        loc="lower right",
+    )
+    at.patch.set_boxstyle("round, pad= 0., rounding_size= 0.2")
+    ax4.add_artist(at)
+    if scale > 0:
+        scalebar = mpss.ScaleBar(scale, scale_unit)
+        scalebar.location = "lower left"
+        scalebar.box_alpha = 1
+        scalebar.color = "k"
+        ax4.add_artist(scalebar)
+    ax4.axis("off")
+
+    sb = np.zeros((10, 1000), dtype=np.float)
+    for ii in range(10):
+        sb[ii, :] = np.linspace(-100 * vm, 100 * vm, 1000)
+    ax5.imshow(sb, cmap="RdBu_r")
+    ax5.yaxis.set_visible(False)
+    x1 = np.linspace(0, 1000, 8)
+    ax5.set_xticks(x1)
+    ax5.set_xticklabels(np.round(np.linspace(-100 * vm, 100 * vm, 8), 2))
+    for axis in ["top", "bottom", "left", "right"]:
+        ax5.spines[axis].set_linewidth(2)
+        ax5.spines[axis].set_color("black")
+    ax5.xaxis.set_tick_params(width=2, length=6, direction="out", pad=10)
+    ax5.set_title("Strain (%)", fontsize=25, fontweight="bold")
+
+    plt.tight_layout()
