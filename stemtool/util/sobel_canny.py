@@ -286,9 +286,7 @@ class Canny(object):
         self.im_size = (np.asarray(image.shape)).astype(int)
         self.thresh_lower = lowThreshold
         self.thresh_upper = highThreshold
-        self.imblur = st.util.image_normalizer(
-            scnd.gaussian_filter(input_image, blurVal)
-        )
+        self.imblur = st.util.image_normalizer(scnd.gaussian_filter(image, blurVal))
         self.sobel_mag = np.empty_like(image)
         self.sobel_ang = np.empty_like(image)
         self.thin_edge = np.empty_like(image)
@@ -312,7 +310,7 @@ class Canny(object):
         --------
         numba_thinner
         """
-        self.sobel_mag, self.sobel_ang = sobel_filter(self.imblur, order=5)
+        self.sobel_mag, self.sobel_ang = st.util.sobel(self.imblur, order=5)
         self.sobel_ang = self.sobel_ang * (180 / np.pi)
         self.sobel_ang[self.sobel_ang < 0] += 180
         yRange, xRange = np.mgrid[1 : self.im_size[0] - 1, 1 : self.im_size[1] - 1]

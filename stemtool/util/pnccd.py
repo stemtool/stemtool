@@ -481,7 +481,7 @@ def get_data_ref(data_dir):
     return data_3D.astype(np.float32), dark_ref.astype(np.float32)
 
 
-def reconstruct_im(data_3D, dark_ref):
+def reconstruct_im(data_3D, dark_ref, return_dask=False):
     core_count = multiprocessing.cpu_count()
     data_shape = data_3D.shape
     con_shape = tuple((np.asarray(data_shape[0:2]) * np.asarray((0.5, 2))).astype(int))
@@ -498,8 +498,11 @@ def reconstruct_im(data_3D, dark_ref):
     data3d_arranged = da.concatenate([bot_part, top_part_rs], axis=1)
     shape4d = (con_shape[0], con_shape[1], xvals, xvals)
     data4d_dask = da.reshape(data3d_arranged, shape4d)
-    data4D = data4d_dask.compute(num_workers=core_count)
-    return data4D
+    if return_dask:
+        return data4d_dask
+    else:
+        data4D = data4d_dask.compute(num_workers=core_count)
+        return data4D
 
 
 def remove_dark_ref(data3D, dark_ref):
@@ -510,7 +513,8 @@ def remove_dark_ref(data3D, dark_ref):
     return data_fin
 
 
-def generate4D_frms6(data_dir):
+def generate4D_frms6(data_dir, bin_factor=1):
     data_3D, dark_ref = st.util.get_data_ref(data_dir)
     data_4D = st.util.reconstruct_im(data_3D, dark_ref)
-    return data_4D
+    data_4D_bin = st.nbed.bin_scan(data_4D, bin_factor)
+    return data_4D_bin

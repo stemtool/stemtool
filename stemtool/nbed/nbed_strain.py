@@ -1566,12 +1566,12 @@ def strain_figure(exx, exy, eth, eyy, ROI, scale=0, scale_unit="nm", figsize=(22
 
     sb = np.zeros((10, 1000), dtype=np.float)
     for ii in range(10):
-        sb[ii, :] = np.linspace(-100 * vm, 100 * vm, 1000)
+        sb[ii, :] = np.linspace(-vm, vm, 1000)
     ax5.imshow(sb, cmap="RdBu_r")
     ax5.yaxis.set_visible(False)
     x1 = np.linspace(0, 1000, 8)
     ax5.set_xticks(x1)
-    ax5.set_xticklabels(np.round(np.linspace(-100 * vm, 100 * vm, 8), 2))
+    ax5.set_xticklabels(np.round(np.linspace(-vm, vm, 8), 2))
     for axis in ["top", "bottom", "left", "right"]:
         ax5.spines[axis].set_linewidth(2)
         ax5.spines[axis].set_color("black")
