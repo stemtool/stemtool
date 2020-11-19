@@ -4,6 +4,7 @@ import warnings
 import scipy.signal as scisig
 import scipy.ndimage as scnd
 import stemtool as st
+import matplotlib.pyplot as plt
 import math
 
 
@@ -211,7 +212,7 @@ def numba_joiner(pos, edge, upper, lower):
     for pp in numba.prange(len(pos)):
         ii = pos[pp, 0]
         jj = pos[pp, 1]
-        if edg[ii, jj] == lower:
+        if edge[ii, jj] == lower:
             if (
                 (edge[ii - 1, jj - 1] == upper)  # top left
                 or (edge[ii - 1, jj] == upper)  # top
@@ -281,7 +282,7 @@ class Canny(object):
        Readings in computer vision. Morgan Kaufmann, 1987. 184-203
     """
 
-    def __init__(self, image, lowThreshold, highThreshold, blurVal=5):
+    def __init__(self, image, lowThreshold, highThreshold, plot_steps=True, blurVal=5):
         self.image = image
         self.im_size = (np.asarray(image.shape)).astype(int)
         self.thresh_lower = lowThreshold
@@ -294,6 +295,7 @@ class Canny(object):
         self.cannyEdge = np.empty_like(image)
         self.edge_check = False
         self.thresh_check = False
+        self.plot_steps = plot_steps
 
     def edge_thinning(self):
         """
@@ -327,6 +329,14 @@ class Canny(object):
 
         # now run on full dataset
         numba_thinner(thin_pos, self.thin_edge, self.sobel_mag, self.sobel_ang)
+        if self.plot_steps:
+            plt.figure(figsize=(20, 10))
+            plt.subplot(1, 2, 1)
+            plt.imshow(self.sobel_mag)
+            plt.axis("off")
+            plt.subplot(1, 2, 2)
+            plt.imshow(self.thin_edge)
+            plt.axis("off")
         self.edge_check = True
 
     def edge_thresholding(self):
@@ -350,6 +360,10 @@ class Canny(object):
             np.where((self.thin_edge <= highT) & (self.thin_edge > lowT))
         ] = lowT
         self.residual[self.residual > self.thresh_upper] = self.thresh_upper
+        if self.plot_steps:
+            plt.figure(figsize=(10, 10))
+            plt.imshow(self.residual)
+            plt.axis("off")
         self.thresh_check = True
 
     def edge_joining(self):
@@ -384,7 +398,6 @@ class Canny(object):
         cannyEdge = np.copy(self.residual)
         self.cannyEdge = np.copy(self.residual)
 
-
         # initialize JIT
         numba_joiner(
             edge_pos[0 : int(len(edge_pos) / 10), :],
@@ -396,6 +409,9 @@ class Canny(object):
         # now run on full dataset, twice
         numba_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
         numba_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
-
+        if self.plot_steps:
+            plt.figure(figsize=(10, 10))
+            plt.imshow(self.cannyEdge)
+            plt.axis("off")
         self.cannyEdge = (self.cannyEdge / np.amax(self.cannyEdge)).astype(bool)
         return self.cannyEdge
