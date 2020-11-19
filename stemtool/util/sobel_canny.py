@@ -384,9 +384,10 @@ class Canny(object):
         cannyEdge = np.copy(self.residual)
         self.cannyEdge = np.copy(self.residual)
 
+
         # initialize JIT
         numba_joiner(
-            edge_pos[0 : int(len(thin_pos) / 10), :],
+            edge_pos[0 : int(len(edge_pos) / 10), :],
             cannyEdge,
             self.thresh_upper,
             self.thresh_lower,
