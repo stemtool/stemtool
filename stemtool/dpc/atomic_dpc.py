@@ -11,6 +11,81 @@ import matplotlib as mpl
 
 
 class atomic_dpc(object):
+    """
+    Atomic Resolution DPC estimation
+
+    Parameters
+    ----------
+    Data_4D:  ndarray
+              Four-dimensional dataset where the first two
+              dimensions are real space scanning dimensions,
+              while the last two dimenions are the Fourier 
+              space electron diffraction patterns
+    Data_ADF: ndarray
+              Simultaneously collected two-dimensional ADF-STEM
+              image
+    calib_pm: float
+              Real space pixel calibration in picometers
+    voltage:  float
+              Microscope accelerating voltage
+    aperture: float
+              The probe forming condenser aperture in milliradians
+
+    Notes
+    -----
+    This class function takes in a 4D-STEM image, and a simultaneously
+    collected atomic resolution ADF-STEM image. Based on the accelerating
+    voltage and the condenser aperture this calculates the center of mass 
+    (C.O.M.) shifts in the central undiffracted beam. Using the idea that 
+    the curl of the beam shift vectors, should be minimized at the correct
+    Fourier rotation angles, this class also corrects for rotation of the 
+    collceted 4D-STEM data with respect to the optic axis. Using these, a 
+    correct potential accumulation and charge accumulation maps could be 
+    built.
+    
+    Examples
+    --------
+    Run as:
+    
+    >>> DPC = st.dpc.atomic_dpc(Data_4D, DataADF, calibration, voltage, aper)
+    
+    Once the data is loaded, the ADF-STEM and the BF-STEM images could be 
+    visualized as:
+    
+    >>> DPC.show_ADF_BF()
+    
+    Then the following call generates the mean CBED image, and if the show_image
+    call is True, shows the mean image.
+
+    >>> DPC.get_cbed(show_image = True)
+    
+    The initial uncorrected DPC shifts are generated as:
+
+    >>> DPC.initial_dpc()
+
+    The corrected DPC shifts are generated:
+
+    >>> DPC.correct_dpc()
+
+    The charge map is generated through:
+
+    >>> DPC.show_charge()
+
+    While the potential map is generated though:
+
+    >>> DPC.show_potential()
+
+    If a section of the image needs to be observed, to visualize the beam shifts,
+    call the following:
+
+    >>> DPC.plot_color_dpc()
+
+    References
+    ----------
+    .. [1] Müller, K. et al. "Atomic electric fields revealed by a quantum mechanical 
+    approach to electron picodiffraction". Nat. Commun. 5:565303 doi: 10.1038/ncomms6653 (2014)
+    """
+
     def __init__(self, Data_4D, Data_ADF, calib_pm, voltage, aperture):
         self.data_adf = Data_ADF
         self.data_4D = Data_4D
@@ -19,11 +94,12 @@ class atomic_dpc(object):
         self.wavelength = st.sim.wavelength_ang(voltage) * 100
         self.aperture = aperture
 
-    def show_BF_ADF(self, imsize=(20, 10)):
+    def show_ADF_BF(self, imsize=(20, 10)):
+        self.data_bf = np.sum(self.data_4D, axis=(-1, -2))
         fontsize = int(np.amax(np.asarray(imsize)))
         plt.figure(figsize=imsize)
         plt.subplot(1, 2, 1)
-        plt.imshow(self.data_adf)
+        plt.imshow(self.data_adf, cmap="inferno")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 0
@@ -37,7 +113,7 @@ class atomic_dpc(object):
         plt.gca().add_artist(at)
 
         plt.subplot(1, 2, 2)
-        plt.imshow(np.sum(self.data_4D, axis=(-1, -2)))
+        plt.imshow(self.data_bf, cmap="inferno")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 0
@@ -51,18 +127,19 @@ class atomic_dpc(object):
         plt.gca().add_artist(at)
         plt.tight_layout()
 
-    def get_cbed(self, imsize=(15, 15)):
-        self.cbed = np.median(self.data_4D, axis=(0, 1))
+    def get_cbed(self, imsize=(15, 15), show_image=False):
+        self.cbed = np.mean(self.data_4D, axis=(0, 1))
         self.beam_x, self.beam_y, self.beam_r = st.util.sobel_circle(self.cbed)
         self.inverse = self.aperture / (self.beam_r * self.wavelength)
-        plt.figure(figsize=imsize)
-        plt.imshow(self.cbed)
-        scalebar = mpss.ScaleBar(self.inverse, "1/pm", mpss.SI_LENGTH_RECIPROCAL)
-        scalebar.location = "lower right"
-        scalebar.box_alpha = 1
-        scalebar.color = "k"
-        plt.gca().add_artist(scalebar)
-        plt.axis("off")
+        if show_image:
+            plt.figure(figsize=imsize)
+            plt.imshow(self.cbed)
+            scalebar = mpss.ScaleBar(self.inverse, "1/pm", mpss.SI_LENGTH_RECIPROCAL)
+            scalebar.location = "lower right"
+            scalebar.box_alpha = 1
+            scalebar.color = "k"
+            plt.gca().add_artist(scalebar)
+            plt.axis("off")
 
     def initial_dpc(self, imsize=(30, 15)):
         qq, pp = np.mgrid[0 : self.data_4D.shape[-1], 0 : self.data_4D.shape[-2]]
