@@ -27,7 +27,7 @@ class atomic_dpc(object):
     calib_pm: float
               Real space pixel calibration in picometers
     voltage:  float
-              Microscope accelerating voltage
+              Microscope accelerating voltage in kV
     aperture: float
               The probe forming condenser aperture in milliradians
 
@@ -41,7 +41,7 @@ class atomic_dpc(object):
     Fourier rotation angles, this class also corrects for rotation of the 
     collceted 4D-STEM data with respect to the optic axis. Using these, a 
     correct potential accumulation and charge accumulation maps could be 
-    built.
+    built. To prevent errors, we convert everything to SI units first.
     
     Examples
     --------
@@ -83,18 +83,37 @@ class atomic_dpc(object):
     References
     ----------
     .. [1] Müller, K. et al. "Atomic electric fields revealed by a quantum mechanical 
-    approach to electron picodiffraction". Nat. Commun. 5:565303 doi: 10.1038/ncomms6653 (2014)
+        approach to electron picodiffraction". Nat. Commun. 5:565303 doi: 10.1038/ncomms6653 (2014)
     """
 
     def __init__(self, Data_4D, Data_ADF, calib_pm, voltage, aperture):
+        """
+        Load the user defined values.
+        It also calculates the wavelength based on the accelerating voltage
+        This also loads several SI constants as the foolowing attributes:
+        `planck`:   The Planck's constant
+        `epsilon0`: The dielectric permittivity of free space
+        `e_charge`: The charge of an electron in Coulombs
+        """
         self.data_adf = Data_ADF
         self.data_4D = Data_4D
         self.calib = calib_pm
-        self.voltage = voltage
-        self.wavelength = st.sim.wavelength_ang(voltage) * 100
-        self.aperture = aperture
+        self.voltage = voltage * 1000  # convert to volts
+        self.wavelength = st.sim.wavelength_ang(voltage) * (
+            10 ** (-10)
+        )  # convert to meters
+        self.aperture = aperture / 1000  # convert to radians
+        self.planck = 6.62607004 * (10 ** (-34))
+        self.epsilon0 = 8.85418782 * (10 ** (-12))
+        self.e_charge = (-1) * 1.60217662 * (10 ** (-19))
 
     def show_ADF_BF(self, imsize=(20, 10)):
+        """
+        The ADF-STEM image is already loaded, while the `data_bf`
+        attribute is obtained by summing up the 4D-STEM dataset along it's 
+        Fourier dimensions. This is also a great checkpoint to see whether
+        the ADF-STEM and the BF-STEM images are the inverse of each other.
+        """
         self.data_bf = np.sum(self.data_4D, axis=(-1, -2))
         fontsize = int(np.amax(np.asarray(imsize)))
         plt.figure(figsize=imsize)
@@ -128,13 +147,21 @@ class atomic_dpc(object):
         plt.tight_layout()
 
     def get_cbed(self, imsize=(15, 15), show_image=False):
+        """
+        We calculate the mean CBED pattern by averaging the Fourier data, to
+        get the object attribute `cbed`. We fit this with a circle function to
+        obtain the object attributes `beam_x`, `beam_y` and `beam_r`, which
+        are respectively the x coordinate, y coordinate and the radius of the 
+        circle which best represents the CBED disk. We use the calculated radius
+        and the known aperture size to get the Fourier space calibration.
+        """
         self.cbed = np.mean(self.data_4D, axis=(0, 1))
         self.beam_x, self.beam_y, self.beam_r = st.util.sobel_circle(self.cbed)
         self.inverse = self.aperture / (self.beam_r * self.wavelength)
         if show_image:
             plt.figure(figsize=imsize)
             plt.imshow(self.cbed)
-            scalebar = mpss.ScaleBar(self.inverse, "1/pm", mpss.SI_LENGTH_RECIPROCAL)
+            scalebar = mpss.ScaleBar(self.inverse, "1/m", mpss.SI_LENGTH_RECIPROCAL)
             scalebar.location = "lower right"
             scalebar.box_alpha = 1
             scalebar.color = "k"
@@ -142,6 +169,9 @@ class atomic_dpc(object):
             plt.axis("off")
 
     def initial_dpc(self, imsize=(30, 15)):
+        """
+        
+        """
         qq, pp = np.mgrid[0 : self.data_4D.shape[-1], 0 : self.data_4D.shape[-2]]
         yy, xx = np.mgrid[0 : self.data_4D.shape[0], 0 : self.data_4D.shape[1]]
         yy = np.ravel(yy)
@@ -157,7 +187,9 @@ class atomic_dpc(object):
                 (np.sum(np.multiply(pp, pattern)) / np.sum(pattern)) - self.beam_x
             )
 
-        vm = np.amax(np.abs(np.concatenate((self.XCom, self.YCom), axis=1)))
+        vm = (np.amax(np.abs(np.concatenate((self.XCom, self.YCom), axis=1)))) / (
+            10 ** 9
+        )
         fontsize = int(np.amax(np.asarray(imsize)))
         sc_font = {"weight": "bold", "size": fontsize}
 
@@ -166,7 +198,7 @@ class atomic_dpc(object):
         ax1 = plt.subplot(gs[0, 0])
         ax2 = plt.subplot(gs[0, 1])
 
-        im = ax1.imshow(self.XCom, vmin=-vm, vmax=vm, cmap="RdBu_r")
+        im = ax1.imshow(self.XCom / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -182,7 +214,7 @@ class atomic_dpc(object):
         ax1.add_artist(at)
         ax1.axis("off")
 
-        im = ax2.imshow(self.YCom, vmin=-vm, vmax=vm, cmap="RdBu_r")
+        im = ax2.imshow(self.YCom / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -203,7 +235,7 @@ class atomic_dpc(object):
 
         ax_cbar = fig.add_axes([p1[0] - 0.075, -0.01, p2[2], 0.02])
         cbar = plt.colorbar(im, cax=ax_cbar, orientation="horizontal")
-        cbar.set_label(r"$\mathrm{Beam\: Shift\: \left(pm^{-1}\right)}$", **sc_font)
+        cbar.set_label(r"$\mathrm{Beam\: Shift\: \left(nm^{-1}\right)}$", **sc_font)
 
     def correct_dpc(self, imsize=(30, 15)):
         flips = np.zeros(4, dtype=bool)
@@ -242,7 +274,9 @@ class atomic_dpc(object):
             rho_dpc, (phi_dpc - (self.angle * ((np.pi) / 180)))
         )
 
-        vm = np.amax(np.abs(np.concatenate((self.XComC, self.YComC), axis=1)))
+        vm = (np.amax(np.abs(np.concatenate((self.XComC, self.YComC), axis=1)))) / (
+            10 ** 9
+        )
         fontsize = int(np.amax(np.asarray(imsize)))
         sc_font = {"weight": "bold", "size": fontsize}
 
@@ -251,7 +285,7 @@ class atomic_dpc(object):
         ax1 = plt.subplot(gs[0, 0])
         ax2 = plt.subplot(gs[0, 1])
 
-        im = ax1.imshow(self.XComC, vmin=-vm, vmax=vm, cmap="RdBu_r")
+        im = ax1.imshow(self.XComC / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -267,7 +301,7 @@ class atomic_dpc(object):
         ax1.add_artist(at)
         ax1.axis("off")
 
-        im = ax2.imshow(self.YComC, vmin=-vm, vmax=vm, cmap="RdBu_r")
+        im = ax2.imshow(self.YComC / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -288,15 +322,26 @@ class atomic_dpc(object):
 
         ax_cbar = fig.add_axes([p1[0] - 0.075, -0.01, p2[2], 0.02])
         cbar = plt.colorbar(im, cax=ax_cbar, orientation="horizontal")
-        cbar.set_label(r"$\mathrm{Beam\: Shift\: \left(pm^{-1}\right)}$", **sc_font)
+        cbar.set_label(r"$\mathrm{Beam\: Shift\: \left(nm^{-1}\right)}$", **sc_font)
+
+        self.MomentumX = self.planck * self.XComC
+        self.MomentumY = self.planck * self.YComC
+        # assuming infinitely thin sample
+        self.e_fieldX = self.MomentumX / self.e_charge
+        self.e_fieldY = self.MomentumY / self.e_charge
 
     def show_charge(self, imsize=(15, 15)):
         fontsize = int(np.amax(np.asarray(imsize)))
-        XComV = self.XComC * self.wavelength * self.voltage
-        YComV = self.YComC * self.wavelength * self.voltage
-        self.charge = (-1) * (
-            (np.gradient(XComV)[1] + np.gradient(YComV)[0])
-            / (self.calib * (10 ** (-12)))
+
+        # Use Poisson's equation
+        self.charge = (
+            (
+                (np.gradient(self.e_fieldX)[1] + np.gradient(self.e_fieldY)[0])
+                * (self.calib * (10 ** (-12)))
+            )
+            * self.epsilon0
+            * 4
+            * np.pi
         )
         cm = np.amax(np.abs(self.charge))
         plt.figure(figsize=imsize)
@@ -316,12 +361,10 @@ class atomic_dpc(object):
 
     def show_potential(self, imsize=(15, 15)):
         fontsize = int(np.amax(np.asarray(imsize)))
-        XComV = self.XComC * self.wavelength * self.voltage
-        YComV = self.YComC * self.wavelength * self.voltage
-        self.pot = st.dpc.integrate_dpc(XComV, YComV)
-        cm = np.amax(np.abs(self.pot))
+        self.potential = st.dpc.integrate_dpc(self.e_fieldX, self.e_fieldY)
+        cm = np.amax(np.abs(self.potential))
         plt.figure(figsize=imsize)
-        plt.imshow(self.pot, vmin=-cm, vmax=cm, cmap="BrBG_r")
+        plt.imshow(self.potential, vmin=-cm, vmax=cm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
