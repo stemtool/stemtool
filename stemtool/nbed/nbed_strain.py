@@ -1487,7 +1487,7 @@ def strain_figure(exx, exy, eth, eyy, ROI, scale=0, scale_unit="nm", figsize=(22
     fontsize = int(1.25 * np.max(figsize))
     sc_font = {"weight": "bold", "size": fontsize}
     mpl.rc("font", **sc_font)
-    fig = plt.figure(figsize=figsize)
+    plt.figure(figsize=figsize)
 
     gs = mpgs.GridSpec(21, 22)
     ax1 = plt.subplot(gs[0:10, 0:10])

@@ -84,13 +84,20 @@ class atomic_dpc(object):
     ----------
     .. [1] Müller, K. et al. "Atomic electric fields revealed by a quantum mechanical 
         approach to electron picodiffraction". Nat. Commun. 5:565303 doi: 10.1038/ncomms6653 (2014)
+    .. [2] Savitzky, Benjamin H., Lauren A. Hughes, Steven E. Zeltmann, Hamish G. Brown, 
+        Shiteng Zhao, Philipp M. Pelz, Edward S. Barnard et al. "py4DSTEM: a software package for 
+        multimodal analysis of four-dimensional scanning transmission electron microscopy datasets." 
+        arXiv preprint arXiv:2003.09523 (2020).
     """
 
     def __init__(self, Data_4D, Data_ADF, calib_pm, voltage, aperture):
         """
         Load the user defined values.
         It also calculates the wavelength based on the accelerating voltage
-        This also loads several SI constants as the foolowing attributes:
+        This also loads several SI constants as the following
+
+        Attributes
+        ----------
         `planck`:   The Planck's constant
         `epsilon0`: The dielectric permittivity of free space
         `e_charge`: The charge of an electron in Coulombs
@@ -168,9 +175,9 @@ class atomic_dpc(object):
             plt.gca().add_artist(scalebar)
             plt.axis("off")
 
-    def initial_dpc(self, imsize=(30, 15)):
+    def initial_dpc(self, imsize=(30, 17)):
         """
-        
+
         """
         qq, pp = np.mgrid[0 : self.data_4D.shape[-1], 0 : self.data_4D.shape[-2]]
         yy, xx = np.mgrid[0 : self.data_4D.shape[0], 0 : self.data_4D.shape[1]]
@@ -190,15 +197,16 @@ class atomic_dpc(object):
         vm = (np.amax(np.abs(np.concatenate((self.XCom, self.YCom), axis=1)))) / (
             10 ** 9
         )
-        fontsize = int(np.amax(np.asarray(imsize)))
+        fontsize = int(0.9 * np.amax(np.asarray(imsize)))
         sc_font = {"weight": "bold", "size": fontsize}
 
-        fig = plt.figure(figsize=imsize)
-        gs = mpgs.GridSpec(1, 2)
-        ax1 = plt.subplot(gs[0, 0])
-        ax2 = plt.subplot(gs[0, 1])
+        plt.figure(figsize=imsize)
+        gs = mpgs.GridSpec(imsize[1], imsize[0])
+        ax1 = plt.subplot(gs[0:15, 0:15])
+        ax2 = plt.subplot(gs[0:15, 15:30])
+        ax3 = plt.subplot(gs[15:17, :])
 
-        im = ax1.imshow(self.XCom / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax1.imshow(self.XCom / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -214,7 +222,7 @@ class atomic_dpc(object):
         ax1.add_artist(at)
         ax1.axis("off")
 
-        im = ax2.imshow(self.YCom / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax2.imshow(self.YCom / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -230,14 +238,22 @@ class atomic_dpc(object):
         ax2.add_artist(at)
         ax2.axis("off")
 
-        p1 = ax1.get_position().get_points().flatten()
-        p2 = ax2.get_position().get_points().flatten()
+        sb = np.zeros((10, 1000), dtype=np.float)
+        for ii in range(10):
+            sb[ii, :] = np.linspace(-vm, vm, 1000)
+        ax3.imshow(sb, cmap="RdBu_r")
+        ax3.yaxis.set_visible(False)
+        x1 = np.linspace(0, 1000, 8)
+        ax3.set_xticks(x1)
+        ax3.set_xticklabels(np.round(np.linspace(-vm, vm, 8), 2))
+        for axis in ["top", "bottom", "left", "right"]:
+            ax3.spines[axis].set_linewidth(2)
+            ax3.spines[axis].set_color("black")
+        ax3.xaxis.set_tick_params(width=2, length=6, direction="out", pad=10)
+        ax3.set_title(r"$\mathrm{Beam\: Shift\: \left(nm^{-1}\right)}$", **sc_font)
+        plt.tight_layout()
 
-        ax_cbar = fig.add_axes([p1[0] - 0.075, -0.01, p2[2], 0.02])
-        cbar = plt.colorbar(im, cax=ax_cbar, orientation="horizontal")
-        cbar.set_label(r"$\mathrm{Beam\: Shift\: \left(nm^{-1}\right)}$", **sc_font)
-
-    def correct_dpc(self, imsize=(30, 15)):
+    def correct_dpc(self, imsize=(30, 17)):
         flips = np.zeros(4, dtype=bool)
         flips[2:4] = True
         chg_sums = np.zeros(4, dtype=self.XCom.dtype)
@@ -277,15 +293,17 @@ class atomic_dpc(object):
         vm = (np.amax(np.abs(np.concatenate((self.XComC, self.YComC), axis=1)))) / (
             10 ** 9
         )
-        fontsize = int(np.amax(np.asarray(imsize)))
+        fontsize = int(0.9 * np.max(imsize))
         sc_font = {"weight": "bold", "size": fontsize}
 
-        fig = plt.figure(figsize=imsize)
-        gs = mpgs.GridSpec(1, 2)
-        ax1 = plt.subplot(gs[0, 0])
-        ax2 = plt.subplot(gs[0, 1])
+        plt.figure(figsize=imsize)
 
-        im = ax1.imshow(self.XComC / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
+        gs = mpgs.GridSpec(imsize[1], imsize[0])
+        ax1 = plt.subplot(gs[0:15, 0:15])
+        ax2 = plt.subplot(gs[0:15, 15:30])
+        ax3 = plt.subplot(gs[15:17, :])
+
+        ax1.imshow(self.XComC / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -301,7 +319,7 @@ class atomic_dpc(object):
         ax1.add_artist(at)
         ax1.axis("off")
 
-        im = ax2.imshow(self.YComC / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax2.imshow(self.YComC / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -317,12 +335,20 @@ class atomic_dpc(object):
         ax2.add_artist(at)
         ax2.axis("off")
 
-        p1 = ax1.get_position().get_points().flatten()
-        p2 = ax2.get_position().get_points().flatten()
-
-        ax_cbar = fig.add_axes([p1[0] - 0.075, -0.01, p2[2], 0.02])
-        cbar = plt.colorbar(im, cax=ax_cbar, orientation="horizontal")
-        cbar.set_label(r"$\mathrm{Beam\: Shift\: \left(nm^{-1}\right)}$", **sc_font)
+        sb = np.zeros((10, 1000), dtype=np.float)
+        for ii in range(10):
+            sb[ii, :] = np.linspace(-vm, vm, 1000)
+        ax3.imshow(sb, cmap="RdBu_r")
+        ax3.yaxis.set_visible(False)
+        x1 = np.linspace(0, 1000, 8)
+        ax3.set_xticks(x1)
+        ax3.set_xticklabels(np.round(np.linspace(-vm, vm, 8), 2))
+        for axis in ["top", "bottom", "left", "right"]:
+            ax3.spines[axis].set_linewidth(2)
+            ax3.spines[axis].set_color("black")
+        ax3.xaxis.set_tick_params(width=2, length=6, direction="out", pad=10)
+        ax3.set_title(r"$\mathrm{Beam\: Shift\: \left(nm^{-1}\right)}$", **sc_font)
+        plt.tight_layout()
 
         self.MomentumX = self.planck * self.XComC
         self.MomentumY = self.planck * self.YComC
@@ -330,7 +356,7 @@ class atomic_dpc(object):
         self.e_fieldX = self.MomentumX / self.e_charge
         self.e_fieldY = self.MomentumY / self.e_charge
 
-    def show_charge(self, imsize=(15, 15)):
+    def show_charge(self, imsize=(15, 17)):
         fontsize = int(np.amax(np.asarray(imsize)))
 
         # Use Poisson's equation
@@ -345,21 +371,48 @@ class atomic_dpc(object):
         )
         cm = np.amax(np.abs(self.charge))
         plt.figure(figsize=imsize)
-        plt.imshow(self.charge, vmin=-cm, vmax=cm, cmap="seismic")
+        fontsize = int(0.9 * np.max(imsize))
+        sc_font = {"weight": "bold", "size": fontsize}
+
+        gs = mpgs.GridSpec(imsize[1], imsize[0])
+        ax1 = plt.subplot(gs[0:15, 0:15])
+        ax2 = plt.subplot(gs[15:17, :])
+
+        ax1.imshow(self.charge, vmin=-cm, vmax=cm, cmap="seismic")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
         scalebar.color = "k"
-        plt.gca().add_artist(scalebar)
-        plt.axis("off")
+        ax1.add_artist(scalebar)
+        ax1.axis("off")
         at = mploff.AnchoredText(
             "Charge from DPC", prop=dict(size=fontsize), frameon=True, loc="lower left"
         )
         at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
-        plt.gca().add_artist(at)
+        ax1.add_artist(at)
+
+        sb = np.zeros((10, 1000), dtype=np.float)
+        for ii in range(10):
+            sb[ii, :] = np.linspace(cm / self.e_charge, -(cm / self.e_charge), 1000)
+        ax2.imshow(sb, cmap="RdBu_r")
+        ax2.yaxis.set_visible(False)
+        no_labels = 7
+        x1 = np.linspace(0, 1000, no_labels)
+        ax2.set_xticks(x1)
+        ax2.set_xticklabels(
+            np.round(
+                np.linspace(cm / self.e_charge, -(cm / self.e_charge), no_labels), 6
+            )
+        )
+        for axis in ["top", "bottom", "left", "right"]:
+            ax2.spines[axis].set_linewidth(2)
+            ax2.spines[axis].set_color("black")
+        ax2.xaxis.set_tick_params(width=2, length=6, direction="out", pad=10)
+        ax2.set_title(r"$\mathrm{Charge\: Density\: \left(e^{-} \right)}$", **sc_font)
+
         plt.tight_layout()
 
-    def show_potential(self, imsize=(15, 15)):
+    def show_potential(self, imsize=(10, 10)):
         fontsize = int(np.amax(np.asarray(imsize)))
         self.potential = st.dpc.integrate_dpc(self.e_fieldX, self.e_fieldY)
         cm = np.amax(np.abs(self.potential))
