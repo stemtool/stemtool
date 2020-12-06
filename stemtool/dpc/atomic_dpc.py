@@ -183,7 +183,7 @@ class atomic_dpc(object):
         self.inverse = self.aperture / (self.beam_r * self.wavelength)
         if show_image:
             plt.figure(figsize=imsize)
-            plt.imshow(self.cbed)
+            plt.imshow(self.cbed, cmap="inferno")
             scalebar = mpss.ScaleBar(self.inverse, "1/m", mpss.SI_LENGTH_RECIPROCAL)
             scalebar.location = "lower right"
             scalebar.box_alpha = 1
@@ -193,7 +193,10 @@ class atomic_dpc(object):
 
     def initial_dpc(self, imsize=(30, 17), normalize=True):
         """
-
+        This calculates the initial DPC center of mass shifts by measuring
+        the center of mass of each image in the 4D-STEM dataset, and then
+        comparing that center of mass with the average disk center of the
+        entire dataset.
         """
         qq, pp = np.mgrid[0 : self.data_4D.shape[-1], 0 : self.data_4D.shape[-2]]
         yy, xx = np.mgrid[0 : self.data_4D.shape[0], 0 : self.data_4D.shape[1]]
@@ -273,6 +276,15 @@ class atomic_dpc(object):
         plt.tight_layout()
 
     def correct_dpc(self, imsize=(30, 17)):
+        """
+        This corrects for the rotation angle of the pixellated detector
+        with respect to the optic axis. Some pixellated detectors flip
+        the image, and if there is an image flip, it corrects it too.
+        The mechanism of this, we compare the gradient of both the flipped
+        and the unflipped DPC data at multiple rotation angles, and the value
+        that has the highest relative contrast with the ADF-STEM image is taken
+        as 90 degrees from the correct angle.
+        """
         flips = np.zeros(4, dtype=bool)
         flips[2:4] = True
         chg_sums = np.zeros(4, dtype=self.XCom.dtype)
@@ -376,6 +388,11 @@ class atomic_dpc(object):
         self.e_fieldY = self.MomentumY / self.e_charge
 
     def show_charge(self, imsize=(15, 17)):
+        """
+        We calculate the charge from the corrected DPC
+        center of mass datasets. This is done through
+        Poisson's equation.
+        """
         fontsize = int(np.amax(np.asarray(imsize)))
 
         # Use Poisson's equation
@@ -431,66 +448,102 @@ class atomic_dpc(object):
 
         plt.tight_layout()
 
-    def show_potential(self, imsize=(10, 10)):
+    def show_potential(self, imsize=(15, 17)):
+        """
+        Calculate the projected potential from the DPC measurements.
+        This is accomplished by calculating the phase shift iteratively
+        from the normalized center of mass shifts. Normalization means
+        calculating COM shifts in inverse length units and then multiplying
+        them with the electron wavelength to get an electron independent
+        mrad shift, which is used to generate the phase. This phase is
+        proportional to the projected potential for weak phase object
+        materials (with *lots* of assumptions)
+        """
         fontsize = int(np.amax(np.asarray(imsize)))
         self.phase = st.dpc.integrate_dpc(
             self.XComC * self.wavelength, self.YComC * self.wavelength
         )
         self.potential = self.phase / self.sigma
-        cm = np.amax(np.abs(self.potential))
+
+        pm = np.amax(np.abs(self.potential)) * (10 ** 10)
         plt.figure(figsize=imsize)
-        plt.imshow(self.potential, vmin=-cm, vmax=cm, cmap="RdBu_r")
+        fontsize = int(0.9 * np.max(imsize))
+        sc_font = {"weight": "bold", "size": fontsize}
+
+        gs = mpgs.GridSpec(imsize[1], imsize[0])
+        ax1 = plt.subplot(gs[0:15, 0:15])
+        ax2 = plt.subplot(gs[15:17, :])
+
+        ax1.imshow(self.potential * (10 ** 10), vmin=-pm, vmax=pm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
         scalebar.color = "k"
-        plt.gca().add_artist(scalebar)
-        plt.axis("off")
+        ax1.add_artist(scalebar)
+        ax1.axis("off")
         at = mploff.AnchoredText(
-            "Measured potential",
+            "Calculated projected potential from DPC phase",
             prop=dict(size=fontsize),
             frameon=True,
             loc="lower left",
         )
-        at.patch.set_boxstyle("round, pad=0., rounding_size=0.2")
-        plt.gca().add_artist(at)
+        at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+        ax1.add_artist(at)
+
+        sb = np.zeros((10, 1000), dtype=np.float)
+        for ii in range(10):
+            sb[ii, :] = np.linspace(-pm, pm, 1000)
+        ax2.imshow(sb, cmap="RdBu_r")
+        ax2.yaxis.set_visible(False)
+        no_labels = 7
+        x1 = np.linspace(0, 1000, no_labels)
+        ax2.set_xticks(x1)
+        ax2.set_xticklabels(np.round(np.linspace(-pm, pm, no_labels), 6))
+        for axis in ["top", "bottom", "left", "right"]:
+            ax2.spines[axis].set_linewidth(2)
+            ax2.spines[axis].set_color("black")
+        ax2.xaxis.set_tick_params(width=2, length=6, direction="out", pad=10)
+        ax2.set_title(r"Projected Potential (VÅ)", **sc_font)
+
         plt.tight_layout()
 
-    def plot_color_dpc(self, skip=2, portion=7, imsize=(20, 10)):
+    def plot_color_dpc(self, start_frac=0, size_frac=1, skip=2, imsize=(20, 10)):
+        """
+        Use this to plot the corrected DPC center of mass shifts. If no variables
+        are passed, the arrows are overlaid on the entire image.
+        
+        Parameters
+        ----------
+        start_frac: float, optional
+                    The starting fraction of the image, where you will cut from
+                    to show the overlaid arrows. Default is 0
+        stop_frac:  float, optional
+                    The ending fraction of the image, where you will cut from
+                    to show the overlaid arrows. Default is 1
+        """
         fontsize = int(np.amax(np.asarray(imsize)))
         sc_font = {"weight": "bold", "size": fontsize}
         mpl.rc("font", **sc_font)
         cc = self.XComC + ((1j) * self.YComC)
         cc_color = st.util.cp_image_val(cc)
-        cutter = 1 / portion
-        cutstart = (
-            np.round(
-                np.asarray(self.XComC.shape) - (cutter * np.asarray(self.XComC.shape))
-            )
-        ).astype(int)
+        cutstart = (np.asarray(self.XComC.shape) * start_frac).astype(int)
+        cut_stop = (np.asarray(self.XComC.shape) * (start_frac + size_frac)).astype(int)
         ypos, xpos = np.mgrid[0 : self.YComC.shape[0], 0 : self.XComC.shape[1]]
         ypos = ypos
-        xcut = (
-            xpos[cutstart[0] : self.XComC.shape[0], cutstart[1] : self.XComC.shape[1]]
-            - cutstart[1]
+        xcut = xpos[cutstart[0] : cut_stop[0], cutstart[1] : cut_stop[1]]
+        ycut = np.flipud(ypos[cutstart[0] : cut_stop[0], cutstart[1] : cut_stop[1]])
+        dx = self.XComC[cutstart[0] : cut_stop[0], cutstart[1] : cut_stop[1]]
+        dy = self.YComC[cutstart[0] : cut_stop[0], cutstart[1] : cut_stop[1]]
+        cc_cut = cc_color[cutstart[0] : cut_stop[0], cutstart[1] : cut_stop[1]]
+
+        overlay = mpl.patches.Rectangle(
+            cutstart[0:2],
+            cut_stop[0] - cutstart[0],
+            cut_stop[1] - cutstart[1],
+            linewidth=1.5,
+            edgecolor="w",
+            facecolor="none",
         )
-        ycut = (
-            np.flipud(
-                ypos[
-                    cutstart[0] : self.XComC.shape[0], cutstart[1] : self.XComC.shape[1]
-                ]
-            )
-            - cutstart[0]
-        )
-        dx = self.XComC[
-            cutstart[0] : self.XComC.shape[0], cutstart[1] : self.XComC.shape[1]
-        ]
-        dy = self.YComC[
-            cutstart[0] : self.XComC.shape[0], cutstart[1] : self.XComC.shape[1]
-        ]
-        cc_cut = cc_color[
-            cutstart[0] : self.XComC.shape[0], cutstart[1] : self.XComC.shape[1], :
-        ]
 
         plt.figure(figsize=imsize)
         plt.subplot(1, 2, 1)
@@ -509,12 +562,13 @@ class atomic_dpc(object):
         )
         at.patch.set_boxstyle("round, pad=0., rounding_size=0.2")
         plt.gca().add_artist(at)
+        plt.gca().add_patch(overlay)
 
         plt.subplot(1, 2, 2)
         plt.imshow(cc_cut)
         plt.quiver(
-            xcut[::skip, ::skip],
-            ycut[::skip, ::skip],
+            xcut[::skip, ::skip] - cutstart[1],
+            ycut[::skip, ::skip] - cutstart[0],
             dx[::skip, ::skip],
             dy[::skip, ::skip],
             pivot="mid",
