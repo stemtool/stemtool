@@ -68,7 +68,8 @@ MOCK_MODULES = [
     "matplotlib.offsetbox",
     "multiprocessing",
     "dask.array",
-    "dask",
+    "dask", 
+    "pyfftw.interfaces.numpy_fft"
 ]
 
 for mod_name in MOCK_MODULES:
