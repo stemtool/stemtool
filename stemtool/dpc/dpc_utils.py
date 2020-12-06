@@ -4,6 +4,7 @@ import numpy as np
 import numba
 import warnings
 import stemtool as st
+import pyfftw.interfaces.numpy_fft as pfft
 
 
 def cart2pol(xx, yy):
@@ -55,28 +56,40 @@ def data_rotator(cbed_pattern, rotangle, xcenter, ycenter, data_radius):
     return rotated_cbed
 
 
-def integrate_dpc(xshift, yshift, fourier_calibration=1):
+def integrate_dpc(xshift, yshift, padf=4, lP=0.5, hP=100, stepsize=0.2, iter_count=100):
     """
     Integrate DPC shifts using Fourier transforms and 
     preventing edge effects
     
     Parameters
     ----------
-    xshift:              ndarray 
-                         Beam shift in the X dimension
-    yshift:              ndarray
-                         Beam shift in the X dimensions
-    fourier_calibration: float
-                         Pixel size of the Fourier space
+    xshift:     ndarray 
+                Beam shift in the X dimension
+    yshift:     ndarray
+                Beam shift in the X dimensions
+    padf:       int, optional
+                padding factor for accurate FFT, 
+                default is 4
+    lP:         float, optional
+                low pass filter, default is 0.5
+    hP:         float, optional
+                high pass filter, default is 100
+    stepsize:   float, optional
+                fraction of phase differnce to update every
+                iteration. Default is 0.5. This is a dynamic
+                factor, and is reduced if the error starts 
+                increasing
+    iter_count: int, optional
+                Number of iterations to run. Default is 100
     
     Returns
     -------
-    integrand: ndarray
-               Integrated DPC
+    phase_final: ndarray
+                 Phase of the matrix that leads to the displacement
     
     Notes
     -----
-    This is based on two ideas - noniterative complex plane 
+    This is based on two ideas - iterative complex plane 
     integration and antisymmetric mirror integration. First 
     two antisymmetric matrices are generated for each of the
     x shift and y shifts. Then they are integrated in Fourier
@@ -86,74 +99,65 @@ def integrate_dpc(xshift, yshift, fourier_calibration=1):
     
     References
     ----------
-    Bon, Pierre, Serge Monneret, and Benoit Wattellier. 
-    "Noniterative boundary-artifact-free wavefront 
-    reconstruction from its derivatives." Applied optics 
-    51, no. 23 (2012): 5698-5704.
+    .. [1] Ishizuka, Akimitsu, Masaaki Oka, Takehito Seki, Naoya Shibata, 
+        and Kazuo Ishizuka. "Boundary-artifact-free determination of 
+        potential distribution from differential phase contrast signals." 
+        Microscopy 66, no. 6 (2017): 397-405.
                  
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
+    imshape = np.asarray(xshift.shape)
+    padshape = (imshape * padf).astype(int)
+    qx = np.fft.fftfreq(padshape[0])
+    qy = np.fft.rfftfreq(padshape[1])
+    qr2 = qx[:, None] ** 2 + qy[None, :] ** 2
 
-    # Initialize matrices
-    size_array = np.asarray(np.shape(xshift))
-    x_mirrored = np.zeros(2 * size_array, dtype=np.float64)
-    y_mirrored = np.zeros(2 * size_array, dtype=np.float64)
+    denominator = qr2 + hP + ((qr2 ** 2) * lP)
+    _ = np.seterr(divide="ignore")
+    denominator = 1.0 / denominator
+    denominator[0, 0] = 0
+    _ = np.seterr(divide="warn")
+    f = 1j * 0.25 * stepsize
+    qxOperator = f * qx[:, None] * denominator
+    qyOperator = f * qy[None, :] * denominator
 
-    # Generate antisymmetric X arrays
-    x_mirrored[0 : size_array[0], 0 : size_array[1]] = np.fliplr(np.flipud(0 - xshift))
-    x_mirrored[0 : size_array[0], size_array[1] : (2 * size_array[1])] = np.fliplr(
-        0 - xshift
-    )
-    x_mirrored[size_array[0] : (2 * size_array[0]), 0 : size_array[1]] = np.flipud(
-        xshift
-    )
-    x_mirrored[
-        size_array[0] : (2 * size_array[0]), size_array[1] : (2 * size_array[1])
-    ] = xshift
-
-    # Generate antisymmetric Y arrays
-    y_mirrored[0 : size_array[0], 0 : size_array[1]] = np.fliplr(np.flipud(0 - yshift))
-    y_mirrored[0 : size_array[0], size_array[1] : (2 * size_array[1])] = np.fliplr(
-        yshift
-    )
-    y_mirrored[size_array[0] : (2 * size_array[0]), 0 : size_array[1]] = np.flipud(
-        0 - yshift
-    )
-    y_mirrored[
-        size_array[0] : (2 * size_array[0]), size_array[1] : (2 * size_array[1])
-    ] = yshift
-
-    # Calculated Fourier transform of antisymmetric matrices
-    x_mirr_ft = np.fft.fft2(x_mirrored)
-    y_mirr_ft = np.fft.fft2(y_mirrored)
-
-    # Calculated inverse Fourier space calibration
-    qx = np.mean(
-        np.diff(
-            (np.arange(-size_array[1], size_array[1], 1))
-            / (2 * fourier_calibration * size_array[1])
+    padded_phase = np.zeros(padshape)
+    update = np.zeros_like(padded_phase)
+    dx = np.zeros_like(padded_phase)
+    dy = np.zeros_like(padded_phase)
+    error = np.zeros(iter_count)
+    mask = np.zeros_like(padded_phase, dtype=bool)
+    mask[
+        int(0.5 * (padshape[0] - imshape[0])) : int(0.5 * (padshape[0] + imshape[0])),
+        int(0.5 * (padshape[1] - imshape[1])) : int(0.5 * (padshape[1] + imshape[1])),
+    ] = True
+    maskInv = mask == False
+    for ii in range(iter_count):
+        dx[mask] -= xshift.ravel()
+        dy[mask] -= yshift.ravel()
+        dx[maskInv] = 0
+        dy[maskInv] = 0
+        update = pfft.irfft2(pfft.rfft2(dx) * qxOperator + pfft.rfft2(dy) * qyOperator)
+        padded_phase += scnd.gaussian_filter((stepsize * update), 1)
+        dx = (
+            np.roll(padded_phase, (-1, 0), axis=(0, 1))
+            - np.roll(padded_phase, (1, 0), axis=(0, 1))
+        ) / 2.0
+        dy = (
+            np.roll(padded_phase, (0, -1), axis=(0, 1))
+            - np.roll(padded_phase, (0, 1), axis=(0, 1))
+        ) / 2.0
+        xDiff = dx[mask] - xshift.ravel()
+        yDiff = dy[mask] - yshift.ravel()
+        error[ii] = np.sqrt(
+            np.mean((xDiff - np.mean(xDiff)) ** 2 + (yDiff - np.mean(yDiff)) ** 2)
         )
-    )
-    qy = np.mean(
-        np.diff(
-            (np.arange(-size_array[0], size_array[0], 1))
-            / (2 * fourier_calibration * size_array[0])
-        )
-    )
-
-    # Calculate mirrored CPM integrand
-    mirr_ft = (x_mirr_ft + ((1j) * y_mirr_ft)) / (qx + ((1j) * qy))
-    mirr_int = np.fft.ifft2(mirr_ft)
-
-    # Select integrand from antisymmetric matrix
-    integrand = np.abs(
-        mirr_int[
-            size_array[0] : (2 * size_array[0]), size_array[1] : (2 * size_array[1])
-        ]
-    )
-
-    return integrand
+        if ii > 0:
+            if error[ii] > error[ii - 1]:
+                stepsize /= 2
+    phase_final = np.reshape(padded_phase[mask], imshape)
+    return phase_final
 
 
 def potential_dpc(x_dpc, y_dpc, angle=0):

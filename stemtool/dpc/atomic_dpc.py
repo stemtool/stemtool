@@ -88,6 +88,10 @@ class atomic_dpc(object):
         Shiteng Zhao, Philipp M. Pelz, Edward S. Barnard et al. "py4DSTEM: a software package for 
         multimodal analysis of four-dimensional scanning transmission electron microscopy datasets." 
         arXiv preprint arXiv:2003.09523 (2020).
+    .. [3] Ishizuka, Akimitsu, Masaaki Oka, Takehito Seki, Naoya Shibata, 
+        and Kazuo Ishizuka. "Boundary-artifact-free determination of 
+        potential distribution from differential phase contrast signals." 
+        Microscopy 66, no. 6 (2017): 397-405.
     """
 
     def __init__(self, Data_4D, Data_ADF, calib_pm, voltage, aperture):
@@ -113,6 +117,12 @@ class atomic_dpc(object):
         self.planck = 6.62607004 * (10 ** (-34))
         self.epsilon0 = 8.85418782 * (10 ** (-12))
         self.e_charge = (-1) * 1.60217662 * (10 ** (-19))
+        e_mass = 9.109383 * (10 ** (-31))
+        c = 299792458
+        self.sigma = (
+            (2 * np.pi / (self.wavelength * self.voltage))
+            * ((e_mass * (c ** 2)) + (self.e_charge * self.voltage))
+        ) / ((2 * e_mass * (c ** 2)) + (self.e_charge * self.voltage))
 
     def show_ADF_BF(self, imsize=(20, 10)):
         """
@@ -181,7 +191,7 @@ class atomic_dpc(object):
             plt.gca().add_artist(scalebar)
             plt.axis("off")
 
-    def initial_dpc(self, imsize=(30, 17)):
+    def initial_dpc(self, imsize=(30, 17), normalize=True):
         """
 
         """
@@ -199,6 +209,9 @@ class atomic_dpc(object):
             self.XCom[yy[ii], xx[ii]] = self.inverse * (
                 (np.sum(np.multiply(pp, pattern)) / np.sum(pattern)) - self.beam_x
             )
+        if normalize:
+            self.YCom = self.YCom - np.mean(self.YCom)
+            self.XCom = self.XCom - np.mean(self.XCom)
 
         vm = (np.amax(np.abs(np.concatenate((self.XCom, self.YCom), axis=1)))) / (
             10 ** 9
@@ -384,7 +397,7 @@ class atomic_dpc(object):
         ax1 = plt.subplot(gs[0:15, 0:15])
         ax2 = plt.subplot(gs[15:17, :])
 
-        ax1.imshow(self.charge, vmin=-cm, vmax=cm, cmap="seismic")
+        ax1.imshow(self.charge, vmin=-cm, vmax=cm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -420,7 +433,10 @@ class atomic_dpc(object):
 
     def show_potential(self, imsize=(10, 10)):
         fontsize = int(np.amax(np.asarray(imsize)))
-        self.potential = st.dpc.integrate_dpc(self.e_fieldX, self.e_fieldY)
+        self.phase = st.dpc.integrate_dpc(
+            self.XComC * self.wavelength, self.YComC * self.wavelength
+        )
+        self.potential = self.phase / self.sigma
         cm = np.amax(np.abs(self.potential))
         plt.figure(figsize=imsize)
         plt.imshow(self.potential, vmin=-cm, vmax=cm, cmap="RdBu_r")
