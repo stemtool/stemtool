@@ -94,12 +94,12 @@ class atomic_dpc(object):
         """
         Load the user defined values.
         It also calculates the wavelength based on the accelerating voltage
-        This also loads several SI constants as the following
+        This also loads several SI constants as the following attributes
 
-        Attributes
-        ----------
         `planck`:   The Planck's constant
+
         `epsilon0`: The dielectric permittivity of free space
+
         `e_charge`: The charge of an electron in Coulombs
         """
         self.data_adf = Data_ADF
@@ -157,10 +157,16 @@ class atomic_dpc(object):
         """
         We calculate the mean CBED pattern by averaging the Fourier data, to
         get the object attribute `cbed`. We fit this with a circle function to
-        obtain the object attributes `beam_x`, `beam_y` and `beam_r`, which
-        are respectively the x coordinate, y coordinate and the radius of the 
-        circle which best represents the CBED disk. We use the calculated radius
-        and the known aperture size to get the Fourier space calibration.
+        obtain the object attributes: 
+
+        `beam_x`: x-coordinates of the circle 
+        
+        `beam_y`: y-coordinates of the circle 
+        
+        `beam_r`: radius of the circle 
+        
+        We use the calculated radius and the known aperture size to get the Fourier 
+        space calibration, which is stored as the `inverse` attribute
         """
         self.cbed = np.mean(self.data_4D, axis=(0, 1))
         self.beam_x, self.beam_y, self.beam_r = st.util.sobel_circle(self.cbed)
