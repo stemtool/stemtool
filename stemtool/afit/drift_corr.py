@@ -272,9 +272,11 @@ class multi_image_drift(object):
         ax1.set_xlabel("Stack Number", **sc_font)
         ax1.set_ylabel("Stack Number", **sc_font)
         ax1.xaxis.set_tick_params(
-            width=0.1*imwidth, length=0.4*imwidth, direction="in", pad=10)
+            width=0.1 * imwidth, length=0.4 * imwidth, direction="in", pad=10
+        )
         ax1.yaxis.set_tick_params(
-            width=0.1*imwidth, length=0.4*imwidth, direction="in", pad=10)
+            width=0.1 * imwidth, length=0.4 * imwidth, direction="in", pad=10
+        )
         at = mploff.AnchoredText(
             "Shift along X direction",
             prop=dict(size=fontsize),
@@ -288,9 +290,11 @@ class multi_image_drift(object):
         ax2.set_xlabel("Stack Number", **sc_font)
         ax2.set_ylabel("Stack Number", **sc_font)
         ax2.xaxis.set_tick_params(
-            width=0.1*imwidth, length=0.4*imwidth, direction="in", pad=10)
+            width=0.1 * imwidth, length=0.4 * imwidth, direction="in", pad=10
+        )
         ax2.yaxis.set_tick_params(
-            width=0.1*imwidth, length=0.4*imwidth, direction="in", pad=10)
+            width=0.1 * imwidth, length=0.4 * imwidth, direction="in", pad=10
+        )
         at = mploff.AnchoredText(
             "Shift along Y direction",
             prop=dict(size=fontsize),

@@ -915,6 +915,7 @@ class atom_fit(object):
 
     def __init__(self, image, calib, calib_units):
         self.image = st.util.image_normalizer(image)
+        self.imcleaned = np.copy(self.image)
         self.calib = calib
         self.calib_units = calib_units
         self.imshape = np.asarray(image.shape)
@@ -939,9 +940,10 @@ class atom_fit(object):
         self.gaussval = gaussval
         if gaussval > 0:
             self.gblur = scnd.gaussian_filter(self.image, gaussval)
-            self.image = self.image - self.gblur
+            self.imcleaned = st.util.image_normalizer(self.image - self.gblur)
+        self.gauss_clean = gaussval
         plt.figure(figsize=imsize)
-        plt.imshow(self.image, cmap=colormap)
+        plt.imshow(self.imcleaned, cmap=colormap)
         scalebar = mpss.ScaleBar(self.calib, self.calib_units)
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -1016,7 +1018,7 @@ class atom_fit(object):
             )
         )
         angsum = ((angAABB + angBBCC + angCCDD + angDDAA) / (2 * np.pi)).reshape(
-            self.image.shape
+            self.imcleaned.shape
         )
         self.ref_reg = np.isclose(angsum, 1)
         self.ref_reg = np.flipud(self.ref_reg)
@@ -1034,7 +1036,9 @@ class atom_fit(object):
 
         plt.figure(figsize=imsize)
         plt.imshow(
-            np.flipud(self.image + 0.33 * self.ref_reg), cmap="magma", origin="lower"
+            np.flipud(self.imcleaned + 0.33 * self.ref_reg),
+            cmap="magma",
+            origin="lower",
         )
         plt.annotate(
             "A=" + str(A_pt),
@@ -1074,12 +1078,13 @@ class atom_fit(object):
         plt.ylabel("Distance along Y-axis (" + self.calib_units + ")", fontsize=fsize)
         self.reference_check = True
 
-    def peaks_vis(self, dist, thresh, imsize=(15, 15), spot_color="c"):
+    def peaks_vis(self, dist, thresh, gfilt=2, imsize=(15, 15), spot_color="c"):
         if not self.reference_check:
-            self.ref_reg = np.ones_like(self.image, dtype=bool)
+            self.ref_reg = np.ones_like(self.imcleaned, dtype=bool)
         pixel_dist = dist / self.calib
+        self.imfilt = scnd.gaussian_filter(self.imcleaned, gfilt)
         self.threshold = thresh
-        self.data_thresh = ((self.image * self.ref_reg) - self.threshold) / (
+        self.data_thresh = ((self.imfilt * self.ref_reg) - self.threshold) / (
             1 - self.threshold
         )
         self.data_thresh[self.data_thresh < 0] = 0
@@ -1094,7 +1099,7 @@ class atom_fit(object):
         self.peaks = (st.afit.remove_close_vals(peaks, pixel_dist)).astype(np.float)
         spot_size = int(0.5 * np.mean(np.asarray(imsize)))
         plt.figure(figsize=imsize)
-        plt.imshow(self.image)
+        plt.imshow(self.imfilt, cmap="magma")
         plt.scatter(self.peaks[:, 1], self.peaks[:, 0], c=spot_color, s=spot_size)
         scalebar = mpss.ScaleBar(self.calib, self.calib_units)
         scalebar.location = "lower right"
@@ -1119,11 +1124,11 @@ class atom_fit(object):
 
         # Run once on a smaller dataset to initialize JIT
         st.afit.refine_atoms_numba(
-            self.image, self.peaks[0:test, :], refined_peaks[0:test, :], md
+            self.imcleaned, self.peaks[0:test, :], refined_peaks[0:test, :], md
         )
 
         # Run the JIT compiled faster code on the full dataset
-        st.afit.refine_atoms_numba(self.image, self.peaks, refined_peaks, md)
+        st.afit.refine_atoms_numba(self.imcleaned, self.peaks, refined_peaks, md)
         self.refined_peaks = refined_peaks
         self.refining_check = True
 
@@ -1135,7 +1140,7 @@ class atom_fit(object):
         big_size = int(3 * spot_size)
         if style == "together":
             plt.figure(figsize=imsize)
-            plt.imshow(self.image)
+            plt.imshow(self.imcleaned, cmap="magma")
             plt.scatter(
                 self.peaks[:, 1],
                 self.peaks[:, 0],
@@ -1146,7 +1151,7 @@ class atom_fit(object):
             plt.scatter(
                 self.refined_peaks[:, 1],
                 self.refined_peaks[:, 0],
-                c="y",
+                c="r",
                 s=spot_size,
                 label="Fitted Peaks",
             )
@@ -1160,11 +1165,11 @@ class atom_fit(object):
         else:
             plt.figure(figsize=togsize)
             plt.subplot(1, 2, 1)
-            plt.imshow(self.image)
+            plt.imshow(self.imcleaned, cmap="magma")
             plt.scatter(
                 self.peaks[:, 1],
                 self.peaks[:, 0],
-                c="c",
+                c="b",
                 s=spot_size,
                 label="Original Peaks",
             )
@@ -1177,11 +1182,11 @@ class atom_fit(object):
             plt.axis("off")
 
             plt.subplot(1, 2, 2)
-            plt.imshow(self.image)
+            plt.imshow(self.imcleaned, cmap="magma")
             plt.scatter(
                 self.refined_peaks[:, 1],
                 self.refined_peaks[:, 0],
-                c="y",
+                c="k",
                 s=spot_size,
                 label="Fitted Peaks",
             )
