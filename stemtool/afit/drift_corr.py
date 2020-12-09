@@ -246,7 +246,7 @@ class multi_image_drift(object):
         self.corr_image = np.sum(self.moved_stack, axis=0) / self.no_im
         return self.corr_image
 
-    def plot_shifts(self):
+    def plot_shifts(self, imwidth=15):
         """
         Notes
         -----
@@ -256,24 +256,37 @@ class multi_image_drift(object):
             raise RuntimeError(
                 "Please get the images correlated first as get_shape_stack()"
             )
+        sc_font = {"weight": "bold", "size": int(imwidth)}
+        imsize = (int(imwidth), int(imwidth * 0.6))
+        plt.figure(figsize=imsize)
         vm = self.max_shift
-        fig = plt.figure(figsize=(20, 10))
-        gs = mpgs.GridSpec(1, 2)
-        ax1 = plt.subplot(gs[0, 0])
-        ax2 = plt.subplot(gs[0, 1])
+
+        gs = mpgs.GridSpec(6, 10)
+        ax1 = plt.subplot(gs[0:5, 0:5])
+        ax2 = plt.subplot(gs[0:5, 5:10])
+        ax3 = plt.subplot(gs[5:6, :])
 
         im = ax1.imshow(self.row_stack, vmin=-vm, vmax=vm, cmap="RdBu_r")
         ax1.set_xlabel("Stack Number")
         ax1.set_ylabel("Stack Number")
         ax1.set_title(label="Shift along X direction", loc="left")
 
-        im = ax2.imshow(self.col_stack, vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax2.imshow(self.col_stack, vmin=-vm, vmax=vm, cmap="RdBu_r")
         ax2.set_xlabel("Stack Number")
         ax2.set_ylabel("Stack Number")
         ax2.set_title(label="Shift along Y direction", loc="left")
 
-        p1 = ax1.get_position().get_points().flatten()
-        p2 = ax2.get_position().get_points().flatten()
-        ax_cbar = fig.add_axes([p1[0], 0.25, p2[2] - 0.12, 0.02])
-        cbar = plt.colorbar(im, cax=ax_cbar, orientation="horizontal")
-        cbar.set_label("Relative Shift (pixels)")
+        sb = np.zeros((10, 1000), dtype=np.float)
+        for ii in range(10):
+            sb[ii, :] = np.linspace(-vm, vm, 1000)
+        ax3.imshow(sb, cmap="RdBu_r")
+        ax3.yaxis.set_visible(False)
+        no_labels = 9
+        x1 = np.linspace(0, 1000, no_labels)
+        ax3.set_xticks(x1)
+        ax3.set_xticklabels(np.round(np.linspace(-vm, vm, no_labels), 4))
+        for axis in ["top", "bottom", "left", "right"]:
+            ax3.spines[axis].set_linewidth(2)
+            ax3.spines[axis].set_color("black")
+        ax3.xaxis.set_tick_params(width=2, length=6, direction="out", pad=10)
+        ax3.set_title("Relative Shift (pixels)", **sc_font)

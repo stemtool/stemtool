@@ -365,7 +365,9 @@ class GPA(object):
     
     """
 
-    def __init__(self, image, calib, calib_units, ref_iter=20, use_blur=True):
+    def __init__(
+        self, image, calib, calib_units, ref_iter=20, use_blur=True, max_strain=0.4
+    ):
         self.image = image
         self.calib = calib
         self.calib_units = calib_units
@@ -379,6 +381,7 @@ class GPA(object):
             raise RuntimeError("Please ensure that the image is a square image")
         self.circ_0 = 0.5 * self.imshape
         self.inv_cal_units = "1/" + calib_units
+        self.max_strain = max_strain
         self.spots_check = False
         self.reference_check = False
         self.refining_check = False
@@ -714,23 +717,32 @@ class GPA(object):
         self.e_dg -= np.median(self.e_dg[self.ref_reg])
         self.e_th -= np.median(self.e_th[self.ref_reg])
         self.e_xx -= np.median(self.e_xx[self.ref_reg])
+
+        if self.max_strain > 0:
+            self.e_yy[self.e_yy > self.max_strain] = self.max_strain
+            self.e_yy[self.e_yy < -self.max_strain] = -self.max_strain
+            self.e_dg[self.e_dg > self.max_strain] = self.max_strain
+            self.e_dg[self.e_dg < -self.max_strain] = -self.max_strain
+            self.e_th[self.e_th > self.max_strain] = self.max_strain
+            self.e_th[self.e_th < -self.max_strain] = -self.max_strain
+            self.e_xx[self.e_xx > self.max_strain] = self.max_strain
+            self.e_xx[self.e_xx < -self.max_strain] = -self.max_strain
         return self.e_xx, self.e_yy, self.e_th, self.e_dg
 
-    def plot_gpa_strain(self, mval=0, imsize=(20, 20)):
+    def plot_gpa_strain(self, mval=0, imwidth=15):
         """
         Use the calculated strain matrices to plot the strain maps 
         
         Parameters
         ----------
-        mval:   float, optional
-                The maximum strain value that will be plotted.
-                Default is 0, upon which the maximum strain 
-                percentage will be calculated, which will be used
-                for plotting.
-        imsize: tuple, optional
-                Size in inches of the image with the 
-                diffraction spots marked. Default is 
-                (20, 20)
+        mval:    float, optional
+                 The maximum strain value that will be plotted.
+                 Default is 0, upon which the maximum strain 
+                 percentage will be calculated, which will be used
+                 for plotting.
+        imwidth: int, optional
+                 Size in inches of the image with the 
+                 diffraction spots marked. Default is 15
         
         Notes
         -----
@@ -738,7 +750,7 @@ class GPA(object):
         four types of strain calculated through geometric phase
         analysis.
         """
-        fontsize = int(np.mean(np.asarray(imsize)))
+        fontsize = int(imwidth)
         if mval == 0:
             vm = 100 * np.amax(
                 np.abs(
@@ -749,14 +761,16 @@ class GPA(object):
             vm = mval
         sc_font = {"weight": "bold", "size": fontsize}
         mpl.rc("font", **sc_font)
+        imsize = (int(imwidth), int(imwidth * 1.1))
 
-        fig = plt.figure(figsize=imsize)
+        plt.figure(figsize=imsize)
 
-        gs = mpgs.GridSpec(2, 2)
-        ax1 = plt.subplot(gs[0, 0])
-        ax2 = plt.subplot(gs[0, 1])
-        ax3 = plt.subplot(gs[1, 0])
-        ax4 = plt.subplot(gs[1, 1])
+        gs = mpgs.GridSpec(11, 10)
+        ax1 = plt.subplot(gs[0:5, 0:5])
+        ax2 = plt.subplot(gs[0:5, 5:10])
+        ax3 = plt.subplot(gs[5:10, 0:5])
+        ax4 = plt.subplot(gs[5:10, 5:10])
+        ax5 = plt.subplot(gs[10:11, :])
 
         ax1.imshow(-100 * self.e_xx, vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib, self.calib_units)
@@ -806,7 +820,7 @@ class GPA(object):
         ax3.add_artist(at)
         ax3.axis("off")
 
-        im = ax4.imshow(-100 * self.e_yy, vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax4.imshow(-100 * self.e_yy, vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib, self.calib_units)
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -822,11 +836,19 @@ class GPA(object):
         ax4.add_artist(at)
         ax4.axis("off")
 
-        p1 = ax1.get_position().get_points().flatten()
-        p4 = ax4.get_position().get_points().flatten()
-
-        ax_cbar = fig.add_axes([p1[0] - 0.075, -0.01, p4[2] + 0.05, 0.02])
-        cbar = plt.colorbar(im, cax=ax_cbar, orientation="horizontal")
-        cbar.set_label("Strain (%)", **sc_font)
+        sb = np.zeros((10, 1000), dtype=np.float)
+        for ii in range(10):
+            sb[ii, :] = np.linspace(-vm, vm, 1000)
+        ax5.imshow(sb, cmap="RdBu_r")
+        ax5.yaxis.set_visible(False)
+        no_labels = 9
+        x1 = np.linspace(0, 1000, no_labels)
+        ax5.set_xticks(x1)
+        ax5.set_xticklabels(np.round(np.linspace(-vm, vm, no_labels), 4))
+        for axis in ["top", "bottom", "left", "right"]:
+            ax5.spines[axis].set_linewidth(2)
+            ax5.spines[axis].set_color("black")
+        ax5.xaxis.set_tick_params(width=2, length=6, direction="out", pad=10)
+        ax5.set_title("Strain (%)", **sc_font)
 
         plt.autoscale()
