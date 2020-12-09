@@ -1,3 +1,4 @@
+import matplotlib.offsetbox as mploff
 import numpy as np
 import numba
 import pyfftw.interfaces as pfi
@@ -59,7 +60,7 @@ def numba_shift_stack(image_stack, row_stack, col_stack, stack_pos, sampling=500
     >>> numba_shift_stack(image_stack,row_stack,col_stack,stack_pos)
     """
     pfi.cache.enable()
-    for pp in numba.prange(len(stack_pos)):
+    for pp in range(len(stack_pos)):
         ii = stack_pos[pp, 0]
         jj = stack_pos[pp, 1]
         row_stack[ii, jj], col_stack[ii, jj], _, _, _ = st.util.dftregistration(
@@ -122,7 +123,7 @@ def numba_stack_corr(image_stack, moved_stack, rowshifts, colshifts):
     """
     row_mean = np.median(rowshifts, axis=0)
     col_mean = np.median(colshifts, axis=0)
-    for ii in numba.prange(len(row_mean)):
+    for ii in range(len(row_mean)):
         moved_stack[ii, :, :] = np.abs(
             st.util.move_by_phase(image_stack[ii, :, :], col_mean[ii], row_mean[ii])
         )
@@ -256,25 +257,48 @@ class multi_image_drift(object):
             raise RuntimeError(
                 "Please get the images correlated first as get_shape_stack()"
             )
-        sc_font = {"weight": "bold", "size": int(imwidth)}
+        fontsize = int(imwidth)
+        sc_font = {"weight": "bold", "size": fontsize}
         imsize = (int(imwidth), int(imwidth * 0.6))
         plt.figure(figsize=imsize)
         vm = self.max_shift
 
-        gs = mpgs.GridSpec(6, 10)
-        ax1 = plt.subplot(gs[0:5, 0:5])
-        ax2 = plt.subplot(gs[0:5, 5:10])
-        ax3 = plt.subplot(gs[5:6, :])
+        gs = mpgs.GridSpec(12, 20)
+        ax1 = plt.subplot(gs[0:10, 0:9])
+        ax2 = plt.subplot(gs[0:10, 11:20])
+        ax3 = plt.subplot(gs[10:12, :])
 
-        im = ax1.imshow(self.row_stack, vmin=-vm, vmax=vm, cmap="RdBu_r")
-        ax1.set_xlabel("Stack Number")
-        ax1.set_ylabel("Stack Number")
-        ax1.set_title(label="Shift along X direction", loc="left")
+        ax1.imshow(self.row_stack, vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax1.set_xlabel("Stack Number", **sc_font)
+        ax1.set_ylabel("Stack Number", **sc_font)
+        ax1.xaxis.set_tick_params(
+            width=0.1*imwidth, length=0.4*imwidth, direction="in", pad=10)
+        ax1.yaxis.set_tick_params(
+            width=0.1*imwidth, length=0.4*imwidth, direction="in", pad=10)
+        at = mploff.AnchoredText(
+            "Shift along X direction",
+            prop=dict(size=fontsize),
+            frameon=True,
+            loc="upper left",
+        )
+        at.patch.set_boxstyle("round, pad= 0., rounding_size= 0.2")
+        ax1.add_artist(at)
 
         ax2.imshow(self.col_stack, vmin=-vm, vmax=vm, cmap="RdBu_r")
-        ax2.set_xlabel("Stack Number")
-        ax2.set_ylabel("Stack Number")
-        ax2.set_title(label="Shift along Y direction", loc="left")
+        ax2.set_xlabel("Stack Number", **sc_font)
+        ax2.set_ylabel("Stack Number", **sc_font)
+        ax2.xaxis.set_tick_params(
+            width=0.1*imwidth, length=0.4*imwidth, direction="in", pad=10)
+        ax2.yaxis.set_tick_params(
+            width=0.1*imwidth, length=0.4*imwidth, direction="in", pad=10)
+        at = mploff.AnchoredText(
+            "Shift along Y direction",
+            prop=dict(size=fontsize),
+            frameon=True,
+            loc="upper left",
+        )
+        at.patch.set_boxstyle("round, pad= 0., rounding_size= 0.2")
+        ax2.add_artist(at)
 
         sb = np.zeros((10, 1000), dtype=np.float)
         for ii in range(10):
@@ -290,3 +314,5 @@ class multi_image_drift(object):
             ax3.spines[axis].set_color("black")
         ax3.xaxis.set_tick_params(width=2, length=6, direction="out", pad=10)
         ax3.set_title("Relative Shift (pixels)", **sc_font)
+
+        plt.autoscale()

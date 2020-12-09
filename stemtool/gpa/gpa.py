@@ -283,7 +283,7 @@ def numba_strain_P(P_1, P_2, a_matrix):
     e_xy = np.zeros_like(P_1)
     e_yx = np.zeros_like(P_1)
     e_yy = np.zeros_like(P_1)
-    for ii in numba.prange(len(yy)):
+    for ii in range(len(yy)):
         ypos = yy[ii]
         xpos = xx[ii]
         P_mat[0, 0] = P1_x[ypos, xpos]
