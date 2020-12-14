@@ -17,6 +17,7 @@ stemtools/util/__pycache__/
 stemtools/dpc/__pycache__/
 stemtools/pty/__pycache__/
 .vscode/settings.json
+.vscode/*
 *.py[cod]
 *$py.class
 *.pyc
