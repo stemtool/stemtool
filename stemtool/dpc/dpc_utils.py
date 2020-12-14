@@ -4,19 +4,20 @@ import numpy as np
 import numba
 import warnings
 import stemtool as st
+import numexpr as ne
 import pyfftw.interfaces.numpy_fft as pfft
 
 
-def cart2pol(xx, yy):
-    rho = ((xx ** 2) + (yy ** 2)) ** 0.5
-    phi = np.arctan2(yy, xx)
-    return rho, phi
+def cart2pol(x, y):
+    rho = ne.evaluate("((x**2) + (y**2)) ** 0.5")
+    phi = ne.evaluate("arctan2(y, x)")
+    return (rho, phi)
 
 
 def pol2cart(rho, phi):
-    x = np.multiply(rho, np.cos(phi))
-    y = np.multiply(rho, np.sin(phi))
-    return x, y
+    x = ne.evaluate("rho * cos(phi)")
+    y = ne.evaluate("rho * sin(phi)")
+    return (x, y)
 
 
 def angle_fun(angle, rho_dpc, phi_dpc):
