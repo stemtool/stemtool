@@ -69,13 +69,13 @@ MOCK_MODULES = [
     "multiprocessing",
     "dask.array",
     "dask", 
-    "pyfftw.interfaces.numpy_fft"
+    "pyfftw.interfaces.numpy_fft", 
+    "numexpr", 
 ]
 
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
-from unittest.mock import MagicMock
 import matplotlib
 
 matplotlib.use("agg")
@@ -105,21 +105,6 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
-
-MOCK_MODULES = [
-    "pygtk",
-    "gtk",
-    "gobject",
-    "argparse",
-    "numpy",
-    "pandas",
-    "skimage",
-    "pyfftw",
-    "scikit-image",
-    "numba",
-    "imagecodecs",
-]
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
 # -- General configuration ---------------------------------------------------

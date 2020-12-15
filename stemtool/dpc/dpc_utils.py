@@ -23,7 +23,7 @@ def pol2cart(rho, phi):
 def angle_fun(angle, rho_dpc, phi_dpc):
     angle = angle * ((np.pi) / 180)
     new_phi = phi_dpc + angle
-    x_dpc, y_dpc = pol2cart(rho_dpc, new_phi)
+    x_dpc, y_dpc = st.dpc.pol2cart(rho_dpc, new_phi)
     charge = np.gradient(x_dpc)[1] + np.gradient(y_dpc)[0]
     angle_sum = np.sum(np.abs(charge))
     return angle_sum
