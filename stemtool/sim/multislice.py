@@ -7,21 +7,21 @@ import ase
 def wavelength_ang(voltage_kV):
     """
     Calculates the relativistic electron wavelength
-    in angstroms based on the microscope accelerating 
+    in angstroms based on the microscope accelerating
     voltage
-    
+
     Parameters
     ----------
     voltage_kV: float
-                microscope operating voltage in kilo 
+                microscope operating voltage in kilo
                 electronVolts
-    
+
     Returns
     -------
     wavelength: float
-                relativistic electron wavelength in 
+                relativistic electron wavelength in
                 angstroms
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -64,9 +64,9 @@ def FourierCalib(calibration, sizebeam):
 
 def make_probe(aperture, voltage, image_size, calibration_pm, defocus=0, c3=0, c5=0):
     """
-    This calculates an electron probe based on the 
+    This calculates an electron probe based on the
     size and the estimated Fourier co-ordinates with
-    the option of adding spherical aberration in the 
+    the option of adding spherical aberration in the
     form of defocus, C3 and C5
     """
     aperture = aperture / 1000
@@ -113,42 +113,42 @@ def atomic_potential(
 ):
     """
     Calculate the projected potential of a single atom
-    
+
     Parameters
     ----------
     atom_no:          int
                       Atomic number of the atom whose potential is being calculated.
     pixel_size:       float
-                      Real space pixel size 
+                      Real space pixel size
     datafile:         string
                       Load the location of the npy file of the Kirkland scattering factors
     sampling:         int, float
                       Supersampling factor for increased accuracy. Matters more with big
-                      pixel sizes. The default value is 16. 
+                      pixel sizes. The default value is 16.
     potential_extent: float
-                      Distance in angstroms from atom center to which the projected 
+                      Distance in angstroms from atom center to which the projected
                       potential is calculated. The default value is 4 angstroms.
-                
+
     Returns
     -------
     potential: ndarray
                Projected potential matrix
-                
+
     Notes
     -----
-    We calculate the projected screened potential of an 
-    atom using the Kirkland formula. Keep in mind however 
+    We calculate the projected screened potential of an
+    atom using the Kirkland formula. Keep in mind however
     that this potential is for independent atoms only!
     No charge distribution between atoms occure here.
-    
+
     References
     ----------
-    Kirkland EJ. Advanced computing in electron microscopy. 
+    Kirkland EJ. Advanced computing in electron microscopy.
     Springer Science & Business Media; 2010 Aug 12.
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
-    
+
     """
     a0 = 0.5292
     ek = 14.4

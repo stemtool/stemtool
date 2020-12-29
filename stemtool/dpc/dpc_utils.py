@@ -59,17 +59,17 @@ def data_rotator(cbed_pattern, rotangle, xcenter, ycenter, data_radius):
 
 def integrate_dpc(xshift, yshift, padf=4, lP=0.5, hP=100, stepsize=0.2, iter_count=100):
     """
-    Integrate DPC shifts using Fourier transforms and 
+    Integrate DPC shifts using Fourier transforms and
     preventing edge effects
-    
+
     Parameters
     ----------
-    xshift:     ndarray 
+    xshift:     ndarray
                 Beam shift in the X dimension
     yshift:     ndarray
                 Beam shift in the X dimensions
     padf:       int, optional
-                padding factor for accurate FFT, 
+                padding factor for accurate FFT,
                 default is 4
     lP:         float, optional
                 low pass filter, default is 0.5
@@ -78,33 +78,33 @@ def integrate_dpc(xshift, yshift, padf=4, lP=0.5, hP=100, stepsize=0.2, iter_cou
     stepsize:   float, optional
                 fraction of phase differnce to update every
                 iteration. Default is 0.5. This is a dynamic
-                factor, and is reduced if the error starts 
+                factor, and is reduced if the error starts
                 increasing
     iter_count: int, optional
                 Number of iterations to run. Default is 100
-    
+
     Returns
     -------
     phase_final: ndarray
                  Phase of the matrix that leads to the displacement
-    
+
     Notes
     -----
-    This is based on two ideas - iterative complex plane 
-    integration and antisymmetric mirror integration. First 
+    This is based on two ideas - iterative complex plane
+    integration and antisymmetric mirror integration. First
     two antisymmetric matrices are generated for each of the
     x shift and y shifts. Then they are integrated in Fourier
     space as per the idea of complex integration. Finally, a
     sub-matrix is taken out from the antisymmetric integrand
     matrix to give the dpc integrand
-    
+
     References
     ----------
-    .. [1] Ishizuka, Akimitsu, Masaaki Oka, Takehito Seki, Naoya Shibata, 
-        and Kazuo Ishizuka. "Boundary-artifact-free determination of 
-        potential distribution from differential phase contrast signals." 
+    .. [1] Ishizuka, Akimitsu, Masaaki Oka, Takehito Seki, Naoya Shibata,
+        and Kazuo Ishizuka. "Boundary-artifact-free determination of
+        potential distribution from differential phase contrast signals."
         Microscopy 66, no. 6 (2017): 397-405.
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """

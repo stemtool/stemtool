@@ -2,19 +2,20 @@ from __future__ import print_function, division, absolute_import
 import multiprocessing
 import dask.array as da
 import os
+import dask
+import dask.distributed as dd
+import multiprocessing
 import struct
 import numpy as np
 import h5py
 import stemtool as st
 import numba
 import glob
-import os
 from collections import OrderedDict
 
 
 class Frms6Reader(object):
-    """ This class allows to access frm6 files
-    """
+    """This class allows to access frm6 files"""
 
     # For more information on struct format string see
     # https://docs.python.org/3/library/struct.html
@@ -85,7 +86,7 @@ class Frms6Reader(object):
 
     @staticmethod
     def getFrameSizeInBytes(frameWidth, frameHeight):
-        """ Convenience method to determine the frame size (without frame
+        """Convenience method to determine the frame size (without frame
         header!)
 
         Args:
@@ -100,7 +101,7 @@ class Frms6Reader(object):
 
     @classmethod
     def getFrameHeaders(cls, fn):
-        """ Reads the frame headers of an entire frms6 file. The frame header
+        """Reads the frame headers of an entire frms6 file. The frame header
         keys are:
 
             * start
@@ -189,7 +190,7 @@ class Frms6Reader(object):
 
     @classmethod
     def readData(cls, fn, *args, image_range, **kwargs):
-        """ Reads chunks of data from a frm6 file. Compatible with ChunkedReader
+        """Reads chunks of data from a frm6 file. Compatible with ChunkedReader
 
         Args:
             fn (str): fully qualified file name
@@ -270,7 +271,7 @@ class Frms6Reader(object):
 
     @classmethod
     def getFileHeader(cls, fn):
-        """ Returns the file header associated with a frm6 file.
+        """Returns the file header associated with a frm6 file.
 
         Args:
             fn (str): fully qualified file name
@@ -302,7 +303,7 @@ class Frms6Reader(object):
 
     @classmethod
     def getDataShape(cls, fn, path=None):
-        """ Returns the size of the set of image in the given file,
+        """Returns the size of the set of image in the given file,
         numpy.shape style.
 
         Args:
@@ -337,9 +338,9 @@ class Frms6Reader(object):
 
 
 def readData(filename, path="/stream", **kwargs):
-    """ Reads data from a given file (family) and output reordered images
+    """Reads data from a given file (family) and output reordered images
     in stacks
-    
+
     Args:
         filename (str): the file path and name. If the file is actually a
             family of files only the first file, i.e. the one with index
@@ -347,21 +348,21 @@ def readData(filename, path="/stream", **kwargs):
         path (str = '/stream', optional): the path in the hdf5 file at which the data is
             located.
         kwargs: the following additional parameters may be given:
-            
+
             * image_range ([low, high]): a range of images to be read
             * x_range ([low, high]): a range of pixels to be read
             * y_range ([low, high]): a range of pixels to be read
             * pixels_x (int): number of pixels along x-axis, **compatibility only**.
             * pixels_y (int): number of pixels along y-axis, **compatibility only**.
-        
-        
+
+
     Returns:
         numpy.array: a reordered and inverted image with rank 2
-        
+
     Note:
         This function is compatible with  xfelpycaltools.ChunkedReader
-            
-    
+
+
     """
 
     imageRange = kwargs.get("image_range", None)
@@ -410,15 +411,15 @@ def readData(filename, path="/stream", **kwargs):
 
 
 def getDataSize(filename, path="/stream"):
-    """ Returns the number of image in a given file (family)
-    
+    """Returns the number of image in a given file (family)
+
     Args:
         filename (str): the file path and name. If the file is actually a family
             of files only the first file, i.e. the one with index 00000.h5
             should be given.
         path (str = '/stream', optional): the path in the hdf5 file at which
             the data is located.
-    
+
     """
 
     f = None
@@ -513,8 +514,105 @@ def remove_dark_ref(data3D, dark_ref):
     return data_fin
 
 
-def generate4D_frms6(data_dir, bin_factor=1):
-    data_3D, dark_ref = st.util.get_data_ref(data_dir)
-    data_4D = st.util.reconstruct_im(data_3D, dark_ref)
-    data_4D_bin = st.nbed.bin_scan(data_4D, bin_factor)
-    return data_4D_bin
+def generate4D_frms6(data_dir, bin_factor=2):
+    cluster = dd.LocalCluster(threads_per_worker=4)
+    client = dd.Client(cluster)
+    current_dir = os.getcwd()
+    os.chdir(data_dir)
+    data_class = st.util.Frms6Reader()
+    tot_files = 0
+    for file in glob.glob("*.frms6"):
+        tot_files += 1
+    filesizes = np.zeros((tot_files, 4), dtype=int)
+    filenames = np.zeros(tot_files, dtype=object)
+
+    ii = 0
+    for file in glob.glob("*.frms6"):
+        fname = data_dir + file
+        dshape = np.asarray(data_class.getDataShape(fname), dtype=int)
+        filesizes[ii, 0:3] = dshape
+        filesizes[ii, -1] = fname[-7]
+        filenames[ii] = fname
+        ii += 1
+
+    draw_shape = (np.mean(filesizes[filesizes[:, -1] != 0, 0:3], axis=0)).astype(int)
+    dref_shape = filesizes[filesizes[:, -1] == 0, 0:3][0]
+    data_shape = np.copy(dref_shape)
+    data_shape[-1] = (np.sum(filesizes[:, -2]) - np.amin(filesizes[:, -2])).astype(int)
+    individual_shape = np.zeros(4, dtype=int)
+    individual_shape[0:3] = draw_shape
+    individual_shape[-1] = int(tot_files - 1)
+    data3d_before = []
+
+    ii = np.arange(tot_files)[filesizes[:, -1] == 0][0]
+    dark_data = data_class.readData(
+        filenames[ii],
+        image_range=(0, dref_shape[-1]),
+        pixels_x=dref_shape[0],
+        pixels_y=dref_shape[1],
+    ).astype(np.float32)
+    del ii
+    mean_dark_ref = np.mean(dark_data, axis=-1)
+
+    for jj in np.arange(1, tot_files):
+        ii = np.arange(tot_files)[filesizes[:, -1] == jj][0]
+        test_data = (
+            data_class.readData(
+                filenames[ii],
+                image_range=(0, draw_shape[-1]),
+                pixels_x=draw_shape[0],
+                pixels_y=draw_shape[1],
+            )
+        ).astype(np.float32)
+        td_dask = da.from_array(test_data, chunks=(-1, -1, "auto"))
+        data3d_before.append(td_dask)
+
+    os.chdir(current_dir)
+    data3d_dask = da.concatenate(data3d_before, axis=-1)
+
+    data_shape = data3d_dask.shape
+    con_shape = tuple((np.asarray(data_shape[0:2]) * np.asarray((0.5, 2))).astype(int))
+    xvals = int(data_shape[-1] ** 0.5)
+
+    d3r = da.transpose(data3d_dask, (2, 0, 1))
+    d3s = d3r - mean_dark_ref
+    d3D_dref = da.transpose(d3s, (1, 2, 0))
+    top_part = d3D_dref[0 : con_shape[0], :, :]
+    bot_part = d3D_dref[con_shape[0] : data_shape[0], :, :]
+    top_part_rs = top_part[::-1, ::-1, :]
+    data3d_arranged = da.concatenate([bot_part, top_part_rs], axis=1)
+    shape4d = (con_shape[0], con_shape[1], xvals, xvals)
+    data4d_dask = da.reshape(data3d_arranged, shape4d)
+
+    bin_nums = int((xvals / bin_factor) ** 2)
+    xvals_bin = int(xvals / bin_factor)
+    if np.logical_not((np.mod(xvals, bin_factor)).astype(bool)):
+        yyb = np.arange(data4d_dask.shape[2])[::bin_factor]
+        xxb = np.arange(data4d_dask.shape[3])[::bin_factor]
+        data3d_binY = da.reshape(
+            data4d_dask[:, :, yyb, :],
+            (con_shape[0], con_shape[1], int(xvals * xvals_bin)),
+        )
+        for ybf in np.arange(1, bin_factor):
+            data3d_binY = data3d_binY + da.reshape(
+                data4d_dask[:, :, yyb + ybf, :],
+                (con_shape[0], con_shape[1], int(xvals * xvals_bin)),
+            )
+        data4d_binY = da.reshape(
+            data3d_binY, (con_shape[0], con_shape[1], xvals_bin, xvals)
+        )
+
+        data3d_binYX = da.reshape(
+            data4d_binY[:, :, :, xxb], (con_shape[0], con_shape[1], bin_nums)
+        )
+        for xbf in np.arange(1, bin_factor):
+            data3d_binYX = data3d_binYX + da.reshape(
+                data4d_binY[:, :, :, xxb + xbf], (con_shape[0], con_shape[1], bin_nums)
+            )
+        data4d_bin = da.reshape(
+            data3d_binYX, (con_shape[0], con_shape[1], xvals_bin, xvals_bin)
+        )
+    data4d_cdask = client.compute(data4d_bin)
+    data_4D = data4d_cdask.result()
+    cluster.close()
+    return data_4D

@@ -44,7 +44,7 @@ def cleanEELS_3D(data3D, method, threshold=0):
 def powerlaw_fit(xdata, ydata, xrange):
     """
     Power Law Fiiting of EELS spectral data
-    
+
     Parameters
     ----------
     xdata:  ndarray
@@ -52,9 +52,9 @@ def powerlaw_fit(xdata, ydata, xrange):
     ydata:  ndarray
             intensity values in A.U.
     xrange: ndarray
-            Starting and stopping energy values 
+            Starting and stopping energy values
             in electron volts
-                
+
     Returns
     -------
     fitted: ndarray
@@ -63,24 +63,24 @@ def powerlaw_fit(xdata, ydata, xrange):
             The power term
     const:  float
             Constant of multiplication
-                
+
     Notes
     -----
     We first find the array start and stop points
     to which the power law will be fitted to. Once
     done, we take the logarithm of both the intensity
-    values and the energy loss values, taking care to 
+    values and the energy loss values, taking care to
     to only take the log of non-negative intensity
     values to prevent imaginary numbers from occuring.
-    We then do a linear polynomial fit in numpy, and 
-    return the power law fitted data, power and the 
-    multiplicative constant. Since the fitting is done 
+    We then do a linear polynomial fit in numpy, and
+    return the power law fitted data, power and the
+    multiplicative constant. Since the fitting is done
     in log-log space, we have to take the exponential
     of the intercept to get the multiplicative constant.
-                 
+
     :Authors:
     Jordan Hachtel <hachtelja@ornl.gov>
-    
+
     """
     start_val = np.int((xrange[0] - np.amin(xdata)) / (np.median(np.diff(xdata))))
     stop_val = np.int((xrange[1] - np.amin(xdata)) / (np.median(np.diff(xdata))))

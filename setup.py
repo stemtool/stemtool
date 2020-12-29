@@ -31,7 +31,7 @@ if not os.getenv("READTHEDOCS"):
             "matplotlib-scalebar >= 0.5.0",
             "ase >= 3.16.0",
             "h5py >= 2.7.0",
-            "dask >= 2.0.0", 
+            "dask >= 2.0.0",
             "numexpr >= 2.6.5",
         ],
     )

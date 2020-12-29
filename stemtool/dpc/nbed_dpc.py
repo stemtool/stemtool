@@ -125,10 +125,10 @@ def strain_and_disk(data4D, disk_size, pixel_list_xy, disk_list, ROI=1, med_fact
 def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
     """
     DPC routine on only the central disk
-    
+
     Parameters
     ----------
-    data4D:     ndarray 
+    data4D:     ndarray
                 The 4 dimensional dataset that will be analyzed
                 The first two dimensions are the Fourier space
                 diffraction dimensions and the last two dimensions
@@ -139,7 +139,7 @@ def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
                 X and Y positions
                 This is the initial guess that will be refined
     ROI:        ndarray
-                The region of interest for the scanning region 
+                The region of interest for the scanning region
                 that will be analyzed. If no ROI is given then
                 the entire scanned area will be analyzed
     med_val:    float
@@ -147,7 +147,7 @@ def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
                 the diifraction patterns due to stray muons or
                 are zero due to dead detector pixels. This removes
                 the effect of such pixels before Sobel filtering
-    
+
     Returns
     -------
     p_cen: ndarray
@@ -155,12 +155,12 @@ def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
     q_cen: ndarray
            Q positions of the central disk
     p_com: ndarray
-           P positions of the center of mass 
+           P positions of the center of mass
            of the central disk
     q_com: ndarray
-           Q positions of the center of mass 
+           Q positions of the center of mass
            of the central disk
-    
+
     Notes
     -----
     This is when we want to perform DPC without bothering
@@ -169,7 +169,7 @@ def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
     point, and then a disk is calculated centered on the edge
     fitted center and then the COM inside that disk is also
     calculated.
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -239,35 +239,35 @@ def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
 
 def log_sobel(pattern, med_factor=30, gauss_val=3):
     """
-    Take the Log-Sobel of a pattern. 
-    
+    Take the Log-Sobel of a pattern.
+
     Parameters
     ----------
-    pattern:    ndarray 
+    pattern:    ndarray
                 Image on which Log-Sobel is to be performed
     med_factor: float
-                Due to detector noise, some stray pixels may often be brighter 
+                Due to detector noise, some stray pixels may often be brighter
                 than the background. This is used for damping any such pixels.
                 Default is 30
     gauss_val:  float
                 The standard deviation of the Gaussian filter applied to the
                 logarithm of the CBED pattern. Default is 3
-    
+
     Returns
     -------
     lsb_pattern: ndarray
                  Log-Sobel Filtered pattern
-    
+
     Notes
     -----
     Generate the Sobel filtered pattern of the logarithm of
     a dataset. Compared to running the Sobel filter back on
     a log dataset, this takes care of somethings - notably
     a Gaussian blur is applied to the image, and Sobel spikes
-    are removed when any values are too higher or lower than 
+    are removed when any values are too higher or lower than
     the median of the image. This is because real detector
     images often are very noisy.
-    
+
     See Also
     --------
     nbed.log_sobel4D

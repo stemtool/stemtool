@@ -13,13 +13,13 @@ import numba
 def phase_diff(angle_image):
     """
     Differentiate a complex phase image while
-    ensuring that phase wrapping doesn't 
+    ensuring that phase wrapping doesn't
     distort the differentiation.
 
     Parameters
     ----------
     angle_image:  ndarray
-                  Wrapped phase image 
+                  Wrapped phase image
 
     Returns
     -------
@@ -30,15 +30,15 @@ def phase_diff(angle_image):
 
     Notes
     -----
-    The basic idea of this is that we differentiate the 
-    complex exponential of the phase image, and then obtain the 
-    differentiation result by multiplying the differential with 
+    The basic idea of this is that we differentiate the
+    complex exponential of the phase image, and then obtain the
+    differentiation result by multiplying the differential with
     the conjugate of the complex phase image.
 
     Reference
     ---------
-    .. [1] Hÿtch, M. J., E. Snoeck, and R. Kilaas. "Quantitative measurement 
-       of displacement and strain fields from HREM micrographs." 
+    .. [1] Hÿtch, M. J., E. Snoeck, and R. Kilaas. "Quantitative measurement
+       of displacement and strain fields from HREM micrographs."
        Ultramicroscopy 74.3 (1998): 131-146.
     """
     imaginary_image = np.exp(1j * angle_image)
@@ -56,7 +56,7 @@ def phase_diff(angle_image):
 
 def phase_subtract(matrix_1, matrix_2):
     """
-    Subtract one complex phase image from 
+    Subtract one complex phase image from
     another without causing phase wrapping.
 
     Parameters
@@ -74,7 +74,7 @@ def phase_subtract(matrix_1, matrix_2):
     Notes
     -----
     The basic idea of this is that we subtract the
-    phase images from each other, then transform 
+    phase images from each other, then transform
     that to a complex phase, and take the angle of
     the complex image.
     """
@@ -84,7 +84,7 @@ def phase_subtract(matrix_1, matrix_2):
 def circ_to_G(circ_pos, image):
     """
     Convert a pixel position to g vectors in
-    Fourier space. 
+    Fourier space.
 
     Parameters
     ----------
@@ -96,9 +96,9 @@ def circ_to_G(circ_pos, image):
     Returns
     -------
     g_vec: ndarray
-           Shape is (2, 1) which is the 
+           Shape is (2, 1) which is the
            corresponding g-vector in inverse pixels
-           
+
     See Also
     --------
     G_to_circ
@@ -112,7 +112,7 @@ def G_to_circ(g_vec, image):
     """
     Convert g vectors in Fourier space to
     pixel positions in real space.
-    
+
     Parameters
     ----------
     g_vec: ndarray
@@ -124,10 +124,10 @@ def G_to_circ(g_vec, image):
     Returns
     -------
     circ_pos: ndarray
-           Shape is (2, 1) which is the 
+           Shape is (2, 1) which is the
            corresponding pixel position in
            real space.
-           
+
     See Also
     --------
     circ_to_G
@@ -142,7 +142,7 @@ def g_matrix(g_vector, image):
     """
     Multiply g vector with Fourier coordinates
     to generate a corresponding phase matrix
-    
+
     Parameters
     ----------
     g_vec: ndarray
@@ -171,7 +171,7 @@ def phase_matrix(gvec, image, circ_size=0, g_blur=True):
     to select only the subset of phases
     associated with that diffraction spot,
     a.k.a. the lattice parameter.
-    
+
     Parameters
     ----------
     g_vec:     ndarray
@@ -189,7 +189,7 @@ def phase_matrix(gvec, image, circ_size=0, g_blur=True):
               Same size as the image originally
               and gives a real space phase matrix
               for a given real image and a g vector
-    
+
     Notes
     -----
     We put an aperture around a single diffraction
@@ -197,9 +197,9 @@ def phase_matrix(gvec, image, circ_size=0, g_blur=True):
     phase matrix associated with that diffraction
     spot. If the g vector is already refined, then
     in the reference region, the difference between
-    this phase matrix and that given by `g_matrix` 
+    this phase matrix and that given by `g_matrix`
     should be zero.
-    
+
     See Also
     --------
     g_matrix
@@ -236,9 +236,9 @@ def phase_matrix(gvec, image, circ_size=0, g_blur=True):
 @numba.jit(cache=True, parallel=True)
 def numba_strain_P(P_1, P_2, a_matrix):
     """
-    Use the refined phase matrices and lattice matrix 
-    to calculate the strain matrices. 
-    
+    Use the refined phase matrices and lattice matrix
+    to calculate the strain matrices.
+
     Parameters
     ----------
     P_1:      ndarray
@@ -248,7 +248,7 @@ def numba_strain_P(P_1, P_2, a_matrix):
     a_matrix: ndarray
               ndarray of shape (2, 2) that represents
               the lattice parameters in real space
-        
+
     Returns
     -------
     e_xx: ndarray
@@ -265,11 +265,11 @@ def numba_strain_P(P_1, P_2, a_matrix):
     This is a numba accelerated JIT compiled
     version of the method `gen_strain()` in the
     where a for loop is used to refine the strain
-    at every pixel position. 
-    
-    See Also 
-    -------- 
-    phase_diff 
+    at every pixel position.
+
+    See Also
+    --------
+    phase_diff
     GPA.gen_strain()
     """
     P1_x, P1_y = phase_diff(P_1)
@@ -302,10 +302,10 @@ def numba_strain_P(P_1, P_2, a_matrix):
 
 class GPA(object):
     """
-    Use Geometric Phase Analysis (GPA) to measure strain in an 
-    electron micrograph by locating the diffraction spots and 
+    Use Geometric Phase Analysis (GPA) to measure strain in an
+    electron micrograph by locating the diffraction spots and
     identifying a reference region
-    
+
     Parameters
     ----------
     image:       ndarray
@@ -317,52 +317,52 @@ class GPA(object):
                  Unit of calibration
     ref_iter:    int, optional
                  Number of iterations to run for refining
-                 the G vectors and the phase matrixes. 
+                 the G vectors and the phase matrixes.
                  Default is 20.
     use_blur:    bool, optional
-                 Use a Gaussian blur to generate the 
+                 Use a Gaussian blur to generate the
                  phase matrix from a g vector. Default is True
-                 
+
     References
     ----------
-    .. [1] Hÿtch, M. J., E. Snoeck, and R. Kilaas. "Quantitative measurement 
-       of displacement and strain fields from HREM micrographs." 
+    .. [1] Hÿtch, M. J., E. Snoeck, and R. Kilaas. "Quantitative measurement
+       of displacement and strain fields from HREM micrographs."
        Ultramicroscopy 74.3 (1998): 131-146.
-    
+
     Examples
     --------
     Run as:
-    
+
     >>> im_gpa = gpa(image=imageDC, calib=calib1, calib_units= calib1_units)
-    
+
     Then to check the image you just loaded
-    
+
     >>> im_gpa.show_image()
-    
+
     Then, select the diffraction spots in inverse units that you
     want to be used for GPA. They must not be collinear.
-    
+
     >>> im_gpa.find_spots((5, 0), (0, -5))
-    
+
     where (5, 0) and (0, -5) are two diffraction spot
     locations. You can run the `find_spots` method manually
-    multiple times till you locate the spots closely. After 
+    multiple times till you locate the spots closely. After
     you have located the spots, you need to define a reference
-    region for the image - with respect to which the strain 
+    region for the image - with respect to which the strain
     will be calculated.
-    
+
     >>> im_gpa.define_reference((6.8, 6.9), (10.1, 6.8), (10.2, 9.5), (7.0, 9.6))
-    
+
     where (6.8, 6.9), (10.1, 6.8), (10.2, 9.5) and (7.0, 9.6) are
-    the corners of the reference region you are defining. 
-    
+    the corners of the reference region you are defining.
+
     >>> im_gpa.refine_phase()
     >>> e_xx, e_yy, e_theta, e_diag = im_gpa.get_strain()
-    
+
     To plot the obtained strain maps:
-    
+
     >>> im_gpa.plot_gpa_strain()
-    
+
     """
 
     def __init__(
@@ -391,7 +391,7 @@ class GPA(object):
         Parameters
         ----------
         imsize:   tuple, optional
-                  Size in inches of the image with the 
+                  Size in inches of the image with the
                   diffraction spots marked. Default is (15, 15)
         colormap: str, optional
                   Colormap of the image. Default is inferno
@@ -420,19 +420,19 @@ class GPA(object):
         circ_size: float
                    Size of the circle in pixels
         imsize:    tuple, optional
-                   Size in inches of the image with the 
-                   diffraction spots marked. Default is 
+                   Size in inches of the image with the
+                   diffraction spots marked. Default is
                    (10, 10)
 
         Notes
         -----
-        Put circles in red(central), y(blue) and x(green) 
+        Put circles in red(central), y(blue) and x(green)
         on the diffraction pattern to approximately know
-        the positions. We also convert the circle locations 
+        the positions. We also convert the circle locations
         to G vectors by calling the static method `circ_to_G`.
         We use the G vector locations to also generate the
-        initial phase matrices. 
-        
+        initial phase matrices.
+
         See Also
         --------
         circ_to_G
@@ -495,8 +495,8 @@ class GPA(object):
         D_pt:   tuple
                 Bottom left position of reference region in (x, y)
         imsize: tuple, optional
-                Size in inches of the image with the 
-                diffraction spots marked. Default is 
+                Size in inches of the image with the
+                diffraction spots marked. Default is
                 (10, 10)
         tColor: str, optional
                 Color of the text on the image
@@ -623,7 +623,7 @@ class GPA(object):
         Iteratively refine the G vector and the phase matrices,
         so that the phase variation in the reference region is
         minimized.
-        
+
         See Also
         --------
         phase_diff
@@ -670,8 +670,8 @@ class GPA(object):
     def get_strain(self):
         """
         Use the refined phase matrix and g vectors to calculate
-        the strain matrices. 
-        
+        the strain matrices.
+
         Returns
         -------
         e_xx: ndarray
@@ -690,7 +690,7 @@ class GPA(object):
         class attribute `a_matrix`. This is multiplied by the
         refined phase matrix, and the multiplicand is subsequently
         differentiated to get the strain parameters.
-        
+
         See Also
         --------
         phase_diff
@@ -731,22 +731,22 @@ class GPA(object):
 
     def plot_gpa_strain(self, mval=0, imwidth=15):
         """
-        Use the calculated strain matrices to plot the strain maps 
-        
+        Use the calculated strain matrices to plot the strain maps
+
         Parameters
         ----------
         mval:    float, optional
                  The maximum strain value that will be plotted.
-                 Default is 0, upon which the maximum strain 
+                 Default is 0, upon which the maximum strain
                  percentage will be calculated, which will be used
                  for plotting.
         imwidth: int, optional
-                 Size in inches of the image with the 
+                 Size in inches of the image with the
                  diffraction spots marked. Default is 15
-        
+
         Notes
         -----
-        Uses `matplotlib.gridspec` to plot the strain maps of the 
+        Uses `matplotlib.gridspec` to plot the strain maps of the
         four types of strain calculated through geometric phase
         analysis.
         """

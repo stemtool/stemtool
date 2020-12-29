@@ -11,7 +11,7 @@ import matplotlib.gridspec as mpgs
 def numba_shift_stack(image_stack, row_stack, col_stack, stack_pos, sampling=500):
     """
     Cross-Correlate stack of images
-    
+
     Parameters
     ----------
     image_stack: ndarray
@@ -28,35 +28,35 @@ def numba_shift_stack(image_stack, row_stack, col_stack, stack_pos, sampling=500
     sampling:    int, optional
                  Fraction of the pixel to calculate upsampled
                  cross-correlation for. Default is 500
-               
+
     Notes
     -----
-    For a rapidly collected image stack, each image in the stack is 
+    For a rapidly collected image stack, each image in the stack is
     cross-correlated with all the other images of the stack, to generate
     a skew matrix of row shifts and column shifts, calculated with sub
     pixel precision.
-    
+
     See Also
     --------
     util.dftregistration
-    
+
     References
     ----------
-    [1]_, Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
-          Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
-          Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+    [1]_, Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H.,
+          Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and
+          Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data.
           Ultramicroscopy, 191, pp.56-65.
-    
+
     Examples
     --------
     Since this is a `numba` function, to initialize the JIT we need
     to call the function with a small dataset first. Running it once also
     allows `pyFFTW` to figure out the fastest FFT route.
-    
+
     >>> numba_shift_stack(image_stack,row_stack,col_stack,stack_pos[0:10,:])
-    
+
     Once the JIT is initialized run the function as:
-    
+
     >>> numba_shift_stack(image_stack,row_stack,col_stack,stack_pos)
     """
     pfi.cache.enable()
@@ -74,7 +74,7 @@ def numba_shift_stack(image_stack, row_stack, col_stack, stack_pos, sampling=500
 def numba_stack_corr(image_stack, moved_stack, rowshifts, colshifts):
     """
     Get corrected image stack
-    
+
     Parameters
     ----------
     image_stack: ndarray
@@ -90,36 +90,36 @@ def numba_stack_corr(image_stack, moved_stack, rowshifts, colshifts):
     colshifts:   ndarray
                  The size is nXn where n is the n of images in
                  the image_stack
-               
+
     Notes
     -----
-    The mean of the shift stacks for every image position are the 
-    amount by which each image is to be shifted. We calculate the 
+    The mean of the shift stacks for every image position are the
+    amount by which each image is to be shifted. We calculate the
     mean and move each image by that amount in the stack and then
     sum them up.
-    
+
     See Also
     --------
     util.move_by_phase
-    
+
     References
     ----------
-    .. [2] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
-       Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
-       Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+    .. [2] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H.,
+       Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and
+       Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data.
        Ultramicroscopy, 191, pp.56-65.
-    
+
     Examples
     --------
     Since this is a `numba` function, to initialize the JIT we need
     to call the function with a small dataset first
-    
+
     >>> corrected_stack(image_stack,moved_stack,rowshifts,colshifts)
-    
+
     Once the JIT is initialized run the function as:
-    
+
     >>> corr_stack = corrected_stack(image_stack,rowshifts,colshifts)
-    
+
     """
     row_mean = np.median(rowshifts, axis=0)
     col_mean = np.median(colshifts, axis=0)
@@ -133,7 +133,7 @@ class multi_image_drift(object):
     """
     Correct for scan drift through cross-correlating a
     rapidly acquired image stack
-    
+
     Parameters
     ----------
     image_stack: ndarray
@@ -144,22 +144,22 @@ class multi_image_drift(object):
     sampling:    int, optional
                  Fraction of the pixel to calculate upsampled
                  cross-correlation for. Default is 500
-                 
+
     References
     ----------
-    .. [1] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H., 
-       Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and 
-       Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data. 
+    .. [1] Savitzky, B.H., El Baggari, I., Clement, C.B., Waite, E., Goodge, B.H.,
+       Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and
+       Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data.
        Ultramicroscopy, 191, pp.56-65.
-    
+
     Examples
     --------
     Run the function as:
-    
+
     >>> cc = drift_corrector(image_stack)
     >>> cc.get_shift_stack()
     >>> corrected = cc.corrected_stack()
-    
+
     """
 
     def __init__(self, image_stack, sampling=500):
@@ -185,7 +185,7 @@ class multi_image_drift(object):
 
         Notes
         -----
-        For a rapidly collected image stack, each image in the stack is 
+        For a rapidly collected image stack, each image in the stack is
         cross-correlated with all the other images of the stack, to generate
         a skew matrix of row shifts and column shifts, calculated with sub
         pixel precision.
@@ -224,8 +224,8 @@ class multi_image_drift(object):
 
         Notes
         -----
-        The mean of the shift stacks for every image position are the 
-        amount by which each image is to be shifted. We calculate the 
+        The mean of the shift stacks for every image position are the
+        amount by which each image is to be shifted. We calculate the
         mean and move each image by that amount in the stack and then
         sum them up.
         """

@@ -27,7 +27,7 @@ def remove_close_vals(input_arr, limit):
 def peaks_vis(data_image, dist=10, thresh=0.1, imsize=(20, 20)):
     """
     Find atom maxima pixels in images
-    
+
     Parameters
     ----------
     data_image: ndarray
@@ -36,18 +36,18 @@ def peaks_vis(data_image, dist=10, thresh=0.1, imsize=(20, 20)):
                 Average distance between neighboring peaks
                 Default is 10
     thresh:     float
-                The cutoff intensity value below which a peak 
+                The cutoff intensity value below which a peak
                 will not be detected
                 Default is 0.1
     imsize:     ndarray
                 Size of the display image
                 Default is (20,20)
-    
+
     Returns
     -------
     peaks: ndarray
            List of peak positions as y, x
-    
+
     Notes
     -----
     This is a wrapper around the skimage peak finding
@@ -57,7 +57,7 @@ def peaks_vis(data_image, dist=10, thresh=0.1, imsize=(20, 20)):
     image thus users can modify the input values of
     threshold and distance to ensure the right peaks are
     selected.
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -87,25 +87,25 @@ def peaks_vis(data_image, dist=10, thresh=0.1, imsize=(20, 20)):
 def refine_atoms(image_data, positions):
     """
     Single Gaussian Peak Atom Refinement
-    
+
     Parameters
     ----------
     image_data: ndarray
                 Original atomic resolution image
     positions:  ndarray
                 Intensity minima/maxima list
-    
+
     Returns
     -------
     ref_arr: ndarray
              List of refined peak positions as y, x
-    
+
     Notes
     -----
     This is the single Gaussian peak fitting technique
-    where the initial atom positions are fitted with a 
+    where the initial atom positions are fitted with a
     single 2D Gaussian function. The center of the Gaussian
-    is returned as the refined atom position. 
+    is returned as the refined atom position.
     """
     warnings.filterwarnings("ignore")
     no_pos = len(positions)
@@ -135,8 +135,8 @@ def mpfit(
     peakparams=False,
 ):
     """
-    Multi-Gaussian Peak Refinement (mpfit) 
-    
+    Multi-Gaussian Peak Refinement (mpfit)
+
     Parameters
     ----------
     main_image:     ndarray
@@ -158,25 +158,25 @@ def mpfit(
                     If set to True, then the individual Gaussian peaks and
                     their amplitudes are also returned.
                     Default is False
-    
+
     Returns
     -------
     mpfit_peaks: ndarray
                  List of refined peak positions as y, x
-    
+
     Notes
     -----
     This is the multiple Gaussian peak fitting technique
-    where the initial atom positions are fitted with a 
+    where the initial atom positions are fitted with a
     single 2D Gaussian function. The calculated Gaussian is
     then subsequently subtracted and refined again. The final
-    refined position is the sum of all the positions scaled 
+    refined position is the sum of all the positions scaled
     with the amplitude
-    
+
     References:
     -----------
-    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N., 
-         mpfit: a robust method for fitting atomic resolution images 
+    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N.,
+         mpfit: a robust method for fitting atomic resolution images
          with multiple Gaussian peaks. Adv Struct Chem Imag 6, 1 (2020).
     """
     warnings.filterwarnings("ignore")
@@ -262,8 +262,8 @@ def mpfit_voronoi(
     blur_factor=0.25,
 ):
     """
-    Multi-Gaussian Peak Refinement (mpfit) 
-    
+    Multi-Gaussian Peak Refinement (mpfit)
+
     Parameters
     ----------
     main_image:     ndarray
@@ -282,31 +282,31 @@ def mpfit_voronoi(
                     The tolerance value to use for a gaussian estimation
                     Default is 0.01
     blur_factor:    float
-                    Make the Voronoi regions slightly bigger. 
+                    Make the Voronoi regions slightly bigger.
                     Default is 25% bigger
-    
+
     Returns
     -------
     mpfit_peaks: ndarray
                  List of refined peak positions as y, x
-    
+
     Notes
     -----
     This is the multiple Gaussian peak fitting technique
-    where the initial atom positions are fitted with a 
+    where the initial atom positions are fitted with a
     single 2D Gaussian function. The calculated Gaussian is
     then subsequently subtracted and refined again. The final
-    refined position is the sum of all the positions scaled 
+    refined position is the sum of all the positions scaled
     with the amplitude. The difference with the standard mpfit
-    code is that the masking region is actually chosen as a 
+    code is that the masking region is actually chosen as a
     Voronoi region from the nearest neighbors
-    
+
     References:
     -----------
-    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N., 
-         mpfit: a robust method for fitting atomic resolution images 
+    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N.,
+         mpfit: a robust method for fitting atomic resolution images
          with multiple Gaussian peaks. Adv Struct Chem Imag 6, 1 (2020).
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -422,7 +422,7 @@ def fourier_mask(original_image, center, radius, threshold=0.2):
 def find_diffraction_spots(image, circ_c, circ_y, circ_x):
     """
     Find the diffraction spots visually.
-    
+
     Parameters
     ----------
     image:  ndarray
@@ -436,14 +436,14 @@ def find_diffraction_spots(image, circ_c, circ_y, circ_x):
     circ_x: ndarray
             Position of the x beam in
             the Fourier pattern
-    
-    
+
+
     Notes
     -----
-    Put circles in red(central), y(blue) and x(green) 
+    Put circles in red(central), y(blue) and x(green)
     on the diffraction pattern to approximately know
     the positions.
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -465,7 +465,7 @@ def find_coords(image, fourier_center, fourier_y, fourier_x, y_axis, x_axis):
     Convert the fourier positions to image axes.
     Do not use numba to accelerate as LLVM IR
     throws an error from the the if statements
-    
+
     Parameters
     ----------
     image:  ndarray
@@ -479,20 +479,20 @@ def find_coords(image, fourier_center, fourier_y, fourier_x, y_axis, x_axis):
     four_x: ndarray
             Position of the x beam in
             the Fourier pattern
-    
+
     Returns
     -------
     coords: ndarray
             Axes co-ordinates in the real image,
             as [y1 x1
                 y2 x2]
-    
+
     Notes
     -----
-    Use the fourier coordinates to define the axes 
-    co-ordinates in real space, which will be used 
+    Use the fourier coordinates to define the axes
+    co-ordinates in real space, which will be used
     to assign each atom position to a axes position
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -608,24 +608,24 @@ def get_coords(image, peak_pos, origin, current_coords):
 def coords_of_atoms(peaks, coords, origin):
     """
     Convert atom positions to coordinates
-    
+
     Parameters
     ----------
     peaks:  ndarray
             List of Gaussian fitted peaks
     coords: ndarray
             Co-ordinates of the axes
-    
+
     Returns
     -------
     atom_coords: ndarray
                  Peak positions as the atom coordinates
-    
+
     Notes
     -----
     One atom is chosen as the origin and the co-ordinates
     of all the atoms are calculated with respect to the origin
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -763,15 +763,15 @@ def strain_map(centers, e_yy, e_xx, e_xy, e_th, mask):
 
 def create_circmask(image, center, radius, g_val=3, flip=True):
     """
-    Use a Gaussian blurred image to fit 
+    Use a Gaussian blurred image to fit
     peaks.
-    
+
     Parameters
     ----------
     image:  ndarray
             2D array representing the image
     center: tuple
-            Approximate location as (x,y) of 
+            Approximate location as (x,y) of
             the peak we are trying to fit
     radius: float
             Masking radius
@@ -782,18 +782,18 @@ def create_circmask(image, center, radius, g_val=3, flip=True):
             Switch to flip refined center position
             from (x,y) to (y,x). Default is True
             which returns the center as (y,x)
-            
-    
+
+
     Returns
     -------
     masked_image: ndarray
-                  Masked Image centered at refined 
+                  Masked Image centered at refined
                   peak position
     new_center:   ndarray
-                  Refined atom center as (y,x) if 
+                  Refined atom center as (y,x) if
                   flip switch is on, else the center
                   is returned as (x,y)
-    
+
     Notes
     -----
     For some noisy datasets, a peak may be visible with
@@ -801,14 +801,14 @@ def create_circmask(image, center, radius, g_val=3, flip=True):
     the peak position is often challenging, especially
     for FFT for diffraction patterns. This code Gaussian
     blurs the image, and returns the refined peak position
-    
+
     See also
     --------
     st.util.fit_gaussian2D_mask
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
-                  
+
     """
     blurred_image = scnd.filters.gaussian_filter(np.abs(image), g_val)
     fitted_diff = st.util.fit_gaussian2D_mask(
@@ -861,7 +861,7 @@ class atom_fit(object):
     Locate atom columns in atomic resolution STEM images
     and then subsequently use gaussian peak fitting to
     refine the column location with sub-pixel precision.
-    
+
     Parameters
     ----------
     image:       ndarray
@@ -871,46 +871,46 @@ class atom_fit(object):
                  Size of an individual pixel
     calib_units: str
                  Unit of calibration
-                 
+
     References
     ----------
-    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N., 
-         mpfit: a robust method for fitting atomic resolution images 
+    1]_, Mukherjee, D., Miao, L., Stone, G. and Alem, N.,
+         mpfit: a robust method for fitting atomic resolution images
          with multiple Gaussian peaks. Adv Struct Chem Imag 6, 1 (2020).
-    
+
     Examples
     --------
     Run as:
-    
+
     >>> atoms = st.afit.atom_fit(stem_image, calibration, 'nm')
-    
+
     Then to check the image you just loaded, with the optional parameter
-    `12` determining how many pixels of gaussian blur need to applied to 
+    `12` determining how many pixels of gaussian blur need to applied to
     calculate and separate a background. If in doubt, don't use it.
-    
+
     >>> atoms.show_image(12)
-    
-    It is then optional to define a refernce region for the image. 
+
+    It is then optional to define a refernce region for the image.
     If such a region is defined, atom positions will only be ascertained
     grom the reference region. If you don't run this step, the entire image
     will be analyzed
-    
+
     >>> atoms.define_reference((17, 7), (26, 7), (26, 24), (17, 24))
-    
+
     Then, visualize the peaks:
-    
-    >>> atoms.peaks_vis(dist=0.1, thresh=0.1) 
-    
+
+    >>> atoms.peaks_vis(dist=0.1, thresh=0.1)
+
     `dist` indicates the distance between the
-    peaks in calibration units. Play around with the numbers till 
+    peaks in calibration units. Play around with the numbers till
     you get a satisfactory result. Then run the gaussian peak refinement as:
-    
+
     >>> atoms.refine_peaks()
-    
+
     You can visualize your fitted peaks as:
-    
+
     >>> atoms.show_peaks(style= 'separate')
-    
+
     """
 
     def __init__(self, image, calib, calib_units):
@@ -932,7 +932,7 @@ class atom_fit(object):
                   to generate a background image for
                   subtraction. Default is 0
         imsize:   tuple, optional
-                  Size in inches of the image with the 
+                  Size in inches of the image with the
                   diffraction spots marked. Default is (15, 15)
         colormap: str, optional
                   Colormap of the image. Default is inferno
@@ -966,8 +966,8 @@ class atom_fit(object):
         D_pt:   tuple
                 Bottom left position of reference region in (x, y)
         imsize: tuple, optional
-                Size in inches of the image with the 
-                diffraction spots marked. Default is 
+                Size in inches of the image with the
+                diffraction spots marked. Default is
                 (10, 10)
         tColor: str, optional
                 Color of the text on the image. Default is black

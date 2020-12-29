@@ -18,21 +18,21 @@ import warnings
 def rotation_finder(image_orig, axis=0):
     """
     Angle Finder
-    
+
     Parameters
     ----------
     image_orig: (2,2) shape ndarray
                 Input Image
     axis:       int, optional
                 Axis along which to perform sum
-                     
+
     Returns
     -------
     min_x: float
            Angle by which if the image is rotated
            by, the sum of the image along the axis
            specified is maximum
-    
+
     Notes
     -----
     Uses an internal `angle_fun` to sum the intensity along
@@ -55,29 +55,29 @@ def rotation_finder(image_orig, axis=0):
 def rotate_and_center_ROI(data4D_ROI, rotangle, xcenter, ycenter):
     """
     Rotation Corrector
-    
+
     Parameters
     ----------
-    data4D_ROI: ndarray 
+    data4D_ROI: ndarray
                 Region of interest of the 4D-STEM dataset in
                 the form of ROI pixels (scanning), CBED_Y, CBED_x
     rotangle:   float
-                angle in counter-clockwise direction to 
+                angle in counter-clockwise direction to
                 rotate individual CBED patterns
     xcenter:    float
                 X pixel co-ordinate of center of mean pattern
     ycenter:    float
                 Y pixel co-ordinate of center of mean pattern
-                     
+
     Returns
     -------
     corrected_ROI: ndarray
                    Each CBED pattern from the region of interest
                    first centered and then rotated along the center
-     
+
     Notes
     -----
-    We start by centering each 4D-STEM CBED pattern 
+    We start by centering each 4D-STEM CBED pattern
     and then rotating the patterns with respect to the
     pattern center
     """
@@ -100,14 +100,14 @@ def rotate_and_center_ROI(data4D_ROI, rotangle, xcenter, ycenter):
 def data4Dto2D(data4D):
     """
     Convert 4D data to 2D data
-    
+
     Parameters
     ----------
     data4D: ndarray of shape (4,4)
             the first two dimensions are Fourier
             space, while the next two dimensions
             are real space
-                     
+
     Returns
     -------
     data2D: ndarray of shape (2,2)
@@ -156,7 +156,7 @@ def resizer2D_numbaopt(data2D, resampled_x, resampled_f, sampling):
 def bin4D(data4D, bin_factor):
     """
     Bin 4D data in spectral dimensions
-    
+
     Parameters
     ----------
     data4D:     ndarray of shape (4,4)
@@ -165,16 +165,16 @@ def bin4D(data4D, bin_factor):
                 are real space
     bin_factor: int
                 Value by which to bin data
-                     
+
     Returns
     -------
     binned_data: ndarray of shape (4,4)
                  Data binned in the spectral dimensions
-    
+
     Notes
     -----
     The data is binned in the first two dimensions - which are
-    the Fourier dimensions using the internal numba functions 
+    the Fourier dimensions using the internal numba functions
     `resizer2D_numbaopt` and `resizer1D_numbaopt`
 
     See Also
@@ -205,7 +205,7 @@ def bin4D(data4D, bin_factor):
 def test_aperture(pattern, center, radius, showfig=True):
     """
     Test an aperture position for Virtual DF image
-    
+
     Parameters
     ----------
     pattern: ndarray of shape (2,2)
@@ -219,17 +219,17 @@ def test_aperture(pattern, center, radius, showfig=True):
     showfig: bool, optional
              If showfig is True, then the image is
              displayed with the aperture overlaid
-                     
+
     Returns
     -------
     aperture: ndarray of shape (2,2)
               A matrix of the same size of the input image
               with zeros everywhere and ones where the aperture
               is supposed to be
-    
+
     Notes
     -----
-    Use the showfig option to visually test out the aperture 
+    Use the showfig option to visually test out the aperture
     location with varying parameters
     """
     center = np.asarray(center)
@@ -248,7 +248,7 @@ def test_aperture(pattern, center, radius, showfig=True):
 def aperture_image(data4D, center, radius):
     """
     Generate Virtual DF image for a given aperture
-    
+
     Parameters
     ----------
     data4D: ndarray of shape (4,4)
@@ -259,18 +259,18 @@ def aperture_image(data4D, center, radius):
             Center of the circular aperture
     radius: float
             Radius of the circular aperture
-    
+
     Returns
     -------
     df_image: ndarray of shape (2,2)
               Generated virtual dark field image
               from the aperture and 4D data
-    
+
     Notes
     -----
     We generate the aperture first, and then make copies
-    of the aperture to generate a 4D dataset of the same 
-    size as the 4D data. Then we do an element wise 
+    of the aperture to generate a 4D dataset of the same
+    size as the 4D data. Then we do an element wise
     multiplication of this aperture 4D data with the 4D data
     and then sum it along the two Fourier directions.
     """
@@ -292,9 +292,9 @@ def aperture_image(data4D, center, radius):
 
 def custom_detector(data4D, det_inner, det_outer, det_center=(0, 0), mrad_calib=0):
     """
-    Generate an image with a custom annular detector 
+    Generate an image with a custom annular detector
     located anywhere in diffraction space
-    
+
     Parameters
     ----------
     data4D: ndarray of shape (4,4)
@@ -305,18 +305,18 @@ def custom_detector(data4D, det_inner, det_outer, det_center=(0, 0), mrad_calib=
             Center of the circular aperture
     radius: float
             Radius of the circular aperture
-    
+
     Returns
     -------
     df_image: ndarray of shape (2,2)
               Generated virtual dark field image
               from the aperture and 4D data
-    
+
     Notes
     -----
     We generate the aperture first, and then make copies
-    of the aperture to generate a 4D dataset of the same 
-    size as the 4D data. Then we do an element wise 
+    of the aperture to generate a 4D dataset of the same
+    size as the 4D data. Then we do an element wise
     multiplication of this aperture 4D data with the 4D data
     and then sum it along the two Fourier directions.
     """
@@ -379,11 +379,11 @@ def colored_mcr(conc_data, data_shape):
 def fit_nbed_disks(corr_image, disk_size, positions, diff_spots, nan_cutoff=0):
     """
     Disk Fitting algorithm for a single NBED pattern
-    
+
     Parameters
     ----------
     corr_image: ndarray of shape (2,2)
-                The cross-correlated image of the NBED that 
+                The cross-correlated image of the NBED that
                 will be fitted
     disk_size:  float
                 Size of each NBED disks in pixels
@@ -395,32 +395,32 @@ def fit_nbed_disks(corr_image, disk_size, positions, diff_spots, nan_cutoff=0):
                 disk positions
     nan_cutoff: float, optional
                 Optional parameter that is used for thresholding disk
-                fits. If the intensity ratio is below the threshold 
+                fits. If the intensity ratio is below the threshold
                 the position will not be fit. Default value is 0
-    
+
     Returns
     -------
     fitted_disk_list: ndarray of shape (n,2)
                       Sub-pixel precision Gaussian fitted disk
                       locations. If nan_cutoff is greater than zero, then
-                      only the positions that are greater than the threshold 
+                      only the positions that are greater than the threshold
                       are returned.
     center_position:  ndarray of shape (1,2)
                       Location of the central (0,0) disk
     fit_deviation:    ndarray of shape (1,2)
-                      Standard deviation of the X and Y disk fits given as pixel 
+                      Standard deviation of the X and Y disk fits given as pixel
                       ratios
     lcbed:            ndarray of shape (2,2)
                       Matrix defining the Miller indices axes
-    
+
     Notes
     -----
     Every disk position is fitted with a 2D Gaussian by cutting off a circle
-    of the size of disk_size around the initial poistions. If nan-cutoff is above 
-    zero then only the locations inside this cutoff where the maximum pixel intensity 
-    is (1+nan_cutoff) times the median pixel intensity will be fitted. Use this 
+    of the size of disk_size around the initial poistions. If nan-cutoff is above
+    zero then only the locations inside this cutoff where the maximum pixel intensity
+    is (1+nan_cutoff) times the median pixel intensity will be fitted. Use this
     parameter carefully, because in some cases this may result in no disks being fitted
-    and the program throwing weird errors at you. 
+    and the program throwing weird errors at you.
     """
     warnings.filterwarnings("ignore")
     no_pos = int(np.shape(positions)[0])
@@ -502,12 +502,12 @@ def strain_in_ROI(
 ):
     """
     Get strain from a region of interest
-    
+
     Parameters
     ----------
     data4D:         ndarray
                     This is a 4D dataset where the first two dimensions
-                    are the diffraction dimensions and the next two 
+                    are the diffraction dimensions and the next two
                     dimensions are the scan dimensions
     ROI:            ndarray of dtype bool
                     Region of interest
@@ -522,12 +522,12 @@ def strain_in_ROI(
                     disk positions
     reference_axes: ndarray, optional
                     The unit cell axes from the reference region. Strain is
-                    calculated by comapring the axes at a scan position with 
-                    the reference axes values. If it is 0, then the average 
-                    NBED axes will be calculated and will be used as the 
+                    calculated by comapring the axes at a scan position with
+                    the reference axes values. If it is 0, then the average
+                    NBED axes will be calculated and will be used as the
                     reference axes.
     med_factor:     float, optional
-                    Due to detector noise, some stray pixels may often be brighter 
+                    Due to detector noise, some stray pixels may often be brighter
                     than the background. This is used for damping any such pixels.
                     Default is 30
     gauss_val:      float, optional
@@ -538,9 +538,9 @@ def strain_in_ROI(
                     Default is 0.1
     nan_cutoff:     float, optional
                     Parameter that is used for thresholding disk
-                    fits. If the intensity ratio is below the threshold 
-                    the position will not be fit. Default value is 0.5    
-    
+                    fits. If the intensity ratio is below the threshold
+                    the position will not be fit. Default value is 0.5
+
     Returns
     -------
     e_xx_map: ndarray
@@ -553,16 +553,16 @@ def strain_in_ROI(
               Strain in the yy direction in the region of interest
     fit_std:  ndarray
               x and y deviations in axes fitting for the scan points
-    
+
     Notes
     -----
     At every scan position, the diffraction disk is filtered by first taking
-    the log of the CBED pattern, and then by applying a Gaussian filter. 
-    Following this the Sobel of the filtered dataset is calculated. 
+    the log of the CBED pattern, and then by applying a Gaussian filter.
+    Following this the Sobel of the filtered dataset is calculated.
     The intensity of the Sobel, Gaussian and Log filtered CBED data is then
     inspected for outlier pixels. If pixel intensities are higher or lower than
     a threshold of the median pixel intensity, they are replaced by the threshold
-    value. This is then hybrid cross-correlated with the Sobel magnitude of the 
+    value. This is then hybrid cross-correlated with the Sobel magnitude of the
     template disk. If the pattern axes return a numerical value, then the strain
     is calculated for that scan position, else it is NaN
     """
@@ -725,37 +725,37 @@ def ROI_strain_map(strain_ROI, ROI):
 @numba.jit(cache=True, parallel=True)
 def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     """
-    Take the Log-Sobel of a pattern. 
-    
+    Take the Log-Sobel of a pattern.
+
     Parameters
     ----------
-    data4D:     ndarray 
+    data4D:     ndarray
                 4D dataset whose CBED patterns will be filtered
     scan_dims:  tuple
-                Scan dimensions. If your scanning pixels are for 
+                Scan dimensions. If your scanning pixels are for
                 example the first two dimensions specify it as (0,1)
                 Will be converted to numpy array so pass tuple only
     med_factor: float, optional
-                Due to detector noise, some stray pixels may often 
-                be brighter than the background. This is used for 
+                Due to detector noise, some stray pixels may often
+                be brighter than the background. This is used for
                 damping any such pixels. Default is 30
     gauss_val:  float, optional
-                The standard deviation of the Gaussian filter applied 
+                The standard deviation of the Gaussian filter applied
                 to the logarithm of the CBED pattern. Default is 3
-    
+
     Returns
     -------
     data_lsb: ndarray
               4D dataset where each CBED pattern has been log
               Sobel filtered
-    
+
     Notes
     -----
     Generate the Sobel filtered pattern of the logarithm of
     a dataset. Compared to running the Sobel filter back on
     a log dataset, this takes care of somethings - notably
     a Gaussian blur is applied to the image, and Sobel spikes
-    are removed when any values are too higher or lower than 
+    are removed when any values are too higher or lower than
     the median of the image. This is because real detector
     images often are very noisy. This code generates the filtered
     CBED at every scan position, and is dimension agnostic, in
@@ -763,7 +763,7 @@ def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     two - just specify the dimensions. Also if loops weirdly need
     to be outside the for loops - this is a numba feature (bug?)
     Small change - made the Sobel matrix order 5 rather than 3
-    
+
     See Also
     --------
     dpc.log_sobel
@@ -928,16 +928,17 @@ def strain4D_general(
     med_factor=30,
     gauss_val=3,
     hybrid_cc=0.2,
+    gblur=True,
 ):
     """
     Get strain from a ROI without the need for
     specifying Miller indices of diffraction spots
-    
+
     Parameters
     ----------
     data4D:      ndarray
                  This is a 4D dataset where the first two dimensions
-                 are the diffraction dimensions and the next two 
+                 are the diffraction dimensions and the next two
                  dimensions are the scan dimensions
     disk_radius: float
                  Radius in pixels of the diffraction disks
@@ -951,7 +952,7 @@ def strain4D_general(
                  Angle of rotation of the CBED with respect to the optic axis
                  This must be in degrees
     med_factor:  float, optional
-                 Due to detector noise, some stray pixels may often be brighter 
+                 Due to detector noise, some stray pixels may often be brighter
                  than the background. This is used for damping any such pixels.
                  Default is 30
     gauss_val:   float, optional
@@ -959,8 +960,11 @@ def strain4D_general(
                  logarithm of the CBED pattern. Default is 3
     hybrid_cc:   float, optional
                  Hybridization parameter to be used for cross-correlation.
-                 Default is 0.1  
-    
+                 Default is 0.1
+    gblur:       bool, optional
+                 If gblur is on, the strain maps are blurred by a single
+                 pixel. Default is true.
+
     Returns
     -------
     e_xx_map: ndarray
@@ -972,19 +976,19 @@ def strain4D_general(
     e_yy_map: ndarray
               Strain in the yy direction in the region of interest
     list_pos: ndarray
-              List of all the higher order peak positions with 
+              List of all the higher order peak positions with
               respect to the central disk for all positions in the ROI
-    
+
     Notes
     -----
     We first of all calculate the preconditioned data (log + Sobel filtered)
-    for every CBED pattern in the ROI. Then the mean preconditioned 
-    pattern is calculated and cross-correlated with the Sobel template. The disk 
+    for every CBED pattern in the ROI. Then the mean preconditioned
+    pattern is calculated and cross-correlated with the Sobel template. The disk
     positions are as peaks in this cross-correlated pattern, with the central
     disk the one closest to the center of the CBED pattern. Using that insight
     the distances of the higher order diffraction disks are calculated with respect
-    to the central transmitted beam. This is then performed for all other CBED 
-    patterns. The calculated higher order disk locations are then compared to the 
+    to the central transmitted beam. This is then performed for all other CBED
+    patterns. The calculated higher order disk locations are then compared to the
     higher order disk locations for the median pattern to generate strain maps.
     """
     rotangle = np.deg2rad(rotangle)
@@ -1076,54 +1080,56 @@ def strain4D_general(
         eyy_ROI[kk] = scan_strain[1, 1]
     e_xx_map[imROI] = exx_ROI
     e_xx_map[np.isnan(e_xx_map)] = 0
-    e_xx_map = scnd.gaussian_filter(e_xx_map, 1)
     e_xy_map[imROI] = exy_ROI
     e_xy_map[np.isnan(e_xy_map)] = 0
-    e_xy_map = scnd.gaussian_filter(e_xy_map, 1)
     e_th_map[imROI] = eth_ROI
     e_th_map[np.isnan(e_th_map)] = 0
-    e_th_map = scnd.gaussian_filter(e_th_map, 1)
     e_yy_map[imROI] = eyy_ROI
     e_yy_map[np.isnan(e_yy_map)] = 0
-    e_yy_map = scnd.gaussian_filter(e_yy_map, 1)
+
+    if gblur:
+        e_xx_map = scnd.gaussian_filter(e_xx_map, 1)
+        e_xy_map = scnd.gaussian_filter(e_xy_map, 1)
+        e_th_map = scnd.gaussian_filter(e_th_map, 1)
+        e_yy_map = scnd.gaussian_filter(e_yy_map, 1)
     return e_xx_map, e_xy_map, e_th_map, e_yy_map, list_pos
 
 
 def bin_scan(data4D, bin_factor):
     """
     Bin the data in the scan dimensions
-     
+
     Parameters
     ----------
     data4D:     ndarray
                 This is a 4D dataset where the first two dimensions
-                are the dffraction dimensions and the next two 
+                are the dffraction dimensions and the next two
                 dimensions are the scan dimensions
     bin_factor: int or tuple
                 Binning factor for scan dimensions
-    
+
     Returns
     -------
     binned_4D: ndarray
                The data binned in the scanned dimensions.
-     
+
     Notes
     -----
     You can specify the bin factor to be either an integer or
-    a tuple. If you specify an integer the same binning will 
+    a tuple. If you specify an integer the same binning will
     be used in both the scan X and scan Y dimensions, while if
-    you specify a tuple then different binning factors for each 
+    you specify a tuple then different binning factors for each
     dimensions.
-    
+
     Examples
     --------
     Run as:
-    
+
     >>> binned_4D = bin_scan(data4D, 4)
-    
+
     This will bin the scan dimensions by 4. This is functionally
     identical to:
-    
+
     >>> binned_4D = bin_scan(data4D, (4, 4))
     """
     bin_factor = np.array(bin_factor, ndmin=1)
@@ -1156,16 +1162,16 @@ def cbed_filter(
     """
     Generate the filtered cross-correlated image for locating disk
     positions
-     
+
     Parameters
     ----------
     image:      ndarray
                 The image to be filtered
     beam_rad:   float
-                Radius of the circle. The circle used for 
-                cross-correlating is always centered at the image center. 
+                Radius of the circle. The circle used for
+                cross-correlating is always centered at the image center.
     med_val:    float, optional
-                Deviation from median value to accept in the 
+                Deviation from median value to accept in the
                 Sobel filtered image. Default is 50
     sec_med:    bool, Optional
                 Tamps out deviation from median values in the
@@ -1177,45 +1183,45 @@ def cbed_filter(
     bit_depth:  int, optional
                 Maximum power of 2 to be used for scaling the image
                 when taking logarithms. Default is 32
-    
+
     Returns
     -------
     slm_image: ndarray
                The filtered image.
-               
+
     lsc_image: ndarray
                The filtered image cross-correlated with the circle edge
-     
+
     Notes
     -----
-    We first generate the circle centered at the X and Y co-ordinates, with 
-    the radius given inside the circ_vals tuple. This generated circle is 
+    We first generate the circle centered at the X and Y co-ordinates, with
+    the radius given inside the circ_vals tuple. This generated circle is
     the Sobel filtered to generate an edge of the circle.
-    
-    Often due to detector issues, or stray muons a single pixel may be 
-    much brighter. Also dead pixels can cause individual pixels to be 
-    much darker. To remove such errors, and values in the image, we take 
-    the median value of the image and then throw any values that are med_val 
-    times larger or med_val times smaller than the median. Then we normalize 
-    the image from 1 to the 2^bit_depth and then take the log of that image. 
-    This generates an image whose scale is between 0 and the bit_depth. To 
-    further decrease detector noise, this scaled image is then Gaussian filtered 
+
+    Often due to detector issues, or stray muons a single pixel may be
+    much brighter. Also dead pixels can cause individual pixels to be
+    much darker. To remove such errors, and values in the image, we take
+    the median value of the image and then throw any values that are med_val
+    times larger or med_val times smaller than the median. Then we normalize
+    the image from 1 to the 2^bit_depth and then take the log of that image.
+    This generates an image whose scale is between 0 and the bit_depth. To
+    further decrease detector noise, this scaled image is then Gaussian filtered
     with a single pixel blur, and then finally Sobel filtered. This Sobel
     filtered image is then cross-correlated with the Sobel filtered circle edge.
-    
-    If there are disks in the image whose size is close to the radius of the 
-    circle, then the locations of them now become 2D peaks. If the 
-    circle radius is however too small/large rather than 2D peaks at 
+
+    If there are disks in the image whose size is close to the radius of the
+    circle, then the locations of them now become 2D peaks. If the
+    circle radius is however too small/large rather than 2D peaks at
     diffraction disk locations, we will observe circles.
-    
+
     Examples
     --------
     This is extremely useful for locating NBED diffraction positions. If you know
-    the size and of the central disk you use the on the Mean_CBED to calculate the 
+    the size and of the central disk you use the on the Mean_CBED to calculate the
     disk positions from:
-    
+
     >>> slm_reference, lsc_reference = st.nbed.cbed_filter(Mean_CBED, beam_r)
-    
+
     """
     # Generating the circle edge
     center_disk = st.util.make_circle(
@@ -1251,7 +1257,7 @@ def cbed_filter(
 
 def get_radius(cbed_image, ubound=0.2, tol=0.0001):
     """
-    Find the size of the central disk from diffraction 
+    Find the size of the central disk from diffraction
     patterns.
 
     Parameters
@@ -1266,7 +1272,7 @@ def get_radius(cbed_image, ubound=0.2, tol=0.0001):
     tol:        float, optional
                 The tolerance of the scipy.optimize fitting function
                 Default is 0.01
-    
+
     Returns
     -------
     rad: float
@@ -1458,7 +1464,7 @@ def strain_figure(exx, exy, eth, eyy, ROI, scale=0, scale_unit="nm", figsize=(22
     -----
     This is basically a nice function for plotting calculated strain maps
     from a region of interest. We use the RdBu_r, which is the RdBu reversed
-    color scheme, where 0 is white, negative values are increasingly blue the 
+    color scheme, where 0 is white, negative values are increasingly blue the
     more negative they are, while positive values are increasingly red the more
     positive they are. Anything outside the region of interest is black, and thus
     to an observer the ROI can be visualized clearly. Optionally, a scalebar can

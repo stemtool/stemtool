@@ -26,7 +26,7 @@ def toc(tempBool=True):
 
 
 def tic():
-    """ 
+    """
     Starts the timer
     Records a time in TicToc, marks the beginning of a time interval
     """

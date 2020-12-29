@@ -16,7 +16,7 @@ import stemtool as st
 def move_by_phase(image_to_move, x_pixels, y_pixels):
     """
     Move Images with sub-pixel precision
-    
+
     Parameters
     ----------
     image_to_move: ndarray
@@ -25,22 +25,22 @@ def move_by_phase(image_to_move, x_pixels, y_pixels):
               Pixels to shift in X direction
     y_pixels: float
               Pixels to Shift in Y direction
-    
+
     Returns
     -------
     moved_image: ndarray
                  Moved Image
-    
+
     Notes
     -----
     The underlying idea is that a shift in the real space
     is phase shift in Fourier space. So we take the original
-    image, and take it's Fourier transform. Also, we calculate 
-    how much the image shifts result in the phase change, by 
-    calculating the Fourier pixel dimensions. We then multiply 
-    the FFT of the image with the phase shift value and then 
+    image, and take it's Fourier transform. Also, we calculate
+    how much the image shifts result in the phase change, by
+    calculating the Fourier pixel dimensions. We then multiply
+    the FFT of the image with the phase shift value and then
     take the inverse FFT.
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -67,30 +67,30 @@ def move_by_phase(image_to_move, x_pixels, y_pixels):
 def image_normalizer(image_orig):
     """
     Normalizing Image
-    
+
     Parameters
     ----------
     image_orig: ndarray
                 'image_orig' is the original input image to be normalized
-                
+
     Returns
     -------
     image_norm: ndarray
                 Normalized Image
-                
+
     Notes
     -----
     We normalize a real valued image here
     so that it's values lie between o and 1.
-    This is done by first subtracting the 
-    minimum value of the image from the 
-    image itself, and then subsequently 
+    This is done by first subtracting the
+    minimum value of the image from the
+    image itself, and then subsequently
     dividing the image by the maximum value
     of the subtracted image.
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
-    
+
     """
     image_norm = np.zeros_like(image_orig, dtype=np.float64)
     image_norm = (image_orig - np.amin(image_orig)) / (
@@ -102,7 +102,7 @@ def image_normalizer(image_orig):
 def image_logarizer(image_orig, bit_depth=64):
     """
     Normalized log of image
-    
+
     Parameters
     ----------
     image_orig: ndarray
@@ -110,17 +110,17 @@ def image_logarizer(image_orig, bit_depth=64):
     bit_depth: int
                Bit depth of output image
                Default is 32
-               
+
     Returns
     -------
     image_log: ndarray
                Normalized log
-    
+
     Notes
     -----
-    Normalize the image, and scale it 2^0 to 2^bit_depth. 
+    Normalize the image, and scale it 2^0 to 2^bit_depth.
     Take log2 of the scaled image.
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -136,7 +136,7 @@ def image_logarizer(image_orig, bit_depth=64):
 def remove_dead_pixels(image_orig, iter_count=1, level=10000):
     """
     Remove dead pixels
-    
+
     Parameters
     ----------
     image_orig: ndarray
@@ -147,19 +147,19 @@ def remove_dead_pixels(image_orig, iter_count=1, level=10000):
     level:      int,float
                 Ratio of minima pixels to total
                 pixels. Default is 10,000
-                
+
     Returns
     -------
     image_orig: ndarray
                 Image with dead pixels converted
-                
+
     Notes
     -----
     Subtract the minima from the image, and if the
-    number of pixels with minima values is less than 
+    number of pixels with minima values is less than
     the 1/level of the total pixels, then those are
     decided to be dead pixels. Iterate if necessary
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -180,22 +180,22 @@ def remove_dead_pixels(image_orig, iter_count=1, level=10000):
 def hanned_image(image):
     """
     2D hanning filter for images
-    
+
     Parameters
     ----------
     image: ndarray
            Original Image on which the Hanning filter
            is to be applied
-    
+
     Returns
     -------
     hanned_image: ndarray
                   Image with the hanning filter applied
-    
+
     Notes
     -----
-    
-    
+
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -250,7 +250,7 @@ def hsv_overlay(data, image, color, climit=None, bit_depth=8):
 def sparse_division(sparse_numer, sparse_denom, bit_depth=32):
     """
     Divide two sparse matrices element wise to prevent zeros
-    
+
     Parameters
     ----------
     spase_numer: ndarray
@@ -260,24 +260,24 @@ def sparse_division(sparse_numer, sparse_denom, bit_depth=32):
     bit_depth: int
                Bit depth of output image
                Default is 32
-                     
+
     Returns
     -------
     divided_matrix: ndarray
                     Quotient matrix
-    
+
     Notes
     -----
-    Decide on a bit depth below which 
-    the values in the denominator are 
-    just noise, as they are below the 
-    bit depth. Do the same for the 
+    Decide on a bit depth below which
+    the values in the denominator are
+    just noise, as they are below the
+    bit depth. Do the same for the
     numerator. Turn those values to 1 in
     the denominator and 0 in the numerator.
-    Then in the quotient matrix, turn the 
-    denominator values below the threshold 
+    Then in the quotient matrix, turn the
+    denominator values below the threshold
     to 0 too.
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -311,10 +311,10 @@ def cross_corr_unpadded(image_1, image_2, normal=True):
 
 def cross_corr(image_1, image_2, hybridizer=0, normal=True):
     """
-    Normalized Correlation, allowing for hybridization 
+    Normalized Correlation, allowing for hybridization
     with cross correlation being the default output if
     no hybridization parameter is given
-    
+
     Parameters
     ----------
     image_1: ndarray
@@ -325,18 +325,18 @@ def cross_corr(image_1, image_2, hybridizer=0, normal=True):
                 Hybridization parameter between 0 and 1
                 0 is pure cross correlation
                 1 is pure phase correlation
-    
+
     Returns
     -------
     corr_hybrid: ndarray
                  Complex valued correlation output
-    
+
     Notes
     -----
     The cross-correlation theorem can be stated as:
     .. math::
          G_c = G_1 \times G_2^*
-    
+
     where :math:`G_c` is the Fourier transform of the cross
     correlated matrix and :math:`G_1` and :math:`G_2` are
     the Fourier transforms of :math:`g_1` and :math:`g_2`
@@ -344,25 +344,25 @@ def cross_corr(image_1, image_2, hybridizer=0, normal=True):
     cross-correlation. Phase correlation can be expressed as:
     .. math::
          G_c = \frac{G_1 \times G_2^*}{\mid G_1 \times G_2^* \mid}
-    
+
     Thus, we can now define a hybrid cross-correlation where
     .. math::
          G_c = \frac{G_1 \times G_2^*}{\mid G_1 \times G_2^* \mid ^n}
-         
-    If n is 0, we have cross correlation, and if n is 1 we 
+
+    If n is 0, we have cross correlation, and if n is 1 we
     have phase correlation.
-    
+
     References
     ----------
-    1]_, Pekin, T.C., Gammer, C., Ciston, J., Minor, A.M. and Ophus, C., 
-         2017. Optimizing disk registration algorithms for nanobeam 
-         electron diffraction strain mapping. Ultramicroscopy, 176, 
+    1]_, Pekin, T.C., Gammer, C., Ciston, J., Minor, A.M. and Ophus, C.,
+         2017. Optimizing disk registration algorithms for nanobeam
+         electron diffraction strain mapping. Ultramicroscopy, 176,
          pp.170-176.
-    
+
     See Also
     --------
     sparse_division
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -394,7 +394,7 @@ def cross_corr(image_1, image_2, hybridizer=0, normal=True):
 def make_circle(size_circ, center_x, center_y, radius):
     """
     Make a circle
-    
+
     Parameters
     ----------
     size_circ: ndarray
@@ -405,13 +405,13 @@ def make_circle(size_circ, center_x, center_y, radius):
               y position of circle center
     radius: float
             radius of the circle
-    
+
     Returns
     -------
     circle: ndarray
             p X q sized array where the it is 1
             inside the circle and 0 outside
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -427,7 +427,7 @@ def make_circle(size_circ, center_x, center_y, radius):
 def image_tiler(dataset_4D, reducer=4, bit_depth=8):
     """
     Generate a tiled pattern of the 4D-STEM dataset
-    
+
     """
     size_data = (np.asarray(dataset_4D.shape)).astype(int)
     normalized_4D = (dataset_4D - np.amin(dataset_4D)) / (
@@ -458,27 +458,27 @@ def image_tiler(dataset_4D, reducer=4, bit_depth=8):
 def flip_corrector(data4D):
     """
     Correcting Image Flip
-    
+
     Parameters
     ----------
     image_orig: ndarray
-                'data4D' is the original 4D dataset in the 
+                'data4D' is the original 4D dataset in the
                 form DiffX,DiffY,ScanX,ScanY
-                
+
     Returns
     -------
     image_norm: ndarray
                 Flip corrected 4D dataset
-                
+
     Notes
     -----
     The microscope lenses may add a flip in
     the X direction of the ronchigram. This
     corrects for that.
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
-    
+
     """
     warnings.filterwarnings("ignore")
     datasize = (np.asarray(data4D.shape)).astype(int)
@@ -551,24 +551,24 @@ def fit_circle(image_data, med_factor=50):
 def resizer(data, N):
     """
     Downsample 1D array
-    
+
     Parameters
     ----------
     data: ndarray
     N:    int
           New size of array
-                     
+
     Returns
     -------
     res: ndarray of shape N
          Data resampled
-    
+
     Notes
     -----
     The data is resampled. Since this is a Numba
     function, compile it once (you will get errors)
     by calling %timeit
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -593,28 +593,28 @@ def resizer(data, N):
 def resizer2D(data, sampling):
     """
     Downsample 2D array
-    
+
     Parameters
     ----------
     data:     ndarray
               (2,2) shape
     sampling: tuple
               Downsampling factor in each axisa
-                     
+
     Returns
     -------
     resampled: ndarray
               Downsampled by the sampling factor
               in each axis
-    
+
     Notes
     -----
     The data is a 2D wrapper over the resizer function
-    
+
     See Also
     --------
     resizer
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -638,7 +638,7 @@ def is_odd(num):
 def get_mean_std(xlist, ylist, resolution=25, style="median"):
     """
     Get mean and standard deviation of a list of x and y values
-    
+
     Parameters
     ----------
     xlist:      ndarray
@@ -648,14 +648,14 @@ def get_mean_std(xlist, ylist, resolution=25, style="median"):
     resolution: float
                 Optional value, default if 50
                 How finely sampled the final list is
-                     
+
     Returns
     -------
     stdvals: ndarray
              First column is x values sampled at resolution
              Second Column is mean or median of corresponding y values
              Third column is the standard deviation
-                 
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """

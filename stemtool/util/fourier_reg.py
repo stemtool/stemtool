@@ -7,24 +7,24 @@ import stemtool as st
 def find_max_index(image):
     """
     Find maxima in image
-    
+
     Parameters
     ----------
     image: ndarray
            Input image
-    
+
     Returns
     -------
     ymax: int
           y-index position of maxima
     xmax: int
           x-index position of maxima
-    
+
     Notes
     -----
-    Finds the image maxima, and then locates the y 
+    Finds the image maxima, and then locates the y
     and x indices corresponding to the maxima
-    
+
     Examples
     --------
     >>> ym, xm = find_max_index(image)
@@ -38,12 +38,12 @@ def find_max_index(image):
 def first_max_index(image, order="C"):
     """
     First maxima in image
-    
+
     Parameters
     ----------
     image: ndarray
            Input image
-    order : {'C','F', 'A', 'K'}, 
+    order : {'C','F', 'A', 'K'},
             optional
             The elements of `a` are read using this index order. 'C' means
             to index the elements in row-major, C-style order,
@@ -59,20 +59,20 @@ def first_max_index(image, order="C"):
             elements in the order they occur in memory, except for
             reversing the data when strides are negative.  By default, 'C'
             index order is used.
-    
+
     Returns
     -------
     ymax: int
           y-index position of maxima
     xmax: int
           x-index position of maxima
-    
+
     Notes
     -----
     Finds the first image maxima if there are multiple
-    points with the same maximum value, and then locates 
+    points with the same maximum value, and then locates
     the y and x indices corresponding to the maxima
-    
+
     Examples
     --------
     >>> ym, xm = first_max_index(image)
@@ -91,26 +91,26 @@ def first_max_index(image, order="C"):
 def fourier_pad(imFT, outsize):
     """
     Pad Fourier images
-    
+
     Parameters
     ----------
     imFT:    ndarray
              Input complex array with DC in [1,1]
-    
+
     outsize: ndarray with (2,1) shape
              ny, nx of output size
-    
+
     Returns
     -------
     imout: ndarray
            Output complex image with DC in [1,1]
-    
+
     Notes
     -----
-    Pads or crops the Fourier transform to the desired ouput size. Taking 
+    Pads or crops the Fourier transform to the desired ouput size. Taking
     care that the zero frequency is put in the correct place for the output
     for subsequent FT or IFT. Can be used for Fourier transform based
-    interpolation, i.e. dirichlet kernel interpolation. 
+    interpolation, i.e. dirichlet kernel interpolation.
     """
     n_in = np.asarray(imFT.shape)
     nout = np.asarray(outsize)
@@ -136,7 +136,7 @@ def fourier_pad(imFT, outsize):
 def dftups(input_image, usfac=1, nor=0, noc=0, roff=0, coff=0):
     """
     Upsampled discrete Fourier transform
-    
+
     Parameters
     ----------
     input_image: ndarray
@@ -155,22 +155,22 @@ def dftups(input_image, usfac=1, nor=0, noc=0, roff=0, coff=0):
     coff:        int, optional
                  Column offsets, allow to shift the output array to
                  a region of interest on the DFT (default = 0)
-    
-    
+
+
     Returns
     -------
     out_fft: ndarray
              Upsampled Fourier transform
-    
+
     Notes
     -----
-    Recieves DC in upper left corner, image center must be in [0,0] 
+    Recieves DC in upper left corner, image center must be in [0,0]
     This code is intended to provide the same result as if the following
     operations were performed
     - Embed the array "input_image" in an array that is usfac times larger in each
     dimension. ifftshift to bring the center of the image to (1,1).
     - Take the FFT of the larger array
-    - Extract an [nor, noc] region of the result. Starting with the 
+    - Extract an [nor, noc] region of the result. Starting with the
     [roff+1 coff+1] element.
     It achieves this result by computing the DFT in the output array without
     the need to zeropad. Much faster and memory efficient than the
@@ -195,20 +195,20 @@ def dftups(input_image, usfac=1, nor=0, noc=0, roff=0, coff=0):
 def dftregistration(buf1ft, buf2ft, usfac=1):
     """
     Upsampled FFT registration between two images
-    
+
     Parameters
     ----------
-    buf1ft: ndarray  
-            Fourier transform of reference image, 
+    buf1ft: ndarray
+            Fourier transform of reference image,
             DC in (1,1)   [DO NOT FFTSHIFT]
     buf2ft: ndarray
-            Fourier transform of image to register, 
+            Fourier transform of image to register,
             DC in (1,1) [DO NOT FFTSHIFT]
     usfac:  int
-            Upsampling factor (integer). Images will be registered to 
+            Upsampling factor (integer). Images will be registered to
             within 1/usfac of a pixel. For example usfac = 20 means the
             images will be registered within 1/20 of a pixel. (default = 1)
-    
+
     Returns
     -------
     row_shift:      float
@@ -223,29 +223,29 @@ def dftregistration(buf1ft, buf2ft, usfac=1):
     registered_fft: ndarray
                     Fourier transform of registered version of buf2ft,
                     the global phase difference is compensated for.
-    
+
     Notes
     -----
     Efficient subpixel image registration by crosscorrelation. This code
     gives the same precision as the FFT upsampled cross correlation in a
-    small fraction of the computation time and with reduced memory 
+    small fraction of the computation time and with reduced memory
     requirements. It obtains an initial estimate of the crosscorrelation peak
     by an FFT and then refines the shift estimation by upsampling the DFT
-    only in a small neighborhood of that estimate by means of a 
+    only in a small neighborhood of that estimate by means of a
     matrix-multiply DFT. With this procedure all the image points are used to
     compute the upsampled crosscorrelation.
-    
+
     References
     ----------
-    .. [1] Manuel Guizar-Sicairos, Samuel T. Thurman, and James R. Fienup, 
-       "Efficient subpixel image registration algorithms," Opt. Lett. 33, 
+    .. [1] Manuel Guizar-Sicairos, Samuel T. Thurman, and James R. Fienup,
+       "Efficient subpixel image registration algorithms," Opt. Lett. 33,
        156-158 (2008).
-    
+
     Copyright
     ----------
     Copyright (c) 2016, Manuel Guizar Sicairos, James R. Fienup, University of Rochester
     All rights reserved.
-    
+
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
     met:
@@ -257,7 +257,7 @@ def dftregistration(buf1ft, buf2ft, usfac=1):
     * Neither the name of the University of Rochester nor the names
       of its contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
-    
+
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
     AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
     IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -269,15 +269,15 @@ def dftregistration(buf1ft, buf2ft, usfac=1):
     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
     ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
-    
+
     Examples
     --------
     If you have two images im1 and im2, run as:
-    
+
     >>> row_shift,col_shift,phase_diff,error,registered_fft = dftregistration(np.fft.fft2(im1),np.fft.fft2(im2),upsampling)
-    
+
     You can test by reversing the order
-    
+
     >>> row_shift_r,col_shift_r,phase_diff,error,registered_fft = dftregistration(np.fft.fft2(im2),np.fft.fft2(im1),upsampling)
     >>> row_shift == -row_shift_r
     >>> True

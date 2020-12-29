@@ -19,7 +19,7 @@ class atomic_dpc(object):
     Data_4D:  ndarray
               Four-dimensional dataset where the first two
               dimensions are real space scanning dimensions,
-              while the last two dimenions are the Fourier 
+              while the last two dimenions are the Fourier
               space electron diffraction patterns
     Data_ADF: ndarray
               Simultaneously collected two-dimensional ADF-STEM
@@ -35,30 +35,30 @@ class atomic_dpc(object):
     -----
     This class function takes in a 4D-STEM image, and a simultaneously
     collected atomic resolution ADF-STEM image. Based on the accelerating
-    voltage and the condenser aperture this calculates the center of mass 
-    (C.O.M.) shifts in the central undiffracted beam. Using the idea that 
+    voltage and the condenser aperture this calculates the center of mass
+    (C.O.M.) shifts in the central undiffracted beam. Using the idea that
     the curl of the beam shift vectors, should be minimized at the correct
-    Fourier rotation angles, this class also corrects for rotation of the 
-    collceted 4D-STEM data with respect to the optic axis. Using these, a 
-    correct potential accumulation and charge accumulation maps could be 
+    Fourier rotation angles, this class also corrects for rotation of the
+    collceted 4D-STEM data with respect to the optic axis. Using these, a
+    correct potential accumulation and charge accumulation maps could be
     built. To prevent errors, we convert everything to SI units first.
-    
+
     Examples
     --------
     Run as:
-    
+
     >>> DPC = st.dpc.atomic_dpc(Data_4D, DataADF, calibration, voltage, aper)
-    
-    Once the data is loaded, the ADF-STEM and the BF-STEM images could be 
+
+    Once the data is loaded, the ADF-STEM and the BF-STEM images could be
     visualized as:
-    
+
     >>> DPC.show_ADF_BF()
-    
+
     Then the following call generates the mean CBED image, and if the show_image
     call is True, shows the mean image.
 
     >>> DPC.get_cbed(show_image = True)
-    
+
     The initial uncorrected DPC shifts are generated as:
 
     >>> DPC.initial_dpc()
@@ -82,15 +82,15 @@ class atomic_dpc(object):
 
     References
     ----------
-    .. [1] Müller, K. et al. "Atomic electric fields revealed by a quantum mechanical 
+    .. [1] Müller, K. et al. "Atomic electric fields revealed by a quantum mechanical
         approach to electron picodiffraction". Nat. Commun. 5:565303 doi: 10.1038/ncomms6653 (2014)
-    .. [2] Savitzky, Benjamin H., Lauren A. Hughes, Steven E. Zeltmann, Hamish G. Brown, 
-        Shiteng Zhao, Philipp M. Pelz, Edward S. Barnard et al. "py4DSTEM: a software package for 
-        multimodal analysis of four-dimensional scanning transmission electron microscopy datasets." 
+    .. [2] Savitzky, Benjamin H., Lauren A. Hughes, Steven E. Zeltmann, Hamish G. Brown,
+        Shiteng Zhao, Philipp M. Pelz, Edward S. Barnard et al. "py4DSTEM: a software package for
+        multimodal analysis of four-dimensional scanning transmission electron microscopy datasets."
         arXiv preprint arXiv:2003.09523 (2020).
-    .. [3] Ishizuka, Akimitsu, Masaaki Oka, Takehito Seki, Naoya Shibata, 
-        and Kazuo Ishizuka. "Boundary-artifact-free determination of 
-        potential distribution from differential phase contrast signals." 
+    .. [3] Ishizuka, Akimitsu, Masaaki Oka, Takehito Seki, Naoya Shibata,
+        and Kazuo Ishizuka. "Boundary-artifact-free determination of
+        potential distribution from differential phase contrast signals."
         Microscopy 66, no. 6 (2017): 397-405.
     """
 
@@ -127,7 +127,7 @@ class atomic_dpc(object):
     def show_ADF_BF(self, imsize=(20, 10)):
         """
         The ADF-STEM image is already loaded, while the `data_bf`
-        attribute is obtained by summing up the 4D-STEM dataset along it's 
+        attribute is obtained by summing up the 4D-STEM dataset along it's
         Fourier dimensions. This is also a great checkpoint to see whether
         the ADF-STEM and the BF-STEM images are the inverse of each other.
         """
@@ -167,15 +167,15 @@ class atomic_dpc(object):
         """
         We calculate the mean CBED pattern by averaging the Fourier data, to
         get the object attribute `cbed`. We fit this with a circle function to
-        obtain the object attributes: 
+        obtain the object attributes:
 
-        `beam_x`: x-coordinates of the circle 
-        
-        `beam_y`: y-coordinates of the circle 
-        
-        `beam_r`: radius of the circle 
-        
-        We use the calculated radius and the known aperture size to get the Fourier 
+        `beam_x`: x-coordinates of the circle
+
+        `beam_y`: y-coordinates of the circle
+
+        `beam_r`: radius of the circle
+
+        We use the calculated radius and the known aperture size to get the Fourier
         space calibration, which is stored as the `inverse` attribute
         """
         self.cbed = np.mean(self.data_4D, axis=(0, 1))
@@ -511,7 +511,7 @@ class atomic_dpc(object):
         """
         Use this to plot the corrected DPC center of mass shifts. If no variables
         are passed, the arrows are overlaid on the entire image.
-        
+
         Parameters
         ----------
         start_frac: float, optional

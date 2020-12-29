@@ -11,7 +11,7 @@ import math
 def sobel(im, order=3):
     """
     Sobel Filter an Input Image
-    
+
     Parameters
     ----------
     im:    ndarray
@@ -19,29 +19,29 @@ def sobel(im, order=3):
     order: int
            3 is the default but if 5 is specified
            then a 5x5 Sobel filter is run
-                
+
     Returns
     -------
     mag: ndarray
          Sobel Filter Magnitude
     and: ndarray
          Sobel Filter Angle
-                
+
     Notes
     -----
     We define the two differentiation matrices - g_x and g_y
-    and then move along our dataset - to perform the matrix 
-    operations on 5x5 or 3x3 sections of the input image. The 
-    magnitude of the Sobel filtered image is the absolute 
+    and then move along our dataset - to perform the matrix
+    operations on 5x5 or 3x3 sections of the input image. The
+    magnitude of the Sobel filtered image is the absolute
     of the multiplied matrices - squared and summed and square
     rooted.
-    
+
     References
     ----------
-    .. [3] Sobel, I. and Feldman, G., 1968. A 3x3 isotropic gradient 
-           operator for image processing. a talk at the Stanford 
+    .. [3] Sobel, I. and Feldman, G., 1968. A 3x3 isotropic gradient
+           operator for image processing. a talk at the Stanford
            Artificial Project in, pp.271-272.
-    
+
     """
     im = im.astype(np.float64)
     if order == 3:
@@ -78,12 +78,12 @@ def sobel(im, order=3):
 def circle_fit(edge_image):
     """
     Fit circle to data points algebraically
-    
+
     Parameters
     ----------
     edge_image: boolean array
                 Boolean data where the edge is 1
-    
+
     Returns
     -------
     x_center:      float
@@ -92,10 +92,10 @@ def circle_fit(edge_image):
                    Y pixel of circle center
     radius_circle: float
                    Radius of the circle
-    
+
     Notes
     -----
-    We calculate the mean of all the points 
+    We calculate the mean of all the points
     as the initial estimate of the circle center
     and then solve a set of linear equations
     to calculate radius and the disk center.
@@ -139,9 +139,9 @@ def circle_fit(edge_image):
 @numba.jit(parallel=True, cache=True)
 def numba_thinner(pos, edge, mag, ang):
     """
-    Numba JIT Function for thinning Sobel 
+    Numba JIT Function for thinning Sobel
     Filtered Edges
-    
+
     Parameters
     ----------
     pos:  ndarray
@@ -152,12 +152,12 @@ def numba_thinner(pos, edge, mag, ang):
           Magnitude after Sobel Filtering
     ang:  ndarray
           ANgle of Sobel Filter, in degrees
-    
+
     Notes
     -----
-    We use the direction of the Sobel gradient to 
-    determine whether a pixel belongs to the edge 
-    or not. If the gradient is perpendicular to the 
+    We use the direction of the Sobel gradient to
+    determine whether a pixel belongs to the edge
+    or not. If the gradient is perpendicular to the
     pixels then it is an edge pixel or else it is not.
     """
     for pp in numba.prange(len(pos)):
@@ -188,7 +188,7 @@ def numba_thinner(pos, edge, mag, ang):
 def numba_joiner(pos, edge, upper, lower):
     """
     Numba JIT function for joining of Edges
-    
+
     Parameters
     ----------
     pos:   ndarray
@@ -199,14 +199,14 @@ def numba_joiner(pos, edge, upper, lower):
            Upper threshold
     lower: float
            Lower threshold
-    
+
     Notes
     -----
-    The input image now consists of strong and weak 
-    thresholds. The final step of the algorithm is to 
-    look at some of the measured edges and join/link them. 
-    The idea is that if a edge pixel is classified as a 
-    weak edge but one of its neighbors is a strong edge then 
+    The input image now consists of strong and weak
+    thresholds. The final step of the algorithm is to
+    look at some of the measured edges and join/link them.
+    The idea is that if a edge pixel is classified as a
+    weak edge but one of its neighbors is a strong edge then
     it is a strong edge pixel.
     """
     for pp in numba.prange(len(pos)):
@@ -245,40 +245,40 @@ class Canny(object):
 
     Notes
     -----
-    The input image is first blurred with a [5 x 5] Gaussian kernel to 
-    prevent pixel jumps being incorrectly registered as edges. Then a Sobel 
-    filter is run on the image. The edges from the Sobel filter are 
-    subsequently thinned by determining whether the gradient of the Sobel 
-    filter is perpendicular to the edge. Subsequently the edges are sorted 
-    into two bins - weak edges and strong edges. The weak edges are 
+    The input image is first blurred with a [5 x 5] Gaussian kernel to
+    prevent pixel jumps being incorrectly registered as edges. Then a Sobel
+    filter is run on the image. The edges from the Sobel filter are
+    subsequently thinned by determining whether the gradient of the Sobel
+    filter is perpendicular to the edge. Subsequently the edges are sorted
+    into two bins - weak edges and strong edges. The weak edges are
     reclassified as strong edges if they are connected to strong edges.
-    
+
     Examples
     --------
     Run as:
-    
+
     >>> im_canny = Canny(image,0.2,0.7)
-    
+
     Where 0.2 and 0.7 are the parameters obtained through Otsu thresholding image.
     After setting the class, then generate the edges first as:
-    
+
     >>> im_canny.edge_thinning()
-    
+
     This Sobel filters the image, and generates the image edge. The magnitude of
     the Sobel filter can be accessed as `im_canny.sobel_mag`, while the Sobel angle
-    in degrees is stored as `im_canny.sobel_ang`. The generated edge is stored as 
+    in degrees is stored as `im_canny.sobel_ang`. The generated edge is stored as
     `im_canny.thin_edge`. This is the thresholded edge, however this is broken and
     discontinuous and non-uniform in value. To fix that run:
-    
+
     >>> im_canny.edge_thresholding
-    
+
     After that, generate the final canny edge as:
-    
+
     >>> canny_image = im_canny.edge_joining()
 
     References
     ----------
-    .. [4] John Canny, "A computational approach to edge detection." 
+    .. [4] John Canny, "A computational approach to edge detection."
        Readings in computer vision. Morgan Kaufmann, 1987. 184-203
     """
 
@@ -303,11 +303,11 @@ class Canny(object):
 
         Notes
         -----
-        We use the direction of the Sobel gradient to 
-        determine whether a pixel belongs to the edge 
-        or not. If the gradient is perpendicular to the 
+        We use the direction of the Sobel gradient to
+        determine whether a pixel belongs to the edge
+        or not. If the gradient is perpendicular to the
         pixels then it is an edge pixel or else it is not.
-        
+
         See Also
         --------
         numba_thinner
@@ -346,9 +346,9 @@ class Canny(object):
         Notes
         -----
         Sort edges measured as either strong edges or weak edges,
-        depending on the intensity of the edge. The thresholds are 
-        user defined parameters and while they can be played around 
-        with it is recommended to use a thresholding algorithm like 
+        depending on the intensity of the edge. The thresholds are
+        user defined parameters and while they can be played around
+        with it is recommended to use a thresholding algorithm like
         Otsu thresholding to robustly determine edges.
         """
         if not self.edge_check:
@@ -369,7 +369,7 @@ class Canny(object):
     def edge_joining(self):
         """
         Joining of Edges
-        
+
         Returns
         -------
         cannyEdge: boolean array
@@ -378,13 +378,13 @@ class Canny(object):
 
         Notes
         -----
-        The input image now consists of strong and weak 
-        thresholds. The final step of the algorithm is to 
-        look at some of the measured edges and join/link them. 
-        The idea is that if a edge pixel is classified as a 
-        weak edge but one of its neighbors is a strong edge then 
+        The input image now consists of strong and weak
+        thresholds. The final step of the algorithm is to
+        look at some of the measured edges and join/link them.
+        The idea is that if a edge pixel is classified as a
+        weak edge but one of its neighbors is a strong edge then
         it is a strong edge pixel.
-        
+
         See Also
         --------
         numba_joiner

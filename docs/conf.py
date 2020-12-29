@@ -68,9 +68,9 @@ MOCK_MODULES = [
     "matplotlib.offsetbox",
     "multiprocessing",
     "dask.array",
-    "dask", 
-    "pyfftw.interfaces.numpy_fft", 
-    "numexpr", 
+    "dask",
+    "pyfftw.interfaces.numpy_fft",
+    "numexpr",
 ]
 
 for mod_name in MOCK_MODULES:
@@ -104,7 +104,6 @@ class Mock(MagicMock):
     @classmethod
     def __getattr__(cls, name):
         return MagicMock()
-
 
 
 # -- General configuration ---------------------------------------------------

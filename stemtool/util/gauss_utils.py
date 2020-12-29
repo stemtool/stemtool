@@ -7,7 +7,7 @@ import stemtool as st
 def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
     """
     The underlying 2D Gaussian function
-    
+
     Parameters
     ----------
     xy:        tuple
@@ -24,22 +24,22 @@ def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
                Standard deviation of the 2D Gaussian along y
     amplitude: float
                Peak intensity
-    
+
     Returns
     -------
     gaussvals: ndarray
                A Gausian peak centered at x0, y0 based on the
-               parameters given 
-    
+               parameters given
+
     Notes
     -----
     The Gaussian 2D function is calculated at every x and y position
     for a list of position values based on the parameters given.
-    
+
     See also
     --------
     gauss2D
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -64,7 +64,7 @@ def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
 def gauss2D(im_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
     """
     Return a 2D Gaussian function centered at x0, y0
-    
+
     Parameters
     ----------
     im_size:   tuple
@@ -82,22 +82,22 @@ def gauss2D(im_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
                Standard deviation of the 2D Gaussian along y
     amplitude: float
                Peak intensity
-    
+
     Returns
     -------
     gauss2D: ndarray
              2D Gaussian peak of shape im_size
-    
+
     Notes
     -----
-    This returns a 2D ndarray with the the size as im_size, with 
-    a 2D gaussian function centered at (x0,y0) defined by the 
+    This returns a 2D ndarray with the the size as im_size, with
+    a 2D gaussian function centered at (x0,y0) defined by the
     input parameters.
-    
+
     See also
     --------
     gauss2D_function
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -124,7 +124,7 @@ def gauss2D(im_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
 def initialize_gauss2D(xx, yy, zz, center_type="COM"):
     """
     Generate an approximate Gaussian based on image
-    
+
     Parameters
     ----------
     xx:          ndarray
@@ -136,23 +136,23 @@ def initialize_gauss2D(xx, yy, zz, center_type="COM"):
     center_type: str
                  Default is `COM` which uses the center
                  of mass of the given positions to generate
-                 the starting gaussian center. The other option 
-                 is `maxima` which takes the maximum intensity 
+                 the starting gaussian center. The other option
+                 is `maxima` which takes the maximum intensity
                  value as the starting point.
-    
+
     Returns
     -------
     gauss_ini: tuple
                X_center, Y_center, Angle, X_std, Y_std, Amplitude
-    
+
     Notes
     -----
     For a given list of x positions, y positions and corresponding
     intensity values, this code returns a first pass approximation
     of a Gaussian function. The center of the gaussian 2D function
-    can either be the center of mass or the intensity maxima, and is 
+    can either be the center of mass or the intensity maxima, and is
     user defined. The angle is always given as 0.
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -186,7 +186,7 @@ def fit_gaussian2D_mask(
     Fit a 2D gaussian to a masked image based on
     the location of the mask, size of the mask and
     the type of the mask
-    
+
     Parameters
     ----------
     image_data:  ndarray
@@ -205,13 +205,13 @@ def fit_gaussian2D_mask(
                  Center location for the first pass of the Gaussian.
                  Default is `COM`, while the other options are `minima`
                  or `maxima`.
-    
+
     Returns
     -------
     popt: tuple
           Refined X position, Refined Y Position, Rotation angle of
           2D Gaussian, Standard deviation(s), Amplitude
-    
+
     Notes
     -----
     This code uses the `scipy.optimize.curve_fit` module to fit a 2D
@@ -219,12 +219,12 @@ def fit_gaussian2D_mask(
     initial starting positions. Also, this can take in `minima` as a
     string for initializing Gaussian peaks, which allows for atom column
     mapping in inverted contrast images too.
-    
+
     See also
     --------
     gaussian_2D_function
     initialize_gauss2D
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -284,7 +284,7 @@ def fit_gaussian2D_mask(
 def gaussian_1D_function(x, x0, sigma_x, amplitude):
     """
     The underlying 1D Gaussian function
-    
+
     Parameters
     ----------
     x:         ndarray
@@ -295,24 +295,24 @@ def gaussian_1D_function(x, x0, sigma_x, amplitude):
                Standard deviation of the 2D Gaussian along x
     amplitude: float
                Peak intensity
-    
+
     Returns
     -------
     gaussvals: ndarray
                A Gausian peak centered at x0 based on the
-               parameters given 
-    
+               parameters given
+
     Notes
     -----
     The Gaussian 1D function is calculated at every x position for
     a list of position values based on the parameters given.
-    
+
     See also
     --------
     gaussian_2D_function
     initialize_gauss1D
     fit_gaussian1D_mask
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -325,7 +325,7 @@ def gaussian_1D_function(x, x0, sigma_x, amplitude):
 def initialize_gauss1D(xx, yy, center_type="COM"):
     """
     Generate an approximate Gaussian based on signal
-    
+
     Parameters
     ----------
     xx:          ndarray
@@ -335,23 +335,23 @@ def initialize_gauss1D(xx, yy, center_type="COM"):
     center_type: str
                  Default is `COM` which uses the center
                  of mass of the given positions to generate
-                 the starting gaussian center. The other option 
-                 is `maxima` which takes the maximum intensity 
+                 the starting gaussian center. The other option
+                 is `maxima` which takes the maximum intensity
                  value as the starting point.
-    
+
     Returns
     -------
     gauss_ini: tuple
                X_center, X_std, Amplitude
-    
+
     Notes
     -----
-    For a given list of x positions and corresponding signal 
-    values, this code returns a first pass approximation of a 
-    1D Gaussian function. The center of the function can either 
-    be the center of mass or the intensity maxima, and is user 
-    defined. 
-    
+    For a given list of x positions and corresponding signal
+    values, this code returns a first pass approximation of a
+    1D Gaussian function. The center of the function can either
+    be the center of mass or the intensity maxima, and is user
+    defined.
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
@@ -376,7 +376,7 @@ def fit_gaussian1D_mask(signal, position, mask_width, center_type="COM"):
     Fit a 2D gaussian to a masked image based on
     the location of the mask, size of the mask and
     the type of the mask
-    
+
     Parameters
     ----------
     signal:      ndarray
@@ -389,25 +389,25 @@ def fit_gaussian1D_mask(signal, position, mask_width, center_type="COM"):
                  Center location for the first pass of the Gaussian.
                  Default is `COM`, while the other options are `minima`
                  or `maxima`.
-    
+
     Returns
     -------
     popt: tuple
           Refined X position, Standard deviation, Amplitude
-    
+
     Notes
     -----
     This code uses the `scipy.optimize.curve_fit` module to fit a 1D
-    Gaussian peak to masked data. `mask_x` refers to the initial 
-    starting position. Also, this can take in `minima` as a string 
+    Gaussian peak to masked data. `mask_x` refers to the initial
+    starting position. Also, this can take in `minima` as a string
     for initializing Gaussian peaks.
-    
+
     See also
     --------
     fit_gaussian2D_mask
     initialize_gauss1D
     gaussian_1D_function
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
