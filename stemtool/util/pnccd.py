@@ -515,7 +515,7 @@ def remove_dark_ref(data3D, dark_ref):
 
 
 def generate4D_frms6(data_dir, bin_factor=2):
-    cluster = dd.LocalCluster(threads_per_worker=4)
+    cluster = dd.LocalCluster()
     client = dd.Client(cluster)
     current_dir = os.getcwd()
     os.chdir(data_dir)
@@ -612,7 +612,6 @@ def generate4D_frms6(data_dir, bin_factor=2):
         data4d_bin = da.reshape(
             data3d_binYX, (con_shape[0], con_shape[1], xvals_bin, xvals_bin)
         )
-    data4d_cdask = client.compute(data4d_bin)
-    data_4D = data4d_cdask.result()
+    data_4D = data4d_bin.compute()
     cluster.close()
     return data_4D
