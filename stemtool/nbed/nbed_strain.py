@@ -12,6 +12,9 @@ import stemtool as st
 import matplotlib.offsetbox as mploff
 import matplotlib.gridspec as mpgs
 import matplotlib_scalebar.scalebar as mpss
+import dask
+import dask.array as da
+import dask.distributed as dd
 import warnings
 
 
@@ -149,6 +152,43 @@ def resizer2D_numbaopt(data2D, resampled_x, resampled_f, sampling):
         resampled_f[:, xx] = resizer1D_numbaopt(
             resampled_x[:, xx], resampled_f[:, xx], sampled_shape[0]
         )
+    return resampled_f
+
+
+def resizer1D(data, N):
+    M = data.size
+    carry = 0
+    m = 0
+    res = np.zeros(int(N))
+    for n in range(int(N)):
+        data_sum = carry
+        while ((m * N) - (n * M)) < M:
+            data_sum += data[m]
+            m += 1
+        carry = (m - (n + 1) * (M / N)) * data[m - 1]
+        data_sum -= carry
+        res[n] = data_sum * (N / M)
+    return res
+
+
+def resizer2D(data2D, sampling):
+    cluster = dd.LocalCluster()
+    client = dd.Client(cluster)
+    data_shape = np.asarray(data2D.shape)
+    sampled_shape = (np.round(data_shape / sampling)).astype(int)
+    data2d_dask = da.from_array(data2D)
+    resampled_x = []
+    resampled_f = []
+    for yy in np.arange(data_shape[0]):
+        interX = dask.delayed(resizer1D)(data2d_dask[yy, :], sampled_shape[1])
+        resampled_x.append(interX)
+    resampled_x = np.asarray(dask.compute(*resampled_x))
+    for xx in np.arange(resampled_x.shape[1]):
+        interY = dask.delayed(resizer1D)(resampled_x[:, xx], sampled_shape[0])
+        resampled_f.append(interY)
+    resampled_f = np.asarray(dask.compute(*resampled_f))
+    resampled_f = np.transpose(resampled_f, (1, 0))
+    cluster.close()
     return resampled_f
 
 
