@@ -763,6 +763,55 @@ def ROI_strain_map(strain_ROI, ROI):
 
 
 @numba.jit(cache=True, parallel=True)
+def logarizer4D(data4D, scan_dims, bit_depth=32):
+    """
+    Take the Log-Sobel of a pattern.
+
+    Parameters
+    ----------
+    data4D:     ndarray
+                4D dataset whose CBED patterns will be filtered
+    scan_dims:  tuple
+                Scan dimensions. If your scanning pixels are for
+                example the first two dimensions specify it as (0,1)
+                Will be converted to numpy array so pass tuple only
+    med_factor: float, optional
+                Due to detector noise, some stray pixels may often
+                be brighter than the background. This is used for
+                damping any such pixels. Default is 30
+
+    Returns
+    -------
+    data_log: ndarray
+              4D dataset where each CBED pattern has been log
+
+    Notes
+    -----
+    Generate the logarithm of the 4D dataset.
+
+    See Also
+    --------
+    log_sobel4D
+    util.image_logarizer
+    """
+    bit_max = 2 ** bit_depth
+    scan_dims = np.asarray(scan_dims)
+    scan_dims[scan_dims < 0] = 4 + scan_dims[scan_dims < 0]
+    sum_dims = np.sum(scan_dims)
+    if sum_dims < 2:
+        data4D = np.transpose(data4D, (2, 3, 0, 1))
+    data_log = np.zeros_like(data4D, dtype=np.float32)
+    for jj in numba.prange(data4D.shape[int(scan_dims[1])]):
+        for ii in range(data4D.shape[int(scan_dims[0])]):
+            pattern = st.util.image_normalizer(data4D[:, :, ii, jj])
+            pattern = 1 + ((bit_max - 1) * pattern)
+            data_log[:, :, ii, jj] = np.log2(pattern)
+    if sum_dims < 2:
+        data_log = np.transpose(data_lsb, (2, 3, 0, 1))
+    return data_log
+
+
+@numba.jit(cache=True, parallel=True)
 def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     """
     Take the Log-Sobel of a pattern.
@@ -806,6 +855,7 @@ def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
 
     See Also
     --------
+    logarizer4D
     dpc.log_sobel
     """
     scan_dims = np.asarray(scan_dims)

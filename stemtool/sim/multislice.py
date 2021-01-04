@@ -2,6 +2,7 @@ import numpy as np
 import scipy.special as s2
 import PIL
 import ase
+import stemtool as st
 
 
 def wavelength_ang(voltage_kV):
@@ -32,8 +33,91 @@ def wavelength_ang(voltage_kV):
     voltage = voltage_kV * 1000
     numerator = (h ** 2) * (c ** 2)
     denominator = (e * voltage) * ((2 * m * (c ** 2)) + (e * voltage))
-    wavelength = (10 ** 10) * ((numerator / denominator) ** 0.5)  # in angstroms
-    return wavelength
+    wavelength_ang = (10 ** 10) * ((numerator / denominator) ** 0.5)  # in angstroms
+    return wavelength_ang
+
+
+def transmission_func(pot_slice, voltage_kV):
+    """
+    Calculates the complex transmission function from
+    a single potential slice at a given e;ectron accelerating
+    voltage
+
+    Parameters
+    ----------
+    pot_slice:  ndarray
+                potential slice in Kirkland units
+    voltage_kV: float
+                microscope operating voltage in kilo
+                electronVolts
+
+    Returns
+    -------
+    trans: ndarray
+           The transmission function of a single
+           crystal slice
+
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    m_e = 9.109383 * (10 ** (-31))  # electron mass
+    e_e = 1.602177 * (10 ** (-19))  # electron charge
+    c = 299792458  # speed of light
+    h = 6.62607 * (10 ** (-34))  # planck's constant
+    numerator = (h ** 2) * (c ** 2)
+    denominator = (e_e * voltage_kV * 1000) * (
+        (2 * m_e * (c ** 2)) + (e_e * voltage_kV * 1000)
+    )
+    wavelength_ang = (10 ** 10) * (
+        (numerator / denominator) ** 0.5
+    )  # wavelength in angstroms
+    sigma = (
+        (2 * np.pi / (wavelength_ang * voltage_kV * 1000))
+        * ((m_e * c * c) + (e_e * voltage_kV * 1000))
+    ) / ((2 * m_e * c * c) + (e_e * voltage_kV * 1000))
+    trans = np.exp(1j * sigma * pot_slice)
+    return trans.astype(np.complex64)
+
+
+def propagation_func(imsize, thickness_ang, voltage_kV, calib_ang):
+    """
+    Calculates the complex propgation function that results
+    in the phase shift of the exit wave when it travels from
+    one slice to the next in the multislice algorithm
+
+    Parameters
+    ----------
+    imsize:        tuple
+                   Size of the image of the propagator
+    thickness_ang: float
+                   Distance between the slices in angstroms
+    voltage_kV:    float
+                   Accelerating voltage in kilovolts
+    calib_ang:     float
+                   Calibration or pixel size in angstroms
+
+    Returns
+    -------
+    prop_shift:  ndarray
+                 This is of the same size given by imsize
+
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    FOV_y = imsize[0] * calib_ang
+    FOV_x = imsize[1] * calib_ang
+    qy = (np.arange((-imsize[0] / 2), ((imsize[0] / 2)), 1)) / FOV_y
+    qx = (np.arange((-imsize[1] / 2), ((imsize[1] / 2)), 1)) / FOV_x
+    shifter_y = int(imsize[0] / 2)
+    shifter_x = int(imsize[1] / 2)
+    Ly = np.roll(qy, shifter_y)
+    Lx = np.roll(qx, shifter_x)
+    Lya, Lxa = np.meshgrid(Lx, Ly)
+    L2 = np.multiply(Lxa, Lxa) + np.multiply(Lya, Lya)
+    wavelength_ang = st.sim.wavelength_ang(voltage_kV)
+    prop = np.exp((-1j) * np.pi * wavelength_ang * thickness_ang * L2)
+    prop_shift = np.fft.fftshift(prop)  # FFT shift the propagator
+    return prop_shift.astype(np.complex64)
 
 
 def FourierCoords(calibration, sizebeam):
@@ -90,7 +174,7 @@ def make_probe(aperture, voltage, image_size, calibration_pm, defocus=0, c3=0, c
     chi_probe = aberration(inverse_real_matrix, wavelength, defocus, c3, c5)
     Adist *= np.exp(-1j * chi_probe)
     probe_real_space = np.fft.ifftshift(np.fft.ifft2(Adist))
-    return probe_real_space
+    return probe_real_space.astype(np.complex64)
 
 
 def aberration(fourier_coord, wavelength_ang, defocus=0, c3=0, c5=0):
