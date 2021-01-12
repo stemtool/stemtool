@@ -343,33 +343,40 @@ def ROI_from_image(image, med_val, style="over", showfig=True):
     return ROI
 
 
-def custom_detector(data4D, inner, outer=0, center=(0, 0), mrad_calib=0):
+def custom_detector(
+    data4D, inner, outer=0, center=(0, 0), mrad_calib=0, get_detector=False
+):
     """
     Return STEM image from detector values
 
     Parameters
     ----------
-    data4D:     ndarray
-                the first two dimensions are Fourier
-                space, while the next two dimensions
-                are real space
-    inner:      float
-                The inner collection angle in Fourier space
-                in pixels
-    outer:      float, optional
-                The inner collection angle in Fourier space
-                in pixels. Default is 0
-    center:     tuple, optional
-                The center of the 4D-STEM pattern in Fourier
-                space. Default is (0, 0)
-    mrad_calib: float, optional
-                Calibration of the Fourier space. Default
-                is 0.
+    data4D:       ndarray
+                  the first two dimensions are Fourier
+                  space, while the next two dimensions
+                  are real space
+    inner:        float
+                  The inner collection angle in Fourier space
+                  in pixels
+    outer:        float, optional
+                  The inner collection angle in Fourier space
+                  in pixels. Default is 0
+    center:       tuple, optional
+                  The center of the 4D-STEM pattern in Fourier
+                  space. Default is (0, 0)
+    mrad_calib:   float, optional
+                  Calibration of the Fourier space. Default
+                  is 0.
+    get_detector: bool, optional
+                  Get the detector array if set to True. Default is
+                  False
 
     Returns
     -------
     data_det: ndarray
               The STEM image from the detector region chosen
+    detector: ndarray, optional
+              The boolean ndarray if get_detector is True
 
     Notes
     -----
@@ -397,7 +404,10 @@ def custom_detector(data4D, inner, outer=0, center=(0, 0), mrad_calib=0):
         outer = np.amax(rr)
     detector = np.logical_and((rr > inner), (rr < outer))
     data_det = np.sum(data_4D[detector, :, :], axis=0)
-    return data_det
+    if get_detector:
+        return data_det, detector
+    else:
+        return data_det
 
 
 @numba.jit
