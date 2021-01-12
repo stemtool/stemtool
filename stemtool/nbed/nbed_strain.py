@@ -330,58 +330,6 @@ def aperture_image(data4D, center, radius):
     return df_image
 
 
-def custom_detector(data4D, det_inner, det_outer, det_center=(0, 0), mrad_calib=0):
-    """
-    Generate an image with a custom annular detector
-    located anywhere in diffraction space
-
-    Parameters
-    ----------
-    data4D: ndarray of shape (4,4)
-            the first two dimensions are Fourier
-            space, while the next two dimensions
-            are real space
-    center: ndarray of shape (1,2)
-            Center of the circular aperture
-    radius: float
-            Radius of the circular aperture
-
-    Returns
-    -------
-    df_image: ndarray of shape (2,2)
-              Generated virtual dark field image
-              from the aperture and 4D data
-
-    Notes
-    -----
-    We generate the aperture first, and then make copies
-    of the aperture to generate a 4D dataset of the same
-    size as the 4D data. Then we do an element wise
-    multiplication of this aperture 4D data with the 4D data
-    and then sum it along the two Fourier directions.
-    """
-    if mrad_calib > 0:
-        det_inner = det_inner * mrad_calib
-        det_outer = det_outer * mrad_calib
-        det_center = np.asarray(det_center) * mrad_calib
-    det_center = np.asarray(det_center)
-    yy, xx = np.mgrid[0 : data4D.shape[0], 0 : data4D.shape[1]]
-    yy -= 0.5 * data4D.shape[0]
-    xx -= 0.5 * data4D.shape[1]
-    yy = yy - det_center[1]
-    xx = xx - det_center[0]
-    rr = (yy ** 2) + (xx ** 2)
-    aperture = np.logical_and((rr <= det_outer), (rr >= det_inner))
-    apt_copy = np.empty(
-        (data4D.shape[2], data4D.shape[3]) + aperture.shape, dtype=data4D.dtype
-    )
-    apt_copy[:] = aperture
-    apt_copy = np.transpose(apt_copy, (2, 3, 0, 1))
-    apt_mult = apt_copy * data4D
-    df_image = np.sum(np.sum(apt_mult, axis=0), axis=0)
-    return df_image
-
-
 def ROI_from_image(image, med_val, style="over", showfig=True):
     if style == "over":
         ROI = np.asarray(image > (med_val * np.median(image)), dtype=np.double)
@@ -393,6 +341,63 @@ def ROI_from_image(image, med_val, style="over", showfig=True):
         plt.title("ROI overlaid")
     ROI = ROI.astype(bool)
     return ROI
+
+
+def custom_detector(data4D, inner, outer=0, center=(0, 0), mrad_calib=0):
+    """
+    Return STEM image from detector values
+
+    Parameters
+    ----------
+    data4D:     ndarray
+                the first two dimensions are Fourier
+                space, while the next two dimensions
+                are real space
+    inner:      float
+                The inner collection angle in Fourier space
+                in pixels
+    outer:      float, optional
+                The inner collection angle in Fourier space
+                in pixels. Default is 0
+    center:     tuple, optional
+                The center of the 4D-STEM pattern in Fourier
+                space. Default is (0, 0)
+    mrad_calib: float, optional
+                Calibration of the Fourier space. Default
+                is 0.
+
+    Returns
+    -------
+    data_det: ndarray
+              The STEM image from the detector region chosen
+
+    Notes
+    -----
+    Based on the inner and outer collection angle the a STEM
+    image is generated from the 4D-STEM dataset. We assume that
+    the first two dimensions are the Fourier space, while the
+    next two dimensions are real space scanning dimensions.
+    """
+    center = np.asarray(center)
+    if center[0] == 0:
+        center[0] = 0.5 * data4D.shape[0]
+    if center[1] == 0:
+        center[1] = 0.5 * data4D.shape[1]
+    yy, xx = np.mgrid[0 : data4D.shape[0], 0 : data4D.shape[1]]
+    if mrad_calib > 0:
+        inner = inner * mrad_calib
+        outer = outer * mrad_calib
+        center = center * mrad_calib
+        yy = yy * mrad_calib
+        xx = xx * mrad_calib
+    yy = yy - center[0]
+    xx = xx - center[1]
+    rr = ((yy ** 2) + (xx ** 2)) ** 0.5
+    if outer == 0:
+        outer = np.amax(rr)
+    detector = np.logical_and((rr > inner), (rr < outer))
+    data_det = np.sum(data_4D[detector, :, :], axis=0)
+    return data_det
 
 
 @numba.jit

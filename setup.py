@@ -33,7 +33,6 @@ if not os.getenv("READTHEDOCS"):
             "h5py >= 2.7.0",
             "dask >= 2.0.0",
             "numexpr >= 2.6.5",
-            "nodejs >= 10.0.0",
         ],
     )
 else:

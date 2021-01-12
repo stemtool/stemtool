@@ -343,3 +343,121 @@ def slabbing_2D(miller_dir, no_cells, max_hdist):
     yy_thirdpass = yy_secondpass[dist_angles2 > (np.pi / 2)]
     vals = np.asarray((yy_thirdpass, xx_thirdpass))
     return vals.transpose()
+
+
+def fwxm(probe2D, psize, x=0.5):
+    p2 = np.abs(probe2D)
+    pmax = np.amax(p2)
+    pr = p2 > (x * pmax)
+    radius = (np.sum(pr) / np.pi) ** 0.5
+    return radius * psize
+
+
+def move_probe_mesh(probe, pos, fmeshy, fmeshx):
+    image_size = np.asarray(probe.shape)
+    rel_pos = pos - (image_size / 2)
+    move_mat = np.exp((fmeshx * rel_pos[1]) + (fmeshy * rel_pos[0]))
+    moved_probe = np.fft.ifft2(move_mat * np.fft.fft2(probe))
+    return moved_probe
+
+
+def diff_to_im(cbed_pattern, detector):
+    val = np.zeros(detector.shape[-1], dtype=np.float32)
+    for ii in np.arange(detector.shape[-1]):
+        val[ii] = np.sum(cbed_pattern[detector[:, :, ii]])
+    return val
+
+
+def annular_stem(probe, trans_array, prop, pos, coll_angles, pixel_size, voltage_kv):
+    ypos = pos[0]
+    xpos = pos[1]
+    [xpos, ypos] = np.meshgrid(ypos, xpos)
+    fcal_y = (
+        np.linspace((-probe.shape[0] / 2), ((probe.shape[0] / 2) - 1), probe.shape[0])
+    ) / probe.shape[0]
+    fcal_x = (
+        np.linspace((-probe.shape[1] / 2), ((probe.shape[1] / 2) - 1), probe.shape[1])
+    ) / probe.shape[1]
+    [fmesh_x, fmesh_y] = np.meshgrid(fcal_x, fcal_y)
+    mmesh_x = ((-2) * np.pi * 1j * fmesh_x).astype(np.complex64)
+    mmesh_y = ((-2) * np.pi * 1j * fmesh_y).astype(np.complex64)
+    fmesh_r = (((fmesh_x ** 2) + (fmesh_y ** 2)) ** 0.5) / pixel_size
+    radians_r = fmesh_r * st.sim.wavelength_ang(voltage_kv)
+    detectors = np.zeros(
+        (radians_r.shape[0], radians_r.shape[1], coll_angles.shape[0]), dtype=bool
+    )
+
+    for cc in np.arange(coll_angles.shape[0]):
+        inner_angle = coll_angles[cc, 0]
+        outer_angle = coll_angles[cc, 1]
+        detectors[:, :, cc] = np.logical_and(
+            ((inner_angle / 1000) < radians_r), (radians_r < (outer_angle / 1000))
+        )
+
+    ypos_da = da.from_array(ypos)
+    xpos_da = da.from_array(xpos)
+    probe_sc = client.scatter(probe, broadcast=True)
+    prop_sc = client.scatter(prop, broadcast=True)
+    mmesh_y_sc = client.scatter(mmesh_y, broadcast=True)
+    mmesh_x_sc = client.scatter(mmesh_x, broadcast=True)
+    trans_array_sc = client.scatter(trans_array, broadcast=True)
+    detectors_sc = client.scatter(detectors, broadcast=True)
+    stem_image = []
+
+    with tqdm(total=ypos.shape[0]) as pbar:
+        for ii in np.arange(ypos.shape[0]):
+            im_vals = []
+            for jj in np.arange(ypos.shape[1]):
+                moved_probe = dask.delayed(move_probe_mesh)(
+                    probe_sc, (ypos_da[ii, jj], xpos_da[ii, jj]), mmesh_y_sc, mmesh_x_sc
+                )
+                cbed_pattern = dask.delayed(cbed)(moved_probe, trans_array_sc, prop_sc)
+                aperture_vals = dask.delayed(diff_to_im)(cbed_pattern, detectors_sc)
+                im_vals.append(aperture_vals)
+            im_vals = np.asarray(dask.compute(*im_vals))
+            stem_image.append(im_vals)
+            pbar.update(1)
+    stem_image = np.asarray(stem_image)
+    return stem_image
+
+
+def pixellated_stem(probe, trans_array, prop, pos):
+    ypos = pos[0]
+    xpos = pos[1]
+    probeft = np.fft.fft2(probe)
+    probeft /= np.sum(np.abs(probeft))
+    probe = np.fft.ifft2(probeft)
+    [xpos, ypos] = np.meshgrid(ypos, xpos)
+    fcal_y = (
+        np.linspace((-probe.shape[0] / 2), ((probe.shape[0] / 2) - 1), probe.shape[0])
+    ) / probe.shape[0]
+    fcal_x = (
+        np.linspace((-probe.shape[1] / 2), ((probe.shape[1] / 2) - 1), probe.shape[1])
+    ) / probe.shape[1]
+    [fmesh_x, fmesh_y] = np.meshgrid(fcal_x, fcal_y)
+    mmesh_x = ((-2) * np.pi * 1j * fmesh_x).astype(np.complex64)
+    mmesh_y = ((-2) * np.pi * 1j * fmesh_y).astype(np.complex64)
+
+    ypos_da = da.from_array(ypos)
+    xpos_da = da.from_array(xpos)
+    probe_sc = client.scatter(probe, broadcast=True)
+    prop_sc = client.scatter(prop, broadcast=True)
+    mmesh_y_sc = client.scatter(mmesh_y, broadcast=True)
+    mmesh_x_sc = client.scatter(mmesh_x, broadcast=True)
+    trans_array_sc = client.scatter(trans_array, broadcast=True)
+    stem_4D = []
+
+    with tqdm(total=ypos.shape[0]) as pbar:
+        for ii in np.arange(ypos.shape[0]):
+            im_vals = []
+            for jj in np.arange(ypos.shape[1]):
+                moved_probe = dask.delayed(move_probe_mesh)(
+                    probe_sc, (ypos_da[ii, jj], xpos_da[ii, jj]), mmesh_y_sc, mmesh_x_sc
+                )
+                cbd = dask.delayed(cbed)(moved_probe, trans_array_sc, prop_sc)
+                im_vals.append(cbd)
+            im_vals = np.asarray(dask.compute(*im_vals))
+            stem_4D.append(im_vals)
+            pbar.update(1)
+    stem_4D = np.asarray(stem_4D)
+    return stem_4D

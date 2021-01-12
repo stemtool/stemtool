@@ -4,12 +4,10 @@ import dask.array as da
 import os
 import dask
 import dask.distributed as dd
-import multiprocessing
 import struct
 import numpy as np
 import h5py
 import stemtool as st
-import numba
 import glob
 from collections import OrderedDict
 
