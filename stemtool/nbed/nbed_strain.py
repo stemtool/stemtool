@@ -403,7 +403,7 @@ def custom_detector(
     if outer == 0:
         outer = np.amax(rr)
     detector = np.logical_and((rr > inner), (rr < outer))
-    data_det = np.sum(data_4D[detector, :, :], axis=0)
+    data_det = np.sum(data4D[detector, :, :], axis=0)
     if get_detector:
         return data_det, detector
     else:
@@ -1105,10 +1105,11 @@ def strain4D_general(
         disk_center = np.asarray(np.shape(diff_y)) / 2
     else:
         disk_center = np.asarray(disk_center)
-    e_xx_map = np.nan * np.ones((data4D.shape[2], data4D.shape[3]))
-    e_xy_map = np.nan * np.ones((data4D.shape[2], data4D.shape[3]))
-    e_th_map = np.nan * np.ones((data4D.shape[2], data4D.shape[3]))
-    e_yy_map = np.nan * np.ones((data4D.shape[2], data4D.shape[3]))
+    e_xx_map = np.zeros((data4D.shape[2], data4D.shape[3]))
+    e_xy_map = np.zeros((data4D.shape[2], data4D.shape[3]))
+    e_th_map = np.zeros((data4D.shape[2], data4D.shape[3]))
+    e_yy_map = np.zeros((data4D.shape[2], data4D.shape[3]))
+
     radiating = ((diff_y - disk_center[0]) ** 2) + ((diff_x - disk_center[1]) ** 2)
     disk = np.zeros_like(radiating)
     disk[radiating < (disk_radius ** 2)] = 1
@@ -1159,10 +1160,10 @@ def strain4D_general(
         - fitted_mean[distarr == np.amin(distarr), :]
     )
     list_pos = np.zeros((int(np.sum(imROI)), peaks_mean.shape[0], peaks_mean.shape[1]))
-    exx_ROI = np.ones(no_of_disks, dtype=np.float64)
-    exy_ROI = np.ones(no_of_disks, dtype=np.float64)
-    eth_ROI = np.ones(no_of_disks, dtype=np.float64)
-    eyy_ROI = np.ones(no_of_disks, dtype=np.float64)
+    exx_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
+    exy_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
+    eth_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
+    eyy_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
     for kk in range(no_of_disks):
         scan_LSB = LSB_ROI[:, :, kk]
         scan_CC = st.util.cross_corr(scan_LSB, sobel_disk, hybrid_cc)
@@ -1183,14 +1184,32 @@ def strain4D_general(
         exy_ROI[kk] = (scan_strain[0, 1] + scan_strain[1, 0]) / 2
         eth_ROI[kk] = (scan_strain[0, 1] - scan_strain[1, 0]) / 2
         eyy_ROI[kk] = scan_strain[1, 1]
+
+    # make NaN values 0
+    exx_ROI[np.isnan(exx_ROI)] = 0
+    exy_ROI[np.isnan(exy_ROI)] = 0
+    eth_ROI[np.isnan(eth_ROI)] = 0
+    eyy_ROI[np.isnan(eyy_ROI)] = 0
+
+    # normalize
+    exx_ROI = exx_ROI - np.median(exx_ROI)
+    exy_ROI = exy_ROI - np.median(exy_ROI)
+    eth_ROI = eth_ROI - np.median(eth_ROI)
+    eyy_ROI = eyy_ROI - np.median(eyy_ROI)
+
+    exx_ROI[exx_ROI > 0.1] = 0.1
+    exx_ROI[exx_ROI < -0.1] = -0.1
+    exy_ROI[exy_ROI > 0.1] = 0.1
+    exy_ROI[exy_ROI < -0.1] = -0.1
+    eth_ROI[eth_ROI > 0.1] = 0.1
+    eth_ROI[eth_ROI < -0.1] = -0.1
+    eyy_ROI[eyy_ROI > 0.1] = 0.1
+    eyy_ROI[eyy_ROI < -0.1] = -0.1
+
     e_xx_map[imROI] = exx_ROI
-    e_xx_map[np.isnan(e_xx_map)] = 0
     e_xy_map[imROI] = exy_ROI
-    e_xy_map[np.isnan(e_xy_map)] = 0
     e_th_map[imROI] = eth_ROI
-    e_th_map[np.isnan(e_th_map)] = 0
     e_yy_map[imROI] = eyy_ROI
-    e_yy_map[np.isnan(e_yy_map)] = 0
 
     if gblur:
         e_xx_map = scnd.gaussian_filter(e_xx_map, 1)
