@@ -701,3 +701,31 @@ def cp_image_val(comp_image):
     hsv_image[:, :, 2] = real_image
     colored_image = skc.hsv2rgb(hsv_image)
     return colored_image
+
+
+def euclidean_dist(binary_image):
+    """
+    Get Euclidean distance of every non-zero
+    pixel from zero valued pixels
+
+    Parameters
+    ----------
+    binary_image: ndarray
+                  The image
+
+    Returns
+    -------
+    dist_map: ndarray
+              The Euclidean distance map
+    """
+    bi_ones = binary_image != 0
+    bi_zero = binary_image == 0
+    bi_yy, bi_xx = np.mgrid[0 : binary_image.shape[0], 0 : binary_image.shape[1]]
+    ones_vals = np.asarray((bi_yy[bi_ones], bi_xx[bi_ones])).transpose()
+    zero_vals = np.asarray((bi_yy[bi_zero], bi_xx[bi_zero])).transpose()
+    dist_vals = np.zeros(ones_vals.shape[0])
+    for ii in np.arange(ones_vals.shape[0]):
+        dist_vals[ii] = np.amin(np.sum(((zero_vals - ones_vals[ii, 0:2]) ** 2), axis=1))
+    dist_map = np.zeros_like(binary_image, dtype=np.float)
+    dist_map[bi_ones] = dist_vals ** 0.5
+    return dist_map
