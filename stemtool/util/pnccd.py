@@ -513,8 +513,6 @@ def remove_dark_ref(data3D, dark_ref):
 
 
 def generate4D_frms6(data_dir, bin_factor=2):
-    cluster = dd.LocalCluster()
-    client = dd.Client(cluster)
     current_dir = os.getcwd()
     os.chdir(data_dir)
     data_class = st.util.Frms6Reader()
@@ -523,6 +521,9 @@ def generate4D_frms6(data_dir, bin_factor=2):
         tot_files += 1
     filesizes = np.zeros((tot_files, 4), dtype=int)
     filenames = np.zeros(tot_files, dtype=object)
+
+    cluster = dd.LocalCluster(int(tot_files))
+    client = dd.Client(cluster)
 
     ii = 0
     for file in glob.glob("*.frms6"):
@@ -543,27 +544,27 @@ def generate4D_frms6(data_dir, bin_factor=2):
     data3d_before = []
 
     ii = np.arange(tot_files)[filesizes[:, -1] == 0][0]
-    dark_data = data_class.readData(
+    dark_read = dask.delayed(data_class.readData)(
         filenames[ii],
         image_range=(0, dref_shape[-1]),
         pixels_x=dref_shape[0],
         pixels_y=dref_shape[1],
-    ).astype(np.float32)
+    )
+    dark_data = da.from_delayed(dark_read, filesizes[ii, 0:3], np.float32)
     del ii
-    mean_dark_ref = np.mean(dark_data, axis=-1)
+    mean_dark_ref = da.mean(dark_data, axis=-1)
 
     for jj in np.arange(1, tot_files):
         ii = np.arange(tot_files)[filesizes[:, -1] == jj][0]
-        test_data = (
-            data_class.readData(
-                filenames[ii],
-                image_range=(0, draw_shape[-1]),
-                pixels_x=draw_shape[0],
-                pixels_y=draw_shape[1],
-            )
-        ).astype(np.float32)
-        td_dask = da.from_array(test_data, chunks=(-1, -1, "auto"))
-        data3d_before.append(td_dask)
+        test_read = dask.delayed(data_class.readData)(
+            filenames[ii],
+            image_range=(0, draw_shape[-1]),
+            pixels_x=draw_shape[0],
+            pixels_y=draw_shape[1],
+        )
+        test_data = da.from_delayed(test_read, filesizes[ii, 0:3], np.float32)
+        test_data = test_data.rechunk(-1, -1, 256)
+        data3d_before.append(test_data)
 
     os.chdir(current_dir)
     data3d_dask = da.concatenate(data3d_before, axis=-1)
@@ -610,6 +611,6 @@ def generate4D_frms6(data_dir, bin_factor=2):
         data4d_bin = da.reshape(
             data3d_binYX, (con_shape[0], con_shape[1], xvals_bin, xvals_bin)
         )
-    data_4D = data4d_bin.compute()
+    data4D = data4d_bin.compute()
     cluster.close()
-    return data_4D
+    return data4D

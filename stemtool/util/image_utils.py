@@ -5,6 +5,7 @@ import matplotlib.colors as mplc
 import matplotlib.cm as mplcm
 import numba
 import warnings
+import cv2
 import scipy.misc as scm
 import scipy.optimize as spo
 import scipy.ndimage as scnd
@@ -729,3 +730,36 @@ def euclidean_dist(binary_image):
     dist_map = np.zeros_like(binary_image, dtype=np.float)
     dist_map[bi_ones] = dist_vals ** 0.5
     return dist_map
+
+
+def video2array(fpath):
+    """
+    Generate a numpy array from a video file
+
+    Parameters
+    ----------
+    fpath: str
+           File path to the video
+
+    Returns
+    -------
+    buf: ndarray
+         The video converted to a numpy array
+
+    Notes
+    -----
+    This has a openCV dependency that may be problematic
+    for some installations
+    """
+    cap = cv2.VideoCapture(fpath)
+    frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fc = 0
+    ret = True
+    buf = np.empty((frameCount, frameHeight, frameWidth, 3), np.dtype("uint8"))
+    while fc < frameCount and ret:
+        ret, buf[fc] = cap.read()
+        fc += 1
+    cap.release()
+    return buf
