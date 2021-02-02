@@ -1595,6 +1595,12 @@ def strain_figure(exx, exy, eth, eyy, ROI, scale=0, scale_unit="nm", figsize=(22
     be assigned too.
     """
 
+    # Convert NaN values to zero before plotting
+    exx[np.isnan(exx)] = 0
+    exy[np.isnan(exy)] = 0
+    eth[np.isnan(eth)] = 0
+    eyy[np.isnan(eyy)] = 0
+
     def ROI_RdBu_map(valmap, roi, valrange):
         plot_col = np.zeros((256, 3), dtype=np.float)
         for ii in range(255):

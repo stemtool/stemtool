@@ -522,7 +522,7 @@ def generate4D_frms6(data_dir, bin_factor=2):
     filesizes = np.zeros((tot_files, 4), dtype=int)
     filenames = np.zeros(tot_files, dtype=object)
 
-    cluster = dd.LocalCluster(int(tot_files))
+    cluster = dd.LocalCluster(n_workers=int(1+tot_files))
     client = dd.Client(cluster)
 
     ii = 0
