@@ -5,7 +5,6 @@ import matplotlib.colors as mplc
 import matplotlib.cm as mplcm
 import numba
 import warnings
-import cv2
 import scipy.misc as scm
 import scipy.optimize as spo
 import scipy.ndimage as scnd
@@ -126,7 +125,7 @@ def image_logarizer(image_orig, bit_depth=64):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     bit_max = 2 ** bit_depth
-    image_norm = image_normalizer(image_orig)
+    image_norm = st.util.image_normalizer(image_orig)
     image_scale = np.zeros_like(image_norm, dtype=np.float64)
     image_log = np.zeros_like(image_norm, dtype=np.float64)
     image_scale = 1 + ((bit_max - 1) * image_norm)
@@ -164,9 +163,9 @@ def remove_dead_pixels(image_orig, iter_count=1, level=10000):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    pp, qq = np.mgrid[0 : image_orig.shape[0], 0 : image_orig.shape[1]]
+    pp, _ = np.mgrid[0 : image_orig.shape[0], 0 : image_orig.shape[1]]
     no_points = np.size(pp)
-    for ii in range(iter_count):
+    for _ in range(iter_count):
         original_min = np.amin(image_orig)
         image_pos = image_orig - original_min
         no_minima = np.size(pp[image_pos == 0])
@@ -297,15 +296,14 @@ def sparse_division(sparse_numer, sparse_denom, bit_depth=32):
 
 
 def cross_corr_unpadded(image_1, image_2, normal=True):
-    im_size = np.asarray(np.shape(image_1))
     if normal:
         im1_norm = image_1 / (np.sum(image_1 ** 2) ** 0.5)
         im2_norm = image_2 / (np.sum(image_2 ** 2) ** 0.5)
         im1_fft = np.fft.fft2(im1_norm)
         im2_fft = np.conj(np.fft.fft2(im2_norm))
     else:
-        im1_fft = np.fft.fft2(image1)
-        im2_fft = np.conj(np.fft.fft2(image2))
+        im1_fft = np.fft.fft2(image_1)
+        im2_fft = np.conj(np.fft.fft2(image_2))
     corr_fft = np.abs(np.fft.ifftshift(np.fft.ifft2(im1_fft * im2_fft)))
     return corr_fft
 
@@ -730,36 +728,3 @@ def euclidean_dist(binary_image):
     dist_map = np.zeros_like(binary_image, dtype=np.float)
     dist_map[bi_ones] = dist_vals ** 0.5
     return dist_map
-
-
-def video2array(fpath):
-    """
-    Generate a numpy array from a video file
-
-    Parameters
-    ----------
-    fpath: str
-           File path to the video
-
-    Returns
-    -------
-    buf: ndarray
-         The video converted to a numpy array
-
-    Notes
-    -----
-    This has a openCV dependency that may be problematic
-    for some installations
-    """
-    cap = cv2.VideoCapture(fpath)
-    frameCount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fc = 0
-    ret = True
-    buf = np.empty((frameCount, frameHeight, frameWidth, 3), np.dtype("uint8"))
-    while fc < frameCount and ret:
-        ret, buf[fc] = cap.read()
-        fc += 1
-    cap.release()
-    return buf

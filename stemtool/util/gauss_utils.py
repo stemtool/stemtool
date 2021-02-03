@@ -312,9 +312,6 @@ def gaussian_1D_function(x, x0, sigma_x, amplitude):
     gaussian_2D_function
     initialize_gauss1D
     fit_gaussian1D_mask
-
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     x = x - x0
     term = (x ** 2) / (2 * (sigma_x ** 2))
@@ -351,9 +348,6 @@ def initialize_gauss1D(xx, yy, center_type="COM"):
     1D Gaussian function. The center of the function can either
     be the center of mass or the intensity maxima, and is user
     defined.
-
-    :Authors:
-    Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     if center_type == "maxima":
         x_com = xx[yy == np.amax(yy)]
@@ -421,12 +415,12 @@ def fit_gaussian1D_mask(signal, position, mask_width, center_type="COM"):
         calc_signal = (masked_signal - mi_max) / (mi_min - mi_max)
         initial_guess = initialize_gauss1D(x_pos, calc_signal, "maxima")
     else:
-        calc_image = (masked_image - mi_min) / (mi_max - mi_min)
+        calc_signal = (masked_signal - mi_min) / (mi_max - mi_min)
         initial_guess = initialize_gauss1D(x_pos, calc_signal, center_type)
     lower_bound = ((initial_guess[0] - mask_width), 0, ((-2.5) * initial_guess[5]))
     upper_bound = (
-        (initial_guess[0] + mask_radius),
-        (2.5 * mask_radius),
+        (initial_guess[0] + mask_width),
+        (2.5 * mask_width),
         (2.5 * initial_guess[5]),
     )
     popt, _ = spo.curve_fit(
