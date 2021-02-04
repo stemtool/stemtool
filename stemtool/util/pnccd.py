@@ -513,8 +513,6 @@ def remove_dark_ref(data3D, dark_ref):
 
 
 def generate4D_frms6(data_dir, bin_factor=2):
-    current_dir = os.getcwd()
-    os.chdir(data_dir)
     data_class = st.util.Frms6Reader()
     tot_files = 0
     for file in glob.glob("*.frms6"):
@@ -566,7 +564,6 @@ def generate4D_frms6(data_dir, bin_factor=2):
         test_data = test_data.rechunk(-1, -1, 256)
         data3d_before.append(test_data)
 
-    os.chdir(current_dir)
     data3d_dask = da.concatenate(data3d_before, axis=-1)
 
     data_shape = data3d_dask.shape
@@ -611,6 +608,8 @@ def generate4D_frms6(data_dir, bin_factor=2):
         data4d_bin = da.reshape(
             data3d_binYX, (con_shape[0], con_shape[1], xvals_bin, xvals_bin)
         )
+    else:
+        data4D = data4d_dask.compute()
     data4D = data4d_bin.compute()
     cluster.close()
     return data4D
