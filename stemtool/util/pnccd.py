@@ -517,7 +517,7 @@ def generate4D_frms6(data_dir, bin_factor=2):
     os.chdir(data_dir)
     data_class = st.util.Frms6Reader()
     tot_files = 0
-    
+
     for file in glob.glob("*.frms6"):
         tot_files += 1
     filesizes = np.zeros((tot_files, 4), dtype=int)
@@ -533,7 +533,7 @@ def generate4D_frms6(data_dir, bin_factor=2):
         ii += 1
     os.chdir(current_dir)
 
-    cluster = dd.LocalCluster(n_workers=int(1+tot_files))
+    cluster = dd.LocalCluster(n_workers=int(1 + tot_files))
     client = dd.Client(cluster)
 
     draw_shape = (np.mean(filesizes[filesizes[:, -1] != 0, 0:3], axis=0)).astype(int)

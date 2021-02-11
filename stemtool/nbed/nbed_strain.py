@@ -1559,7 +1559,9 @@ def bin_scan_test(big4D, bin_factor):
     return binned_4D
 
 
-def strain_figure(exx, exy, eth, eyy, ROI, scale=0, scale_unit="nm", figsize=(22, 21)):
+def strain_figure(
+    exx, exy, eth, eyy, ROI, vm=0, scale=0, scale_unit="nm", figsize=(22, 21)
+):
     """
     Plot the strain maps from a given set of strains, where the strain is
     mapped only in the region of interest, while anything outside the region
@@ -1595,31 +1597,29 @@ def strain_figure(exx, exy, eth, eyy, ROI, scale=0, scale_unit="nm", figsize=(22
     be assigned too.
     """
 
-    # Convert NaN values to zero before plotting
-    exx[np.isnan(exx)] = 0
-    exy[np.isnan(exy)] = 0
-    eth[np.isnan(eth)] = 0
-    eyy[np.isnan(eyy)] = 0
-
     def ROI_RdBu_map(valmap, roi, valrange):
         plot_col = np.zeros((256, 3), dtype=np.float)
         for ii in range(255):
             plot_col[ii, 0:3] = np.asarray(mpl.cm.RdBu_r(ii)[0:3])
         map_col = np.zeros((valmap.shape[0], valmap.shape[1], 3))
         colorvals = (255 * ((valmap[roi] + valrange) / (2 * valrange))).astype(int)
+        colorvals[colorvals > 255] = 255
+        colorvals[colorvals < 0] = 0
         map_col[roi, 0:3] = plot_col[colorvals, :]
         return map_col
 
-    vm = 100 * np.amax(
-        np.asarray(
-            (
-                np.amax(np.abs(exx)),
-                np.amax(np.abs(exy)),
-                np.amax(np.abs(eth)),
-                np.amax(np.abs(eyy)),
+    if vm == 0:
+        vm = 100 * np.amax(
+            np.asarray(
+                (
+                    np.amax(np.abs(exx)),
+                    np.amax(np.abs(exy)),
+                    np.amax(np.abs(eth)),
+                    np.amax(np.abs(eyy)),
+                )
             )
         )
-    )
+
     fontsize = int(1.25 * np.max(figsize))
     sc_font = {"weight": "bold", "size": fontsize}
     mpl.rc("font", **sc_font)
