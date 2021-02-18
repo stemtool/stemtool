@@ -1,6 +1,5 @@
 import numpy as np
 import numba
-import warnings
 import scipy.ndimage as scnd
 import scipy.optimize as sio
 import scipy.signal as scisig
@@ -144,11 +143,11 @@ def resizer1D_numbaopt(data, res, N):
 def resizer2D_numbaopt(data2D, resampled_x, resampled_f, sampling):
     data_shape = np.asarray(data2D.shape)
     sampled_shape = (np.round(data_shape / sampling)).astype(int)
-    for yy in numba.prange(data_shape[0]):
+    for yy in range(data_shape[0]):
         resampled_x[yy, :] = resizer1D_numbaopt(
             data2D[yy, :], resampled_x[yy, :], sampled_shape[1]
         )
-    for xx in numba.prange(sampled_shape[1]):
+    for xx in range(sampled_shape[1]):
         resampled_f[:, xx] = resizer1D_numbaopt(
             resampled_x[:, xx], resampled_f[:, xx], sampled_shape[0]
         )
@@ -780,7 +779,7 @@ def ROI_strain_map(strain_ROI, ROI):
 @numba.jit(cache=True, parallel=True)
 def logarizer4D(data4D, scan_dims, bit_depth=32):
     """
-    Take the Log-Sobel of a pattern.
+    Take the Logarithm of a 4D dataset.
 
     Parameters
     ----------
@@ -816,13 +815,13 @@ def logarizer4D(data4D, scan_dims, bit_depth=32):
     if sum_dims < 2:
         data4D = np.transpose(data4D, (2, 3, 0, 1))
     data_log = np.zeros_like(data4D, dtype=np.float32)
-    for jj in numba.prange(data4D.shape[int(scan_dims[1])]):
+    for jj in range(data4D.shape[int(scan_dims[1])]):
         for ii in range(data4D.shape[int(scan_dims[0])]):
             pattern = st.util.image_normalizer(data4D[:, :, ii, jj])
             pattern = 1 + ((bit_max - 1) * pattern)
             data_log[:, :, ii, jj] = np.log2(pattern)
     if sum_dims < 2:
-        data_log = np.transpose(data_lsb, (2, 3, 0, 1))
+        data_log = np.transpose(data_log, (2, 3, 0, 1))
     return data_log
 
 
@@ -879,7 +878,7 @@ def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     if sum_dims < 2:
         data4D = np.transpose(data4D, (2, 3, 0, 1))
     data_lsb = np.zeros_like(data4D, dtype=np.float)
-    for jj in numba.prange(data4D.shape[int(scan_dims[1])]):
+    for jj in range(data4D.shape[int(scan_dims[1])]):
         for ii in range(data4D.shape[int(scan_dims[0])]):
             pattern = data4D[:, :, ii, jj]
             pattern = 1000 * (1 + st.util.image_normalizer(pattern))
@@ -915,7 +914,6 @@ def spectra_finder(data4D, yvals, xvals):
 
 def sort_edges(edge_map, edge_distance=5):
     yV, xV = np.mgrid[0 : np.shape(edge_map)[0], 0 : np.shape(edge_map)[1]]
-    dist_points = np.zeros_like(yV)
     yy = yV[edge_map]
     xx = xV[edge_map]
     no_points = np.size(yy)
@@ -927,7 +925,7 @@ def sort_edges(edge_map, edge_distance=5):
     edge_list_1[int(point_number), 0:2] = np.asarray((yy[0], xx[0]))
     truth_list[int(point_number), 0:2] = True
     edge_points = 1
-    for ii in np.arange(no_points):
+    for _ in np.arange(no_points):
         last_yy = edge_list_1[int(edge_points - 1), 0]
         last_xx = edge_list_1[int(edge_points - 1), 1]
         other_points = np.reshape(
@@ -985,14 +983,14 @@ def get_inside(edges, cutoff=0.95):
     xx_aa2 = xx[aa2]
     ang_range1 = np.zeros_like(yy, dtype=np.float)
     ang_range2 = np.zeros_like(yy, dtype=np.float)
-    for ii in numba.prange(len(positions)):
+    for ii in range(len(positions)):
         angles1 = (180 / np.pi) * np.arctan2(
             yy_aa1 - positions[ii, 0], xx_aa1 - positions[ii, 1]
         )
         ang_range1[positions[ii, 0], positions[ii, 1]] = np.amax(angles1) - np.amin(
             angles1
         )
-    for jj in numba.prange(len(positions)):
+    for jj in range(len(positions)):
         angles2 = (180 / np.pi) * np.arctan2(
             yy_aa2 - positions[jj, 0], xx_aa2 - positions[jj, 1]
         )
@@ -1028,6 +1026,7 @@ def strain4D_general(
     data4D,
     disk_radius,
     ROI=0,
+    prom_val=0,
     disk_center=np.nan,
     rotangle=0,
     med_factor=30,
@@ -1050,6 +1049,9 @@ def strain4D_general(
     ROI:         ndarray, optional
                  Region of interest. If no ROI is passed then the entire
                  scan region is the ROI
+    prom_val:    float, optional
+                 Minimum prominence value to use to use the peak for
+                 strain mapping. Default is 0
     disk_center: tuple, optional
                  Location of the center of the diffraction disk - closest to
                  the <000> undiffracted beam
@@ -1080,6 +1082,9 @@ def strain4D_general(
               Angular strain in the region of interest
     e_yy_map: ndarray
               Strain in the yy direction in the region of interest
+    newROI:   ndarray
+              New reduced ROI where the prominence of the higher
+              order diffraction disks is above prom_val
     list_pos: ndarray
               List of all the higher order peak positions with
               respect to the central disk for all positions in the ROI
@@ -1096,6 +1101,18 @@ def strain4D_general(
     patterns. The calculated higher order disk locations are then compared to the
     higher order disk locations for the median pattern to generate strain maps.
     """
+
+    def peak_prominence(peak_pos, peak_im, fit_radius):
+        prom_y, prom_x = np.mgrid[0 : peak_im.shape[0], 0 : peak_im.shape[1]]
+        prom_r = ((prom_y - peak_pos[0]) ** 2) + ((prom_x - peak_pos[1]) ** 2)
+        prom_vals = peak_im[prom_r < (fit_radius ** 2)]
+        prom_peak = peak_im[
+            int(peak_pos[0] - 1) : int(peak_pos[0] + 1),
+            int(peak_pos[1] - 1) : int(peak_pos[1] + 1),
+        ]
+        prominence = np.mean(prom_peak) - np.mean(prom_vals)
+        return prominence
+
     rotangle = np.deg2rad(rotangle)
     rotmatrix = np.asarray(
         ((np.cos(rotangle), -np.sin(rotangle)), (np.sin(rotangle), np.cos(rotangle)))
@@ -1147,6 +1164,7 @@ def strain4D_general(
     )
     fitted_mean = np.zeros_like(merged_peaks, dtype=np.float64)
     fitted_scan = np.zeros_like(merged_peaks, dtype=np.float64)
+
     for jj in range(merged_peaks.shape[0]):
         par = st.util.fit_gaussian2D_mask(
             LSB_CC, merged_peaks[jj, 1], merged_peaks[jj, 0], disk_radius
@@ -1159,11 +1177,11 @@ def strain4D_general(
         fitted_mean[distarr != np.amin(distarr), :]
         - fitted_mean[distarr == np.amin(distarr), :]
     )
+    central_disk_no = np.arange(merged_peaks.shape[0])[distarr == np.amin(distarr)][0]
+
     list_pos = np.zeros((int(np.sum(imROI)), peaks_mean.shape[0], peaks_mean.shape[1]))
-    exx_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
-    exy_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
-    eth_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
-    eyy_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
+    prominences = np.zeros((no_of_disks, merged_peaks.shape[0]), dtype=np.float)
+
     for kk in range(no_of_disks):
         scan_LSB = LSB_ROI[:, :, kk]
         scan_CC = st.util.cross_corr(scan_LSB, sobel_disk, hybrid_cc)
@@ -1177,6 +1195,36 @@ def strain4D_general(
             - fitted_scan[distarr == np.amin(distarr), :]
         )
         list_pos[kk, :, :] = peaks_scan
+        prominences[kk, qq] = peak_prominence(
+            np.flip(scan_par[0:2]), scan_CC, disk_radius
+        )
+
+    prominence_map = np.zeros((imROI.shape[0], imROI.shape[1], prominences.shape[-1]))
+    for ii in np.arange(prominences.shape[-1]):
+        prominence_map[imROI, ii] = prominences[:, ii]
+
+    prominence_disks = np.ones(prominence_map.shape[0:2], dtype=prominence_map.dtype)
+    for ii in np.range(prominences.shape[-1]):
+        if ii != central_disk_no:
+            prominence_disks = prominence_disks * prominence_map[:, :, ii]
+    prominence_disks[prominence_disks < 0] = 0
+    prominence_disks = prominence_disks ** (1 / (prominences.shape[-1] - 1))
+
+    promss = prominence_disks[imROI]
+    promss2 = promss / np.amax(promss)
+    promss2[promss2 < prom_val] = 0
+    prominence_disks2 = np.zeros_like(imROI, dtype=promss2.dtype)
+    prominence_disks2[imROI] = promss2
+
+    newROI = prominence_disks2 > 0
+
+    exx_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
+    exy_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
+    eth_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
+    eyy_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
+
+    for kk in range(no_of_disks):
+        peaks_scan = list_pos[kk, :, :]
         scan_strain, _, _, _ = np.linalg.lstsq(peaks_mean, peaks_scan, rcond=None)
         scan_strain = np.matmul(scan_strain, rotmatrix)
         scan_strain = scan_strain - np.eye(2)
@@ -1191,12 +1239,6 @@ def strain4D_general(
     eth_ROI[np.isnan(eth_ROI)] = 0
     eyy_ROI[np.isnan(eyy_ROI)] = 0
 
-    # normalize
-    exx_ROI = exx_ROI - np.median(exx_ROI)
-    exy_ROI = exy_ROI - np.median(exy_ROI)
-    eth_ROI = eth_ROI - np.median(eth_ROI)
-    eyy_ROI = eyy_ROI - np.median(eyy_ROI)
-
     exx_ROI[exx_ROI > 0.1] = 0.1
     exx_ROI[exx_ROI < -0.1] = -0.1
     exy_ROI[exy_ROI > 0.1] = 0.1
@@ -1206,17 +1248,35 @@ def strain4D_general(
     eyy_ROI[eyy_ROI > 0.1] = 0.1
     eyy_ROI[eyy_ROI < -0.1] = -0.1
 
+    e_xx_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
+    e_xy_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
+    e_th_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
+    e_yy_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
+
     e_xx_map[imROI] = exx_ROI
+    e_xx_map *= newROI.astype(np.float)
+
     e_xy_map[imROI] = exy_ROI
+    e_xy_map *= newROI.astype(np.float)
+
     e_th_map[imROI] = eth_ROI
+    e_th_map *= newROI.astype(np.float)
+
     e_yy_map[imROI] = eyy_ROI
+    e_yy_map *= newROI.astype(np.float)
+
+    list_map = np.zeros(
+        (imROI.shape[0], imROI.shape[1], list_pos.shape[1], list_pos.shape[2])
+    )
+    list_map[imROI, :, :] = list_pos
+    new_list_pos = list_map[newROI, :, :]
 
     if gblur:
         e_xx_map = scnd.gaussian_filter(e_xx_map, 1)
         e_xy_map = scnd.gaussian_filter(e_xy_map, 1)
         e_th_map = scnd.gaussian_filter(e_th_map, 1)
         e_yy_map = scnd.gaussian_filter(e_yy_map, 1)
-    return e_xx_map, e_xy_map, e_th_map, e_yy_map, list_pos
+    return e_xx_map, e_xy_map, e_th_map, e_yy_map, newROI, new_list_pos
 
 
 def bin_scan(data4D, bin_factor):
@@ -1579,6 +1639,11 @@ def strain_figure(
                 2D array of e_yy strains
     ROI:        ndarray of type bool
                 Region of interest
+    vm:         float, optional
+                Maximum value of strain map
+                Default is 0, and when it's zero,
+                it will calculate the maximum absolute
+                strain value and use that.
     scale:      float, optional
                 Pixel size. Default is 0
     scale_unit: char, optional
