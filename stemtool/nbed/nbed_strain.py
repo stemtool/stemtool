@@ -1125,6 +1125,7 @@ def strain4D_general(
     gauss_val=3,
     hybrid_cc=0.2,
     gblur=True,
+    max_strain=0.1,
 ):
     """
     Get strain from a ROI without the need for
@@ -1163,6 +1164,8 @@ def strain4D_general(
     gblur:       bool, optional
                  If gblur is on, the strain maps are blurred by a single
                  pixel. Default is true.
+    max_strain:  float, optional
+                 Tamp strain value above this value. Default is 0.1
 
     Returns
     -------
@@ -1192,6 +1195,11 @@ def strain4D_general(
     to the central transmitted beam. This is then performed for all other CBED
     patterns. The calculated higher order disk locations are then compared to the
     higher order disk locations for the median pattern to generate strain maps.
+    However, sometimes the ROI may contain points where there is no diffraction
+    pattern actually. To prevent picking such points and generating erroneous results,
+    we calculate the peak prominence of every higher order diffraction spot, and only
+    if they are more prominent than `prom_val` they will be chosen. If `prom_val` is
+    zero, then all peaks are chosen.
     """
 
     rotangle = np.deg2rad(rotangle)
@@ -1333,28 +1341,30 @@ def strain4D_general(
     e_th_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
     e_yy_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
 
+    min_strain = (-1) * max_strain
+
     e_xx_map[imROI] = exx_ROI
     e_xx_map -= np.median(e_xx_map[newROI])
-    e_xx_map[e_xx_map > 0.1] = 0.1
-    e_xx_map[e_xx_map < -0.1] = -0.1
+    e_xx_map[e_xx_map > max_strain] = max_strain
+    e_xx_map[e_xx_map < min_strain] = min_strain
     e_xx_map *= newROI.astype(float)
 
     e_xy_map[imROI] = exy_ROI
     e_xy_map -= np.median(e_xy_map[newROI])
-    e_xy_map[e_xy_map > 0.1] = 0.1
-    e_xy_map[e_xy_map < -0.1] = -0.1
+    e_xy_map[e_xy_map > max_strain] = max_strain
+    e_xy_map[e_xy_map < min_strain] = min_strain
     e_xy_map *= newROI.astype(float)
 
     e_th_map[imROI] = eth_ROI
     e_th_map -= np.median(e_th_map[newROI])
-    e_th_map[e_th_map > 0.1] = 0.1
-    e_th_map[e_th_map < -0.1] = -0.1
+    e_th_map[e_th_map > max_strain] = max_strain
+    e_th_map[e_th_map < min_strain] = min_strain
     e_th_map *= newROI.astype(float)
 
     e_yy_map[imROI] = eyy_ROI
     e_yy_map -= np.median(e_yy_map[newROI])
-    e_yy_map[e_yy_map > 0.1] = 0.1
-    e_yy_map[e_yy_map < -0.1] = -0.1
+    e_yy_map[e_yy_map > max_strain] = max_strain
+    e_yy_map[e_yy_map < min_strain] = min_strain
     e_yy_map *= newROI.astype(float)
 
     list_map = np.zeros(
