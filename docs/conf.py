@@ -71,7 +71,6 @@ MOCK_MODULES = [
     "dask.distributed",
     "dask",
     "cv2",
-    "stemtool",
     "pyfftw.interfaces.numpy_fft",
     "numexpr",
 ]
