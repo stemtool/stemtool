@@ -171,22 +171,30 @@ def resizer1D(data, N):
 
 
 def resizer2D(data2D, sampling):
+    sampling = np.asarray(sampling)
+    if len(sampling) < 2:
+        sampling = np.asarray((sampling[0], sampling[0]))
     cluster = dd.LocalCluster()
     client = dd.Client(cluster)
+    data2D_scat = client.scatter(data2D, broadcast=True)
+    data2D_dask = da.from_delayed(data2D_scat, data2D.shape, data2D.dtype)
     data_shape = np.asarray(data2D.shape)
-    sampled_shape = (np.round(data_shape / sampling)).astype(int)
-    data2d_dask = da.from_array(data2D)
-    resampled_x = []
-    resampled_f = []
-    for yy in np.arange(data_shape[0]):
-        interX = dask.delayed(resizer1D)(data2d_dask[yy, :], sampled_shape[1])
-        resampled_x.append(interX)
-    resampled_x = np.asarray(dask.compute(*resampled_x))
-    for xx in np.arange(resampled_x.shape[1]):
-        interY = dask.delayed(resizer1D)(resampled_x[:, xx], sampled_shape[0])
-        resampled_f.append(interY)
-    resampled_f = np.asarray(dask.compute(*resampled_f))
-    resampled_f = np.transpose(resampled_f, (1, 0))
+    res_shape = (data_shape / sampling).astype(int)
+    resampled_Y = []
+    resampledXY = []
+    for xx in range(data_shape[1]):
+        interY = dask.delayed(st.nbed.resizer1D)(data2D_dask[:, xx], res_shape[0])
+        interYarr = da.from_delayed(interY, (1, res_shape[0]), data2D.dtype)
+        resampled_Y.append(interYarr)
+    resampled_Y = da.concatenate(resampled_Y, axis=0)
+
+    resampled_Y = da.transpose(resampled_Y, (1, 0))
+    for yy in range(res_shape[0]):
+        interX = dask.delayed(st.nbed.resizer1D)(resampled_Y[yy, :], res_shape[1])
+        interXarr = da.from_delayed(interX, (1, res_shape[1]), data2D.dtype)
+        resampledXY.append(interXarr)
+    resampledXY = da.concatenate(resampledXY, axis=0)
+    resampled_f = resampledXY.compute()
     cluster.close()
     return resampled_f
 
@@ -238,6 +246,78 @@ def bin4D(data4D, bin_factor):
         data4D_res,
         (resampled_f.shape[0], resampled_f.shape[1], data4D.shape[2], data4D.shape[3]),
     )
+    return binned_data
+
+
+def bin4D_dask(data4D, bin_factor, workers=4):
+    """
+    Bin 4D data in spectral dimensions,
+    implemented in dask
+
+    Parameters
+    ----------
+    data4D:     ndarray of shape (4,4)
+                the first two dimensions are Fourier
+                space, while the next two dimensions
+                are real space
+    bin_factor: int
+                Value by which to bin data
+    workers:    int, optional
+                Number of dask workers. Default is
+                4.
+
+    Returns
+    -------
+    binned_data: ndarray of shape (4,4)
+                 Data binned in the spectral dimensions
+
+    Notes
+    -----
+    The data is binned in the first two dimensions - which are
+    the Fourier dimensions using the internal numba functions
+    `resizer2D_numbaopt` and `resizer1D_numbaopt`
+
+    See Also
+    --------
+    resizer1D
+    """
+    cluster = dd.LocalCluster(n_workers=workers)
+    client = dd.Client(cluster)
+    data4D_scat = client.scatter(data4D, broadcast=True)
+    data4D_dask = da.from_delayed(data4D_scat, data4D.shape, data4D.dtype)
+    data4D_flat = da.reshape(
+        data4D_dask,
+        (data4D.shape[0], data4D.shape[1], data4D.shape[2] * data4D.shape[3]),
+    )
+    datashape = np.asarray(data4D_flat.shape)
+    res_shape = np.copy(datashape)
+    res_shape[0:2] = (datashape[0:2] / bin_factor).astype(int)
+    res4D = []
+    for zz in range(datashape[-1]):
+        resampled_Y = []
+        resampledXY = []
+        for xx in range(datashape[1]):
+            interY = dask.delayed(st.nbed.resizer1D)(
+                data4D_flat[:, xx, zz], res_shape[0]
+            )
+            interYarr = da.from_delayed(interY, (1, res_shape[0]), data4D.dtype)
+            resampled_Y.append(interYarr)
+        resampled_Y = da.concatenate(resampled_Y, axis=0)
+
+        resampled_Y = da.transpose(resampled_Y, (1, 0))
+        for yy in range(res_shape[0]):
+            interX = dask.delayed(st.nbed.resizer1D)(resampled_Y[yy, :], res_shape[1])
+            interXarr = da.from_delayed(interX, (1, res_shape[1]), data4D.dtype)
+            resampledXY.append(interXarr)
+        resampledXY = da.concatenate(resampledXY, axis=0)
+        res4D.append(resampledXY)
+    res4D = da.stack(res4D, axis=0)
+    res4D = da.transpose(res4D, (1, 2, 0))
+    data4D_res = da.reshape(
+        res4D, (res_shape[0], res_shape[1], data4D.shape[2], data4D.shape[3])
+    )
+    binned_data = data4D_res.compute()
+    cluster.close()
     return binned_data
 
 
@@ -1021,6 +1101,18 @@ def sobel_filter(image, med_filter=50):
     return ls_image
 
 
+def peak_prominence(peak_pos, peak_im, fit_radius):
+    prom_y, prom_x = np.mgrid[0 : peak_im.shape[0], 0 : peak_im.shape[1]]
+    prom_r = ((prom_y - peak_pos[0]) ** 2) + ((prom_x - peak_pos[1]) ** 2)
+    prom_vals = peak_im[prom_r < (fit_radius ** 2)]
+    prom_peak = peak_im[
+        int(peak_pos[0] - 1) : int(peak_pos[0] + 1),
+        int(peak_pos[1] - 1) : int(peak_pos[1] + 1),
+    ]
+    prominence = np.mean(prom_peak) - np.mean(prom_vals)
+    return prominence
+
+
 @numba.jit
 def strain4D_general(
     data4D,
@@ -1102,17 +1194,6 @@ def strain4D_general(
     higher order disk locations for the median pattern to generate strain maps.
     """
 
-    def peak_prominence(peak_pos, peak_im, fit_radius):
-        prom_y, prom_x = np.mgrid[0 : peak_im.shape[0], 0 : peak_im.shape[1]]
-        prom_r = ((prom_y - peak_pos[0]) ** 2) + ((prom_x - peak_pos[1]) ** 2)
-        prom_vals = peak_im[prom_r < (fit_radius ** 2)]
-        prom_peak = peak_im[
-            int(peak_pos[0] - 1) : int(peak_pos[0] + 1),
-            int(peak_pos[1] - 1) : int(peak_pos[1] + 1),
-        ]
-        prominence = np.mean(prom_peak) - np.mean(prom_vals)
-        return prominence
-
     rotangle = np.deg2rad(rotangle)
     rotmatrix = np.asarray(
         ((np.cos(rotangle), -np.sin(rotangle)), (np.sin(rotangle), np.cos(rotangle)))
@@ -1122,17 +1203,13 @@ def strain4D_general(
         disk_center = np.asarray(np.shape(diff_y)) / 2
     else:
         disk_center = np.asarray(disk_center)
-    e_xx_map = np.zeros((data4D.shape[2], data4D.shape[3]))
-    e_xy_map = np.zeros((data4D.shape[2], data4D.shape[3]))
-    e_th_map = np.zeros((data4D.shape[2], data4D.shape[3]))
-    e_yy_map = np.zeros((data4D.shape[2], data4D.shape[3]))
 
     radiating = ((diff_y - disk_center[0]) ** 2) + ((diff_x - disk_center[1]) ** 2)
     disk = np.zeros_like(radiating)
     disk[radiating < (disk_radius ** 2)] = 1
     sobel_disk, _ = st.util.sobel(disk)
     if np.sum(ROI) == 0:
-        imROI = np.ones_like(e_xx_map, dtype=bool)
+        imROI = np.ones(data4D.shape[0:2], dtype=bool)
     else:
         imROI = ROI
     ROI_4D = data4D[:, :, imROI]
@@ -1141,17 +1218,16 @@ def strain4D_general(
     for ii in range(no_of_disks):
         cbed = ROI_4D[:, :, ii]
         cbed = 1000 * (1 + st.util.image_normalizer(cbed))
-        lsb_cbed, _ = st.util.sobel(
-            scnd.gaussian_filter(st.util.image_logarizer(cbed), gauss_val)
-        )
-        lsb_cbed[lsb_cbed > med_factor * np.median(lsb_cbed)] = (
+        log_cbed = scnd.gaussian_filter(np.log10(cbed), 1)
+        lsb_cbed, _ = st.util.sobel(log_cbed)
+        lsb_cbed[lsb_cbed > (med_factor * np.median(lsb_cbed))] = (
             np.median(lsb_cbed) * med_factor
         )
-        lsb_cbed[lsb_cbed < np.median(lsb_cbed) / med_factor] = (
+        lsb_cbed[lsb_cbed < (np.median(lsb_cbed) / med_factor)] = (
             np.median(lsb_cbed) / med_factor
         )
         LSB_ROI[:, :, ii] = lsb_cbed
-    Mean_LSB = np.median(LSB_ROI, axis=(-1))
+    Mean_LSB = np.mean(LSB_ROI, axis=(-1))
     LSB_CC = st.util.cross_corr(Mean_LSB, sobel_disk, hybrid_cc)
     data_peaks = skfeat.peak_local_max(
         LSB_CC, min_distance=int(2 * disk_radius), indices=False
@@ -1162,6 +1238,18 @@ def strain4D_general(
             data_peaks, peak_labels, range(1, np.max(peak_labels) + 1)
         )
     )
+
+    if merged_peaks.shape[0] == 1:
+        e_xx_map = np.zeros_like(imROI, dtype=float)
+        e_xy_map = np.zeros_like(imROI, dtype=float)
+        e_th_map = np.zeros_like(imROI, dtype=float)
+        e_yy_map = np.zeros_like(imROI, dtype=float)
+        newROI = imROI
+        new_list_pos = np.zeros(
+            (no_of_disks, merged_peaks.shape[0], merged_peaks.shape[1])
+        )
+        return e_xx_map, e_xy_map, e_th_map, e_yy_map, newROI, new_list_pos
+
     fitted_mean = np.zeros_like(merged_peaks, dtype=np.float64)
     fitted_scan = np.zeros_like(merged_peaks, dtype=np.float64)
 
@@ -1190,27 +1278,28 @@ def strain4D_general(
                 scan_CC, fitted_mean[qq, 1], fitted_mean[qq, 0], disk_radius
             )
             fitted_scan[qq, 0:2] = np.flip(scan_par[0:2])
+            prominences[kk, qq] = st.nbed.peak_prominence(
+                np.flip(scan_par[0:2]), scan_CC, disk_radius
+            )
         peaks_scan = (
             fitted_scan[distarr != np.amin(distarr), :]
             - fitted_scan[distarr == np.amin(distarr), :]
         )
         list_pos[kk, :, :] = peaks_scan
-        prominences[kk, qq] = peak_prominence(
-            np.flip(scan_par[0:2]), scan_CC, disk_radius
-        )
 
     prominence_map = np.zeros((imROI.shape[0], imROI.shape[1], prominences.shape[-1]))
     for ii in np.arange(prominences.shape[-1]):
         prominence_map[imROI, ii] = prominences[:, ii]
 
     prominence_disks = np.ones(prominence_map.shape[0:2], dtype=prominence_map.dtype)
-    for ii in np.range(prominences.shape[-1]):
+    for ii in range(prominences.shape[-1]):
         if ii != central_disk_no:
             prominence_disks = prominence_disks * prominence_map[:, :, ii]
     prominence_disks[prominence_disks < 0] = 0
     prominence_disks = prominence_disks ** (1 / (prominences.shape[-1] - 1))
+    prominence_disksG = scnd.gaussian_filter(prominence_disks, 1)
 
-    promss = prominence_disks[imROI]
+    promss = prominence_disksG[imROI]
     promss2 = promss / np.amax(promss)
     promss2[promss2 < prom_val] = 0
     prominence_disks2 = np.zeros_like(imROI, dtype=promss2.dtype)
@@ -1239,31 +1328,34 @@ def strain4D_general(
     eth_ROI[np.isnan(eth_ROI)] = 0
     eyy_ROI[np.isnan(eyy_ROI)] = 0
 
-    exx_ROI[exx_ROI > 0.1] = 0.1
-    exx_ROI[exx_ROI < -0.1] = -0.1
-    exy_ROI[exy_ROI > 0.1] = 0.1
-    exy_ROI[exy_ROI < -0.1] = -0.1
-    eth_ROI[eth_ROI > 0.1] = 0.1
-    eth_ROI[eth_ROI < -0.1] = -0.1
-    eyy_ROI[eyy_ROI > 0.1] = 0.1
-    eyy_ROI[eyy_ROI < -0.1] = -0.1
-
     e_xx_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
     e_xy_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
     e_th_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
     e_yy_map = np.zeros_like(imROI, dtype=exx_ROI.dtype)
 
     e_xx_map[imROI] = exx_ROI
-    e_xx_map *= newROI.astype(np.float)
+    e_xx_map -= np.median(e_xx_map[newROI])
+    e_xx_map[e_xx_map > 0.1] = 0.1
+    e_xx_map[e_xx_map < -0.1] = -0.1
+    e_xx_map *= newROI.astype(float)
 
     e_xy_map[imROI] = exy_ROI
-    e_xy_map *= newROI.astype(np.float)
+    e_xy_map -= np.median(e_xy_map[newROI])
+    e_xy_map[e_xy_map > 0.1] = 0.1
+    e_xy_map[e_xy_map < -0.1] = -0.1
+    e_xy_map *= newROI.astype(float)
 
     e_th_map[imROI] = eth_ROI
-    e_th_map *= newROI.astype(np.float)
+    e_th_map -= np.median(e_th_map[newROI])
+    e_th_map[e_th_map > 0.1] = 0.1
+    e_th_map[e_th_map < -0.1] = -0.1
+    e_th_map *= newROI.astype(float)
 
     e_yy_map[imROI] = eyy_ROI
-    e_yy_map *= newROI.astype(np.float)
+    e_yy_map -= np.median(e_yy_map[newROI])
+    e_yy_map[e_yy_map > 0.1] = 0.1
+    e_yy_map[e_yy_map < -0.1] = -0.1
+    e_yy_map *= newROI.astype(float)
 
     list_map = np.zeros(
         (imROI.shape[0], imROI.shape[1], list_pos.shape[1], list_pos.shape[2])
