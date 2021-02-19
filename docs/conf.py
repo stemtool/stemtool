@@ -91,22 +91,14 @@ import stemtool
 
 # -- Project information -----------------------------------------------------
 
-project = u"stemtool"
-copyright = u"2020, Debangshu Mukherjee"
+project = u"STEMTool"
+copyright = u"2021, Debangshu Mukherjee"
 author = u"Debangshu Mukherjee"
 master_doc = "index"
 
 # The full version, including alpha/beta/rc tags
 release = stemtool.__version__
 autoapi_dirs = ["../stemtool"]
-
-# Add Mock files to fool RTD for C dependent packages
-
-
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return MagicMock()
 
 
 # -- General configuration ---------------------------------------------------

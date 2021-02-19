@@ -1378,7 +1378,8 @@ def strain4D_general(
         e_xy_map = scnd.gaussian_filter(e_xy_map, 1)
         e_th_map = scnd.gaussian_filter(e_th_map, 1)
         e_yy_map = scnd.gaussian_filter(e_yy_map, 1)
-    return e_xx_map, e_xy_map, e_th_map, e_yy_map, newROI, new_list_pos
+
+    return e_xx_map, e_xy_map, e_th_map, e_yy_map, newROI, new_list_pos, prominence_disks
 
 
 def bin_scan(data4D, bin_factor):
