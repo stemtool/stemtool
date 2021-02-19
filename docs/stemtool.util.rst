@@ -35,12 +35,3 @@ stemtool.util.pnccd module
    :members:
    :undoc-members:
    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: stemtool.util
-   :members:
-   :undoc-members:
-   :show-inheritance:

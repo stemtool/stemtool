@@ -11,12 +11,3 @@ stemtool.sim.multislice module
    :members:
    :undoc-members:
    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: stemtool.sim
-   :members:
-   :undoc-members:
-   :show-inheritance:

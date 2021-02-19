@@ -7,12 +7,10 @@ Subpackages
 .. toctree::
 
    stemtool.afit
-   stemtool.beam
    stemtool.dpc
    stemtool.eels
    stemtool.gpa
    stemtool.nbed
-   stemtool.proc
    stemtool.sim
    stemtool.util
 

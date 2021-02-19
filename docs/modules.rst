@@ -2,6 +2,6 @@ stemtool
 ========
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    stemtool

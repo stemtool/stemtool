@@ -19,12 +19,3 @@ stemtool.afit.drift\_corr module
    :members:
    :undoc-members:
    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: stemtool.afit
-   :members:
-   :undoc-members:
-   :show-inheritance:

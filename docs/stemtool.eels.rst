@@ -11,12 +11,3 @@ stemtool.eels.eels\_tools module
    :members:
    :undoc-members:
    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: stemtool.eels
-   :members:
-   :undoc-members:
-   :show-inheritance:

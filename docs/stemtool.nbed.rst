@@ -12,11 +12,3 @@ stemtool.nbed.nbed\_strain module
    :undoc-members:
    :show-inheritance:
 
-
-Module contents
----------------
-
-.. automodule:: stemtool.nbed
-   :members:
-   :undoc-members:
-   :show-inheritance:

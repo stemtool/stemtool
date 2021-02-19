@@ -28,11 +28,3 @@ stemtool.dpc.nbed\_dpc module
    :undoc-members:
    :show-inheritance:
 
-
-Module contents
----------------
-
-.. automodule:: stemtool.dpc
-   :members:
-   :undoc-members:
-   :show-inheritance:

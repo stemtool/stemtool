@@ -11,12 +11,3 @@ stemtool.gpa.gpa module
    :members:
    :undoc-members:
    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: stemtool.gpa
-   :members:
-   :undoc-members:
-   :show-inheritance:
