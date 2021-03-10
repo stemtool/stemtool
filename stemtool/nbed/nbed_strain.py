@@ -1126,6 +1126,7 @@ def strain4D_general(
     hybrid_cc=0.2,
     gblur=True,
     max_strain=0.1,
+    take_median=True,
 ):
     """
     Get strain from a ROI without the need for
@@ -1163,9 +1164,15 @@ def strain4D_general(
                  Default is 0.1
     gblur:       bool, optional
                  If gblur is on, the strain maps are blurred by a single
-                 pixel. Default is true.
+                 pixel.
+                 Default is True.
     max_strain:  float, optional
-                 Tamp strain value above this value. Default is 0.1
+                 Tamp strain value above this value.
+                 Default is 0.1
+    take_median: bool, optional
+                 If True, the Mean_CBED is the median diffraction pattern in the
+                 ROI. If False, it is the mean diffraction patter.
+                 Default is True
 
     Returns
     -------
@@ -1234,8 +1241,14 @@ def strain4D_general(
         lsb_cbed[lsb_cbed < (np.median(lsb_cbed) / med_factor)] = (
             np.median(lsb_cbed) / med_factor
         )
+        lsb_cbed = st.util.image_normalizer(lsb_cbed) + st.util.image_normalizer(
+            sobel_disk
+        )
         LSB_ROI[:, :, ii] = lsb_cbed
-    Mean_LSB = np.mean(LSB_ROI, axis=(-1))
+    if take_median:
+        Mean_LSB = np.median(LSB_ROI, axis=(-1))
+    else:
+        Mean_LSB = np.mean(LSB_ROI, axis=(-1))
     LSB_CC = st.util.cross_corr(Mean_LSB, sobel_disk, hybrid_cc)
     data_peaks = skfeat.peak_local_max(
         LSB_CC, min_distance=int(2 * disk_radius), indices=False
@@ -1266,9 +1279,7 @@ def strain4D_general(
             LSB_CC, merged_peaks[jj, 1], merged_peaks[jj, 0], disk_radius
         )
         fitted_mean[jj, 0:2] = np.flip(par[0:2])
-    distarr = (
-        np.sum(((fitted_mean - np.asarray(LSB_CC.shape) / 2) ** 2), axis=1)
-    ) ** 0.5
+    distarr = (np.sum(((fitted_mean - disk_center) ** 2), axis=1)) ** 0.5
     peaks_mean = (
         fitted_mean[distarr != np.amin(distarr), :]
         - fitted_mean[distarr == np.amin(distarr), :]
@@ -1322,7 +1333,7 @@ def strain4D_general(
 
     for kk in range(no_of_disks):
         peaks_scan = list_pos[kk, :, :]
-        scan_strain, _, _, _ = np.linalg.lstsq(peaks_mean, peaks_scan, rcond=None)
+        scan_strain, _, _, _ = np.linalg.lstsq(peaks_scan, peaks_mean, rcond=None)
         scan_strain = np.matmul(scan_strain, rotmatrix)
         scan_strain = scan_strain - np.eye(2)
         exx_ROI[kk] = scan_strain[0, 0]
@@ -1379,7 +1390,15 @@ def strain4D_general(
         e_th_map = scnd.gaussian_filter(e_th_map, 1)
         e_yy_map = scnd.gaussian_filter(e_yy_map, 1)
 
-    return e_xx_map, e_xy_map, e_th_map, e_yy_map, newROI, new_list_pos, prominence_disks
+    return (
+        e_xx_map,
+        e_xy_map,
+        e_th_map,
+        e_yy_map,
+        newROI,
+        new_list_pos,
+        prominence_disks,
+    )
 
 
 def bin_scan(data4D, bin_factor):
