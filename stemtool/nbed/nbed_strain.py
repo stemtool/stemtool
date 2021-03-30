@@ -1232,7 +1232,7 @@ def strain4D_general(
     LSB_ROI = np.zeros_like(ROI_4D, dtype=np.float)
     for ii in range(no_of_disks):
         cbed = ROI_4D[:, :, ii]
-        cbed = 1000 * (1 + st.util.image_normalizer(cbed))
+        cbed = 1 + st.util.image_normalizer(cbed)
         log_cbed = scnd.gaussian_filter(np.log10(cbed), 1)
         lsb_cbed, _ = st.util.sobel(log_cbed)
         lsb_cbed[lsb_cbed > (med_factor * np.median(lsb_cbed))] = (
@@ -1334,6 +1334,7 @@ def strain4D_general(
     for kk in range(no_of_disks):
         peaks_scan = list_pos[kk, :, :]
         scan_strain, _, _, _ = np.linalg.lstsq(peaks_scan, peaks_mean, rcond=None)
+        # In np.linalg.lstsq you get b/a
         scan_strain = np.matmul(scan_strain, rotmatrix)
         scan_strain = scan_strain - np.eye(2)
         exx_ROI[kk] = scan_strain[0, 0]
