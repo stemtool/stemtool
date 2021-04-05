@@ -1903,3 +1903,58 @@ def strain_figure(
     ax5.set_title("Strain (%)", fontsize=25, fontweight="bold")
 
     plt.tight_layout()
+
+
+def get_strain_plot(volume, roi, precision=(2, 3), upsampling=6):
+    """
+    Get strain maps from the volume calculation and region of
+    interest
+
+    Parameters
+    ----------
+    volume:     ndarray, float
+                Calculated volume from strain
+    roi:        ndarray, bool
+                Region where the particle lies
+    precision:  tuple
+                The number of significant digits in each axes
+    upsampling: int
+                Upsampling factor for the region before calculation
+
+    Returns
+    -------
+    rawvals: ndarray, float
+             The raw calculated strain values from the region of interest
+    strain:  ndarray, float
+             Strain (second column) as a function of distance from particle
+             surface (first column), with standard error (third column) and
+             standard deviation (fourth column)
+    maxdist: float
+             Maximum distance from surface
+
+    Notes
+    -----
+    The ROI is upsampled by the upsampled by the upsampling factor, and the
+    cartesian distances inside that ROI from the nearest edge point are
+    calculated. That's your x values, which is the distance from the surface,
+    while the y values are the calculated volume strain at that position
+    """
+    roi_ups = st.util.resizer2D(roi, 1 / upsampling)
+    roi_edge, _ = st.util.sobel(roi_ups, 5)
+    ups_map = st.util.resizer2D(volume, 1 / upsampling)
+    roi_dists = st.util.euclidean_dist(roi_edge)
+    xvals = (np.max(roi_dists) - roi_dists[roi_dists > 1 / upsampling]) / upsampling
+    yvals = ups_map[roi_dists > 1 / upsampling]
+    maxdist = np.amax(np.round(xvals, 1))
+    xvals = maxdist - xvals
+    rawvals = np.transpose(np.asarray((xvals, yvals)))
+    rawvals = st.util.reduce_precision_xy(rawvals, precision)
+    strain = np.zeros((len(np.unique(rawvals[:, 0])), 4))
+    strain[:, 0] = np.unique(rawvals[:, 0])
+    yvals = rawvals[:, 1]
+    for ii in np.arange(strain.shape[0]):
+        strain[ii, 1] = np.median(yvals[rawvals[:, 0] == strain[ii, 0]])
+        nn = len(yvals[rawvals[:, 0] == strain[ii, 0]])
+        strain[ii, 2] = np.std(yvals[rawvals[:, 0] == strain[ii, 0]])
+        strain[ii, 3] = (np.std(yvals[rawvals[:, 0] == strain[ii, 0]])) / (nn ** 0.5)
+    return rawvals, strain, maxdist

@@ -728,3 +728,38 @@ def euclidean_dist(binary_image):
     dist_map = np.zeros_like(binary_image, dtype=np.float)
     dist_map[bi_ones] = dist_vals ** 0.5
     return dist_map
+
+
+def reduce_precision_xy(xy, reducer):
+    """
+    Reduce the precison of an xy array along both
+    the x and y axes.
+
+    Parameters
+    ----------
+    xy:      ndarray
+             The first column is the x dimension, while
+             the second column is the y dimension
+    reducer: tuple
+             The precison reducers along the individual
+             dimensions
+
+    Returns
+    -------
+    xyprec: ndarray
+            Reduced precision array
+
+    """
+    reducer = np.asarray(reducer, dtype=np.int)
+    xy_red = np.zeros_like(xy)
+    xy_red[:, 0] = np.round(xy[:, 0], reducer[0])
+    xy_red[:, 1] = np.round(xy[:, 1], reducer[1])
+    x_unique = np.unique(xy_red[:, 0])
+    y_all = xy_red[:, 1]
+    xy_prec = np.zeros((1, 2))
+    for ii in np.arange(len(x_unique)):
+        y_ii = np.unique(y_all[xy_red[:, 0] == x_unique[ii]])
+        x_ii = np.ones_like(y_ii) * x_unique[ii]
+        arr_ii = np.transpose(np.asarray((x_ii, y_ii)))
+        xy_prec = np.concatenate((xy_prec, arr_ii), axis=0)
+    return xy_prec[1 : len(xy_prec), 0:2]
