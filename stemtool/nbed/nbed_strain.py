@@ -1176,20 +1176,23 @@ def strain4D_general(
 
     Returns
     -------
-    e_xx_map: ndarray
-              Strain in the xx direction in the region of interest
-    e_xy_map: ndarray
-              Strain in the xy direction in the region of interest
-    e_th_map: ndarray
-              Angular strain in the region of interest
-    e_yy_map: ndarray
-              Strain in the yy direction in the region of interest
-    newROI:   ndarray
-              New reduced ROI where the prominence of the higher
-              order diffraction disks is above prom_val
-    list_pos: ndarray
-              List of all the higher order peak positions with
-              respect to the central disk for all positions in the ROI
+    e_xx_map:  ndarray
+               Strain in the xx direction in the region of interest
+    e_xy_map:  ndarray
+               Strain in the xy direction in the region of interest
+    e_th_map:  ndarray
+               Angular strain in the region of interest
+    e_yy_map:  ndarray
+               Strain in the yy direction in the region of interest
+    newROI:    ndarray
+               New reduced ROI where the prominence of the higher
+               order diffraction disks is above prom_val
+    new_pos:   ndarray
+               List of all the higher order peak positions with
+               respect to the central disk for all positions in the ROI
+    distances: ndarray
+               List of distances in the newly calculated ROI from the
+               particle edge.
 
     Notes
     -----
@@ -1310,21 +1313,21 @@ def strain4D_general(
     for ii in np.arange(prominences.shape[-1]):
         prominence_map[imROI, ii] = prominences[:, ii]
 
-    prominence_disks = np.ones(prominence_map.shape[0:2], dtype=prominence_map.dtype)
+    prom_disks = np.ones(prominence_map.shape[0:2], dtype=prominence_map.dtype)
     for ii in range(prominences.shape[-1]):
         if ii != central_disk_no:
-            prominence_disks = prominence_disks * prominence_map[:, :, ii]
-    prominence_disks[prominence_disks < 0] = 0
-    prominence_disks = prominence_disks ** (1 / (prominences.shape[-1] - 1))
-    prominence_disksG = scnd.gaussian_filter(prominence_disks, 1)
+            prom_disks = prom_disks * prominence_map[:, :, ii]
+    prom_disks[prom_disks < 0] = 0
+    prom_disks = prom_disks ** (1 / (prominences.shape[-1] - 1))
+    prom_disksG = scnd.gaussian_filter(prom_disks, 1)
 
-    promss = prominence_disksG[imROI]
+    promss = prom_disksG[imROI]
     promss2 = promss / np.amax(promss)
     promss2[promss2 < prom_val] = 0
-    prominence_disks2 = np.zeros_like(imROI, dtype=promss2.dtype)
-    prominence_disks2[imROI] = promss2
+    prom_disks2 = np.zeros_like(imROI, dtype=promss2.dtype)
+    prom_disks2[imROI] = promss2
 
-    newROI = prominence_disks2 > 0
+    newROI = prom_disks2 > 0
 
     exx_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
     exy_ROI = np.nan * np.ones(no_of_disks, dtype=np.float64)
@@ -1383,7 +1386,13 @@ def strain4D_general(
         (imROI.shape[0], imROI.shape[1], list_pos.shape[1], list_pos.shape[2])
     )
     list_map[imROI, :, :] = list_pos
-    new_list_pos = list_map[newROI, :, :]
+    new_pos = list_map[newROI, :, :]
+
+    upsampling = 8
+    roi_ups = st.util.resizer2D(newROI, 1 / upsampling)
+    roi_edge, _ = st.util.sobel(roi_ups, 5)
+    roi_dists = st.util.euclidean_dist(roi_edge)
+    distances = st.util.resizer2D(roi_dists, upsampling)
 
     if gblur:
         e_xx_map = scnd.gaussian_filter(e_xx_map, 1)
@@ -1397,8 +1406,8 @@ def strain4D_general(
         e_th_map,
         e_yy_map,
         newROI,
-        new_list_pos,
-        prominence_disks,
+        new_pos,
+        distances,
     )
 
 
@@ -1905,7 +1914,7 @@ def strain_figure(
     plt.tight_layout()
 
 
-def get_strain_plot(volume, roi, precision=(2, 3), upsampling=6):
+def get_strain_plot(volume, roi, precision=(0.2, 0.001), upsampling=6):
     """
     Get strain maps from the volume calculation and region of
     interest

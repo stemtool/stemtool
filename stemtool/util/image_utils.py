@@ -750,10 +750,9 @@ def reduce_precision_xy(xy, reducer):
             Reduced precision array
 
     """
-    reducer = np.asarray(reducer, dtype=np.int)
     xy_red = np.zeros_like(xy)
-    xy_red[:, 0] = np.round(xy[:, 0], reducer[0])
-    xy_red[:, 1] = np.round(xy[:, 1], reducer[1])
+    xy_red[:, 0] = reducer[0] * np.round(xy[:, 0] / reducer[0])
+    xy_red[:, 1] = reducer[1] * np.round(xy[:, 1] / reducer[1])
     x_unique = np.unique(xy_red[:, 0])
     y_all = xy_red[:, 1]
     xy_prec = np.zeros((1, 2))
