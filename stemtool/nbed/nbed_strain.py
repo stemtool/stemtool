@@ -1388,11 +1388,12 @@ def strain4D_general(
     list_map[imROI, :, :] = list_pos
     new_pos = list_map[newROI, :, :]
 
-    upsampling = 8
+    upsampling = 6
     roi_ups = st.util.resizer2D(newROI, 1 / upsampling)
     roi_edge, _ = st.util.sobel(roi_ups, 5)
     roi_dists = st.util.euclidean_dist(roi_edge)
     distances = st.util.resizer2D(roi_dists, upsampling)
+    distances = distances[newROI]
 
     if gblur:
         e_xx_map = scnd.gaussian_filter(e_xx_map, 1)
