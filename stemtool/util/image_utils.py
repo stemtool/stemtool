@@ -628,7 +628,8 @@ def resizer2D(data, sampling):
     for xx in range(int(sampled_shape[1])):
         resampled_f[:, xx] = st.util.resizer(resampled_x[:, xx], sampled_shape[0])
     return resampled_f
-    
+
+
 @numba.jit
 def resized(data_orig, new_shape):
     """
@@ -650,7 +651,7 @@ def resized(data_orig, new_shape):
     --------
     resizer
     resizer2D
-    
+
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
