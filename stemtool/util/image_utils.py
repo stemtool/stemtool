@@ -585,7 +585,7 @@ def resizer(data, N):
         carry = (m - (n + 1) * M / N) * data[m - 1]
         data_sum -= carry
         res[n] = data_sum * N / M
-    return res
+    return res.astype(data.dtype)
 
 
 @numba.jit
@@ -621,13 +621,48 @@ def resizer2D(data, sampling):
     sampling = np.asarray(sampling)
     data_shape = np.asarray(np.shape(data))
     sampled_shape = (np.round(data_shape / sampling)).astype(int)
-    resampled_x = np.zeros((data_shape[0], sampled_shape[1]), dtype=np.float64)
-    resampled = np.zeros(sampled_shape, dtype=np.float64)
+    resampled_x = np.zeros((data_shape[0], sampled_shape[1]), data.dtype)
+    resampled_f = np.zeros(sampled_shape, dtype=data.dtype)
     for yy in range(int(data_shape[0])):
-        resampled_x[yy, :] = resizer(data[yy, :], sampled_shape[1])
+        resampled_x[yy, :] = st.util.resizer(data[yy, :], sampled_shape[1])
     for xx in range(int(sampled_shape[1])):
-        resampled[:, xx] = resizer(resampled_x[:, xx], sampled_shape[0])
-    return resampled
+        resampled_f[:, xx] = st.util.resizer(resampled_x[:, xx], sampled_shape[0])
+    return resampled_f
+    
+@numba.jit
+def resized(data_orig, new_shape):
+    """
+    Downsample 2D array
+    Parameters
+    ----------
+    data_orig:     ndarray
+                   (2,2) shape
+    new_shape:     tuple
+                   New shape
+    Returns
+    -------
+    resampled_f: ndarray
+                 New array whose size is given by new_shape
+    Notes
+    -----
+    The data is a 2D wrapper over the resizer function
+    See Also
+    --------
+    resizer
+    resizer2D
+    
+    :Authors:
+    Debangshu Mukherjee <mukherjeed@ornl.gov>
+    """
+    warnings.filterwarnings("ignore")
+    data_shape = np.asarray(np.shape(data_orig))
+    resampled_x = np.zeros((data_shape[0], new_shape[1]), dtype=data_orig.dtype)
+    resampled_f = np.zeros(new_shape, dtype=data_orig.dtype)
+    for yy in range(int(data_shape[0])):
+        resampled_x[yy, :] = st.util.resizer(data_orig[yy, :], new_shape[1])
+    for xx in range(int(new_shape[1])):
+        resampled_f[:, xx] = st.util.resizer(resampled_x[:, xx], new_shape[0])
+    return resampled_f
 
 
 def is_odd(num):

@@ -1,0 +1,42 @@
+{% set name = "CiteSoft" %}
+{% set version = "0.0.2" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  url: "https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz"
+  sha256: eefc1740824e3765706ba221b2224a9126ec0b393d094c91d608a8ccfe7951e8
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . -vv"
+
+requirements:
+  host:
+    - pip
+    - python
+    - pyyaml
+    - semantic_version
+  run:
+    - python
+    - pyyaml
+    - semantic_version
+
+test:
+  imports:
+    - CiteSoft
+
+about:
+  home: "https://github.com/AdityaSavara/CiteSoft_py"
+  license: BSD
+  license_family: BSD
+  license_file: 
+  summary: "This is a python implementation of CiteSoft. CiteSoft is a plain text standard consisting of a format and a protocol that exports the citations for the  end-users for whichever softwares they have used. CiteSoft has been designed so that software dev-users can rely upon it regardless of coding language or platform, and even for cases where multiple codes are working in a coupled manner.."
+  doc_url: 
+  dev_url: 
+
+extra:
+  recipe-maintainers:
+    - your-github-id-here
