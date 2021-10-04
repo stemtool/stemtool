@@ -1113,13 +1113,13 @@ def peak_prominence(peak_pos, peak_im, fit_radius):
     return prominence
 
 
-@numba.jit
 def strain4D_general(
     data4D,
     disk_radius,
     ROI=0,
     prom_val=0,
     disk_center=np.nan,
+    max_radius=0,
     rotangle=0,
     med_factor=30,
     gauss_val=3,
@@ -1149,6 +1149,9 @@ def strain4D_general(
     disk_center: tuple, optional
                  Location of the center of the diffraction disk - closest to
                  the <000> undiffracted beam
+    max_radius:  float, optional
+                 Maximum distance from the center to use for calculation. Default
+                 is 0, when all distances are considered.
     rotangle:    float, optional
                  Angle of rotation of the CBED with respect to the optic axis
                  This must be in degrees
@@ -1262,6 +1265,12 @@ def strain4D_general(
             data_peaks, peak_labels, range(1, np.max(peak_labels) + 1)
         )
     )
+    if max_radius > 0:
+        dist_peaks = (
+            ((merged_peaks[:, 0] - disk_center[0]) ** 2)
+            + ((merged_peaks[:, 1] - disk_center[1]) ** 2)
+        ) ** 0.5
+        merged_peaks = merged_peaks[dist_peaks < max_radius, :]
 
     if merged_peaks.shape[0] == 1:
         e_xx_map = np.zeros_like(imROI, dtype=float)
