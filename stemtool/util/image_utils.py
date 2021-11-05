@@ -446,7 +446,9 @@ def image_tiler(dataset_4D, reducer=4, bit_depth=8):
             yRange = (jj * reduced_size[1]) + np.arange(reduced_size[1])
             yStart = int(yRange[0])
             yEnd = 1 + int(yRange[-1])
-            image_tile[xStart:xEnd, yStart:yEnd] = st.util.resizer2D((ronchi + 1), reducer) - 1
+            image_tile[xStart:xEnd, yStart:yEnd] = (
+                st.util.resizer2D((ronchi + 1), reducer) - 1
+            )
     image_tile = image_tile - np.amin(image_tile)
     image_tile = (2 ** bit_depth) * (image_tile / (np.amax(image_tile)))
     image_tile = image_tile.astype(int)

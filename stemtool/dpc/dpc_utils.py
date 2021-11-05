@@ -1,22 +1,23 @@
 import scipy.ndimage as scnd
 import scipy.optimize as sio
 import numpy as np
-import numba
-import warnings
 import stemtool as st
-import numexpr as ne
+import numba
+import math
 import pyfftw.interfaces.numpy_fft as pfft
 
 
+@numba.jit(nopython=True)
 def cart2pol(x, y):
-    rho = ne.evaluate("((x**2) + (y**2)) ** 0.5")
-    phi = ne.evaluate("arctan2(y, x)")
+    rho = ((x ** 2) + (y ** 2)) ** 0.5
+    phi = math.atan2(y, x)
     return (rho, phi)
 
 
+@numba.jit(nopython=True)
 def pol2cart(rho, phi):
-    x = ne.evaluate("rho * cos(phi)")
-    y = ne.evaluate("rho * sin(phi)")
+    x = rho * math.cos(phi)
+    y = rho * math.sin(phi)
     return (x, y)
 
 
