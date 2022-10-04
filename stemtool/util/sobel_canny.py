@@ -70,7 +70,7 @@ def sobel(im, order=3):
         )
     g_x = scisig.convolve2d(im, k_x, mode="same", boundary="symm", fillvalue=0)
     g_y = scisig.convolve2d(im, k_y, mode="same", boundary="symm", fillvalue=0)
-    mag = ((g_x ** 2) + (g_y ** 2)) ** 0.5
+    mag = ((g_x**2) + (g_y**2)) ** 0.5
     ang = np.arctan2(g_y, g_x)
     return mag, ang
 
@@ -116,12 +116,12 @@ def circle_fit(edge_image):
     vValues = yValues - yCentroid
 
     Suv = np.sum(uValues * vValues)
-    Suu = np.sum(uValues ** 2)
-    Svv = np.sum(vValues ** 2)
-    Suuv = np.sum((uValues ** 2) * vValues)
-    Suvv = np.sum(uValues * (vValues ** 2))
-    Suuu = np.sum(uValues ** 3)
-    Svvv = np.sum(vValues ** 3)
+    Suu = np.sum(uValues**2)
+    Svv = np.sum(vValues**2)
+    Suuv = np.sum((uValues**2) * vValues)
+    Suvv = np.sum(uValues * (vValues**2))
+    Suuu = np.sum(uValues**3)
+    Svvv = np.sum(vValues**3)
 
     A = np.array([[Suu, Suv], [Suv, Svv]])
     B = np.array([(Suuu + Suvv), (Svvv + Suuv)]) / 2

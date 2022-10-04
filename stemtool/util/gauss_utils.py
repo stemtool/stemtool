@@ -45,18 +45,18 @@ def gaussian_2D_function(xy, x0, y0, theta, sigma_x, sigma_y, amplitude):
     """
     x = xy[0] - x0
     y = xy[1] - y0
-    term_1 = (((np.cos(theta)) ** 2) / (2 * (sigma_x ** 2))) + (
-        ((np.sin(theta)) ** 2) / (2 * (sigma_y ** 2))
+    term_1 = (((np.cos(theta)) ** 2) / (2 * (sigma_x**2))) + (
+        ((np.sin(theta)) ** 2) / (2 * (sigma_y**2))
     )
-    term_2 = ((np.sin(2 * theta)) / (2 * (sigma_x ** 2))) - (
-        (np.sin(2 * theta)) / (2 * (sigma_y ** 2))
+    term_2 = ((np.sin(2 * theta)) / (2 * (sigma_x**2))) - (
+        (np.sin(2 * theta)) / (2 * (sigma_y**2))
     )
-    term_3 = (((np.sin(theta)) ** 2) / (2 * (sigma_x ** 2))) + (
-        ((np.cos(theta)) ** 2) / (2 * (sigma_y ** 2))
+    term_3 = (((np.sin(theta)) ** 2) / (2 * (sigma_x**2))) + (
+        ((np.cos(theta)) ** 2) / (2 * (sigma_y**2))
     )
-    expo_1 = term_1 * (x ** 2)
+    expo_1 = term_1 * (x**2)
     expo_2 = term_2 * x * y
-    expo_3 = term_3 * (y ** 2)
+    expo_3 = term_3 * (y**2)
     gaussvals = np.ravel(amplitude * np.exp((-1) * (expo_1 + expo_2 + expo_3)))
     return gaussvals
 
@@ -105,14 +105,14 @@ def gauss2D(im_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
     gauss2D = np.zeros(yr, dtype=np.float)
     x = xr - x0
     y = yr - y0
-    term_1 = (((np.cos(theta)) ** 2) / (2 * (sigma_x ** 2))) + (
-        ((np.sin(theta)) ** 2) / (2 * (sigma_y ** 2))
+    term_1 = (((np.cos(theta)) ** 2) / (2 * (sigma_x**2))) + (
+        ((np.sin(theta)) ** 2) / (2 * (sigma_y**2))
     )
-    term_2 = ((np.sin(2 * theta)) / (2 * (sigma_x ** 2))) - (
-        (np.sin(2 * theta)) / (2 * (sigma_y ** 2))
+    term_2 = ((np.sin(2 * theta)) / (2 * (sigma_x**2))) - (
+        (np.sin(2 * theta)) / (2 * (sigma_y**2))
     )
-    term_3 = (((np.sin(theta)) ** 2) / (2 * (sigma_x ** 2))) + (
-        ((np.cos(theta)) ** 2) / (2 * (sigma_y ** 2))
+    term_3 = (((np.sin(theta)) ** 2) / (2 * (sigma_x**2))) + (
+        ((np.cos(theta)) ** 2) / (2 * (sigma_y**2))
     )
     expo_1 = term_1 * np.multiply(x, x)
     expo_2 = term_2 * np.multiply(x, y)
@@ -314,7 +314,7 @@ def gaussian_1D_function(x, x0, sigma_x, amplitude):
     fit_gaussian1D_mask
     """
     x = x - x0
-    term = (x ** 2) / (2 * (sigma_x ** 2))
+    term = (x**2) / (2 * (sigma_x**2))
     gaussvals = amplitude * np.exp((-1) * term)
     return gaussvals
 

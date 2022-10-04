@@ -375,7 +375,7 @@ def readData(filename, path="/stream", **kwargs):
         filenameFam = filename.replace("00000", "%05d")
 
         f = h5py.File(
-            filenameFam, "r", driver="family", memb_size=20 * 1024 ** 3
+            filenameFam, "r", driver="family", memb_size=20 * 1024**3
         )  # 20GB chunks
     else:
         f = h5py.File(filename, "r")
@@ -425,7 +425,7 @@ def getDataSize(filename, path="/stream"):
         filenameFam = filename.replace("00000", "%05d")
         # print filenameFam
         f = h5py.File(
-            filenameFam, "r", driver="family", memb_size=20 * 1024 ** 3
+            filenameFam, "r", driver="family", memb_size=20 * 1024**3
         )  # 20GB chunks
     else:
         f = h5py.File(filename, "r")

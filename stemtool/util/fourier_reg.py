@@ -1,24 +1,21 @@
 import numpy as np
-import numba
-import pyfftw.interfaces as pfi
 import stemtool as st
+from typing import Any, Tuple
+from nptyping import NDArray, Shape, Int, Float, Complex
 
 
-def find_max_index(image):
+def find_max_index(image: NDArray[Shape["*, *"], Any]) -> Tuple[Int, Int]:
     """
     Find maxima in image
 
     Parameters
     ----------
-    image: ndarray
-           Input image
+    image: Input image
 
     Returns
     -------
-    ymax: int
-          y-index position of maxima
-    xmax: int
-          x-index position of maxima
+    ymax: y-index position of maxima
+    xmax: x-index position of maxima
 
     Notes
     -----
@@ -30,19 +27,20 @@ def find_max_index(image):
     >>> ym, xm = find_max_index(image)
     """
     yy, xx = np.mgrid[0 : image.shape[0], 0 : image.shape[1]]
-    ymax = (yy[image == np.amax(image)])[0]
-    xmax = (xx[image == np.amax(image)])[0]
+    ymax: Int = (yy[image == np.amax(image)])[0]
+    xmax: Int = (xx[image == np.amax(image)])[0]
     return ymax, xmax
 
 
-def first_max_index(image, order="C"):
+def first_max_index(
+    image: NDArray[Shape["*, *"], Any], order: str = "C"
+) -> Tuple[Int, Int]:
     """
     First maxima in image
 
     Parameters
     ----------
-    image: ndarray
-           Input image
+    image: Input image
     order : {'C','F', 'A', 'K'},
             optional
             The elements of `a` are read using this index order. 'C' means
@@ -62,10 +60,8 @@ def first_max_index(image, order="C"):
 
     Returns
     -------
-    ymax: int
-          y-index position of maxima
-    xmax: int
-          x-index position of maxima
+    ymax: y-index position of maxima
+    xmax: x-index position of maxima
 
     Notes
     -----
@@ -78,17 +74,19 @@ def first_max_index(image, order="C"):
     >>> ym, xm = first_max_index(image)
     """
     yy, xx = np.mgrid[0 : image.shape[0], 0 : image.shape[1]]
-    yy = np.ravel(yy, order)
-    xx = np.ravel(xx, order)
-    image = np.ravel(image, order)
-    indices = np.arange(np.size(image), dtype=int)
-    index = np.amin(indices[image == np.amax(image)])
-    ymax = yy[index]
-    xmax = xx[index]
+    yy_rvl: NDArray[Shape["*"], Int] = np.ravel(yy, order)
+    xx_rvl: NDArray[Shape["*"], Int] = np.ravel(xx, order)
+    image_rvl: NDArray[Shape["*"], Any] = np.ravel(image, order)
+    indices: NDArray[Shape["*"], Int] = np.arange(np.size(image_rvl), dtype=np.int_)
+    index: Int = np.amin(indices[image_rvl == np.amax(image_rvl)])
+    ymax: Int = yy_rvl[index]
+    xmax: Int = xx_rvl[index]
     return ymax, xmax
 
 
-def fourier_pad(imFT, outsize):
+def fourier_pad(
+    imFT: NDArray[Shape["*, *"], Complex], outsize: NDArray[Shape["2"], Float]
+) -> NDArray[Shape["*, *"], Complex]:
     """
     Pad Fourier images
 
@@ -112,55 +110,68 @@ def fourier_pad(imFT, outsize):
     for subsequent FT or IFT. Can be used for Fourier transform based
     interpolation, i.e. dirichlet kernel interpolation.
     """
-    n_in = np.asarray(imFT.shape)
-    nout = np.asarray(outsize)
-    imFT = np.fft.fftshift(imFT)
-    center_in = np.asarray(first_max_index(np.abs(imFT)))
-    imFTout = np.zeros((outsize), dtype=imFT.dtype)
-    center_out = (center_in * (nout / n_in)).astype(int)
-    ft_val = np.prod(nout / n_in)
-    cc = center_out - center_in
-    n_in = n_in.astype(int)
-    nout = nout.astype(int)
+    n_in: NDArray[Shape["2"], Float] = np.asarray(imFT.shape, dtype=np.float64)
+    nout: NDArray[Shape["2"], Float] = np.asarray(outsize, dtype=np.float64)
+    imFT_shift: NDArray[Shape["*, *"], Complex] = np.fft.fftshift(imFT)
+
+    center_in: NDArray[Shape["2"], Int] = np.asarray(
+        st.util.first_max_index(np.abs(imFT_shift))
+    )
+    imFTout: NDArray[Shape["*, *"], Complex] = np.zeros(
+        (outsize), dtype=imFT_shift.dtype
+    )
+    center_out: NDArray[Shape["2"], Int] = (center_in * (nout / n_in)).astype(int)
+    ft_val: Int = np.prod(nout / n_in)
+    center_diff: NDArray[Shape["2"], Int] = center_out - center_in
+    # n_in = n_in.astype(int)
+    # nout = nout.astype(int)
     imFTout[
-        np.amax((cc[0], 0)) : np.amin((cc[0] + n_in[0], nout[0])),
-        np.amax((cc[1], 0)) : np.amin((cc[1] + n_in[1], nout[1])),
-    ] = imFT[
-        np.amax((-cc[0], 0)) : np.amin((-cc[0] + nout[0], n_in[0])),
-        np.amax((-cc[1], 0)) : np.amin((-cc[1] + nout[1], n_in[1])),
+        int(np.amax((center_diff[0], 0))) : int(
+            np.amin((center_diff[0] + n_in[0], nout[0]))
+        ),
+        int(np.amax((center_diff[1], 0))) : int(
+            np.amin((center_diff[1] + n_in[1], nout[1]))
+        ),
+    ] = imFT_shift[
+        int(np.amax((-center_diff[0], 0))) : int(
+            np.amin((-center_diff[0] + nout[0], n_in[0]))
+        ),
+        int(np.amax((-center_diff[1], 0))) : int(
+            np.amin((-center_diff[1] + nout[1], n_in[1]))
+        ),
     ]
-    imout = np.fft.ifftshift(imFTout) * ft_val
+    imout: NDArray[Shape["*, *"], Complex] = np.fft.ifftshift(imFTout) * ft_val
     return imout
 
 
-def dftups(input_image, usfac=1, nor=0, noc=0, roff=0, coff=0):
+def dftups(
+    input_image: NDArray[Shape["*, *"], Any],
+    usfac: Int = 1,
+    nor: Int = 0,
+    noc: Int = 0,
+    roff: Int = 0,
+    coff: Int = 0,
+) -> NDArray[Shape["*, *"], Complex]:
     """
     Upsampled discrete Fourier transform
 
     Parameters
     ----------
-    input_image: ndarray
-                 Input image
-    usfac:       int, optional
-                 Upsampling Factor. Default is 1
-    nor:         int, optional
-                 Number of pixels in the output upsampled DFT, in
+    input_image: Input image
+    usfac:       Upsampling Factor. Default is 1
+    nor:         Number of pixels in the output upsampled DFT, in
                  units of upsampled pixels (default = size(in))
-    noc:         int, optional
-                 Number of pixels in the output upsampled DFT, in
+    noc:         Number of pixels in the output upsampled DFT, in
                  units of upsampled pixels (default = size(in))
-    roff:        int, optional
-                 Row offsets, allow to shift the output array to
+    roff:        Row offsets, allow to shift the output array to
                  a region of interest on the DFT (default = 0)
-    coff:        int, optional
-                 Column offsets, allow to shift the output array to
+    coff:        Column offsets, allow to shift the output array to
                  a region of interest on the DFT (default = 0)
 
 
     Returns
     -------
-    out_fft: ndarray
-             Upsampled Fourier transform
+    out_fft: Upsampled Fourier transform
 
     Notes
     -----
@@ -182,17 +193,35 @@ def dftups(input_image, usfac=1, nor=0, noc=0, roff=0, coff=0):
         noc = nc
     if nor == 0:
         nor = nr
-    nc_arr = (np.fft.ifftshift(np.arange(nc)) - np.floor(nc / 2)).reshape((int(nc), 1))
-    noc_arr = (np.arange(noc) - coff).reshape((int(noc), 1))
-    nor_arr = (np.arange(nor) - roff).reshape((int(nor), 1))
-    nr_arr = (np.fft.ifftshift(np.arange(nr)) - np.floor(nr / 2)).reshape((int(nr), 1))
-    kernc = np.exp((-1j * 2 * np.pi / (nc * usfac)) * np.matmul(nc_arr, noc_arr.T))
-    kernr = np.exp((-1j * 2 * np.pi / (nr * usfac)) * np.matmul(nor_arr, nr_arr.T))
-    out_fft = np.matmul(np.matmul(kernr, input_image), kernc)
+    nc_arr: NDArray[Shape["*, 1"], Float] = (
+        np.fft.ifftshift(np.arange(nc)) - np.floor(nc / 2)
+    ).reshape((int(nc), 1))
+    noc_arr: NDArray[Shape["*, 1"], Float] = (np.arange(noc) - coff).reshape(
+        (int(noc), 1)
+    )
+    nor_arr: NDArray[Shape["*, 1"], Float] = (np.arange(nor) - roff).reshape(
+        (int(nor), 1)
+    )
+    nr_arr: NDArray[Shape["*, 1"], Float] = (
+        np.fft.ifftshift(np.arange(nr)) - np.floor(nr / 2)
+    ).reshape((int(nr), 1))
+    kernc: NDArray[Shape["*, *"], Complex] = np.exp(
+        (-1j * 2 * np.pi / (nc * usfac)) * np.matmul(nc_arr, noc_arr.T)
+    )
+    kernr: NDArray[Shape["*, *"], Complex] = np.exp(
+        (-1j * 2 * np.pi / (nr * usfac)) * np.matmul(nor_arr, nr_arr.T)
+    )
+    out_fft: NDArray[Shape["*, *"], Complex] = np.matmul(
+        np.matmul(kernr, input_image), kernc
+    )
     return out_fft
 
 
-def dftregistration(buf1ft, buf2ft, usfac=1):
+def dftregistration(
+    buf1ft: NDArray[Shape["*, *"], Complex],
+    buf2ft: NDArray[Shape["*, *"], Complex],
+    usfac: Float = 1,
+) -> Tuple[Int, Int, Float, Float, NDArray[Shape["*, *"], Complex]]:
     """
     Upsampled FFT registration between two images
 
@@ -285,36 +314,41 @@ def dftregistration(buf1ft, buf2ft, usfac=1):
     >>> True
     """
     nr, nc = np.shape(buf2ft)
-    Nr = np.fft.ifftshift(
+    Nr: NDArray[Shape["*"], Int] = np.fft.ifftshift(
         np.arange(start=-np.fix(nr / 2), stop=np.ceil(nr / 2), step=1)
     )
-    Nc = np.fft.ifftshift(
+    Nc: NDArray[Shape["*"], Int] = np.fft.ifftshift(
         np.arange(start=-np.fix(nc / 2), stop=np.ceil(nc / 2), step=1)
     )
+    CCmax: Complex = 0
+    ft_mult: NDArray[Shape["*, *"], Complex] = np.multiply(buf1ft, np.conj(buf2ft))
+    row_shift: Int = 0
+    col_shift: Int = 0
     if usfac == 0:
         # Simple computation of error and phase difference without registration
-        CCmax = np.sum(np.multiply(buf1ft, np.conj(buf2ft)))
-        row_shift = 0
-        col_shift = 0
+        CCmax += np.sum(np.multiply(buf1ft, np.conj(buf2ft)))
     elif usfac == 1:
         # Single pixel registration
-        CC = np.fft.ifft2(np.multiply(buf1ft, np.conj(buf2ft)))
-        CCabs = np.abs(CC)
-        row_shift, col_shift = first_max_index(CCabs)
-        CCmax = CC[row_shift, col_shift] * nr * nc
+        CC_1: NDArray[Shape["*, *"], Complex] = np.fft.ifft2(ft_mult)
+        CCabs_1: NDArray[Shape["*, *"], Float] = np.abs(CC_1)
+        row_shift, col_shift = st.util.first_max_index(CCabs_1)
+        CCmax += CC_1[row_shift, col_shift] * nr * nc
         # Now change shifts so that they represent relative shifts and not indices
         row_shift = Nr[row_shift]
         col_shift = Nc[col_shift]
     elif usfac > 1:
         # Start with usfac == 2
-        ft_mult = np.multiply(buf1ft, np.conj(buf2ft))
-        CC = np.fft.ifft2(fourier_pad(ft_mult, (2 * nr, 2 * nc)))
-        CCabs = np.abs(CC)
-        row_shift, col_shift = first_max_index(CCabs)
-        CCmax = CC[row_shift, col_shift] * nr * nc
+        CC_2 = np.fft.ifft2(st.util.fourier_pad(ft_mult, np.asarray((2 * nr, 2 * nc))))
+        CCabs_2 = np.abs(CC_2)
+        row_shift, col_shift = st.util.first_max_index(CCabs_2)
+        CCmax += CC_2[row_shift, col_shift] * nr * nc
         # Now change shifts so that they represent relative shifts and not indices
-        Nr2 = np.fft.ifftshift(np.arange(start=-np.fix(nr), stop=np.ceil(nr), step=1))
-        Nc2 = np.fft.ifftshift(np.arange(start=-np.fix(nc), stop=np.ceil(nc), step=1))
+        Nr2: NDArray[Shape["*"], Int] = np.fft.ifftshift(
+            np.arange(start=-np.fix(nr), stop=np.ceil(nr), step=1)
+        )
+        Nc2: NDArray[Shape["*"], Int] = np.fft.ifftshift(
+            np.arange(start=-np.fix(nc), stop=np.ceil(nc), step=1)
+        )
         row_shift = Nr2[row_shift] / 2
         col_shift = Nc2[col_shift] / 2
         # If upsampling > 2, then refine estimate with matrix multiply DFT
@@ -323,13 +357,13 @@ def dftregistration(buf1ft, buf2ft, usfac=1):
             # Initial shift estimate in upsampled grid
             row_shift = np.round(row_shift * usfac) / usfac
             col_shift = np.round(col_shift * usfac) / usfac
-            dftshift = np.fix(np.ceil(usfac * 1.5) / 2)
-            dftrow = dftshift - (row_shift * usfac)
-            dftcol = dftshift - (col_shift * usfac)
+            dftshift: Float = np.fix(np.ceil(usfac * 1.5) / 2)
+            dftrow: Float = dftshift - (row_shift * usfac)
+            dftcol: Float = dftshift - (col_shift * usfac)
             # Center of output array at dftshift+1
             # Matrix multiply DFT around the current shift estimate
-            CC = np.conj(
-                dftups(
+            CC_m = np.conj(
+                st.util.dftups(
                     ft_mult,
                     np.ceil(usfac * 1.5),
                     np.ceil(usfac * 1.5),
@@ -339,35 +373,44 @@ def dftregistration(buf1ft, buf2ft, usfac=1):
                 )
             )
             # Locate maximum and map back to original pixel grid
-            CCabs = np.abs(CC)
-            rloc, cloc = first_max_index(CCabs)
-            CCmax = CC[rloc, cloc]
+            CCabs_m = np.abs(CC_m)
+            rloc, cloc = st.util.first_max_index(CCabs_m)
+            CCmax += CC_m[rloc, cloc]
             rloc = rloc - dftshift
             cloc = cloc - dftshift
-            row_shift = row_shift + rloc / usfac
-            col_shift = col_shift + cloc / usfac
+            row_shift = row_shift + (rloc / usfac)
+            col_shift = col_shift + (cloc / usfac)
         # If its only one row or column the shift along that dimension has no
         # effect. Set to zero.
         if nr == 1:
             row_shift = 0
         if nc == 1:
             col_shift = 0
-    rg00 = np.sum(np.abs(buf1ft) ** 2)
-    rf00 = np.sum(np.abs(buf2ft) ** 2)
-    error = (np.abs(1.0 - ((np.abs(CCmax) ** 2) / (rg00 * rf00)))) ** 0.5
-    phase_diff = np.angle(CCmax)
+    rg00: Float = np.sum(np.abs(buf1ft) ** 2)
+    rf00: Float = np.sum(np.abs(buf2ft) ** 2)
+    error: Float = (np.abs(1.0 - ((np.abs(CCmax) ** 2) / (rg00 * rf00)))) ** 0.5
+    phase_diff: Float = np.angle(CCmax)
+
     # Compute registered version of buf2ft
+    registered_fft: NDArray[Shape["*, *"], Complex] = np.zeros_like(
+        buf2ft, dtype=buf2ft.dtype
+    )
     if usfac > 0:
         Nc_grid, Nr_grid = np.meshgrid(Nc, Nr)
         Nr_grid = Nr_grid / nr
         Nc_grid = Nc_grid / nc
-        registered_fft = np.multiply(
-            buf2ft,
-            np.exp(
-                1j * 2 * np.pi * (-1) * ((row_shift * Nr_grid) + (col_shift * Nc_grid))
-            ),
+        registered_fft += np.exp(1j * phase_diff) * (
+            np.multiply(
+                buf2ft,
+                np.exp(
+                    1j
+                    * 2
+                    * np.pi
+                    * (-1)
+                    * ((row_shift * Nr_grid) + (col_shift * Nc_grid))
+                ),
+            )
         )
-        registered_fft = registered_fft * np.exp(1j * phase_diff)
     elif usfac == 0:
-        registered_fft = buf2ft * np.exp(1j * phase_diff)
+        registered_fft += buf2ft * np.exp(1j * phase_diff)
     return row_shift, col_shift, phase_diff, error, registered_fft

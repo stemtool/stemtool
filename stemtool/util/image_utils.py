@@ -124,7 +124,7 @@ def image_logarizer(image_orig, bit_depth=64):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    bit_max = 2 ** bit_depth
+    bit_max = 2**bit_depth
     image_norm = st.util.image_normalizer(image_orig)
     image_scale = np.zeros_like(image_norm, dtype=np.float64)
     image_log = np.zeros_like(image_norm, dtype=np.float64)
@@ -233,7 +233,7 @@ def phase_color(phase_image):
 
 
 def hsv_overlay(data, image, color, climit=None, bit_depth=8):
-    bit_range = 2 ** bit_depth
+    bit_range = 2**bit_depth
     im_map = mplcm.get_cmap(color, bit_range)
     if climit == None:
         data_lim = np.amax(np.abs(data))
@@ -281,7 +281,7 @@ def sparse_division(sparse_numer, sparse_denom, bit_depth=32):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    depth_ratio = 2 ** bit_depth
+    depth_ratio = 2**bit_depth
     denom_abs = np.abs(sparse_denom)
     numer_abs = np.abs(sparse_numer)
     threshold_denom = (np.amax(denom_abs)) / depth_ratio
@@ -297,8 +297,8 @@ def sparse_division(sparse_numer, sparse_denom, bit_depth=32):
 
 def cross_corr_unpadded(image_1, image_2, normal=True):
     if normal:
-        im1_norm = image_1 / (np.sum(image_1 ** 2) ** 0.5)
-        im2_norm = image_2 / (np.sum(image_2 ** 2) ** 0.5)
+        im1_norm = image_1 / (np.sum(image_1**2) ** 0.5)
+        im2_norm = image_2 / (np.sum(image_2**2) ** 0.5)
         im1_fft = np.fft.fft2(im1_norm)
         im2_fft = np.conj(np.fft.fft2(im2_norm))
     else:
@@ -368,9 +368,9 @@ def cross_corr(image_1, image_2, hybridizer=0, normal=True):
     im_size = np.asarray(np.shape(image_1))
     pad_size = (np.round(im_size / 2)).astype(int)
     if normal:
-        im1_norm = image_1 / (np.sum(image_1 ** 2) ** 0.5)
+        im1_norm = image_1 / (np.sum(image_1**2) ** 0.5)
         im1_pad = np.pad(im1_norm, pad_width=pad_size, mode="median")
-        im2_norm = image_2 / (np.sum(image_2 ** 2) ** 0.5)
+        im2_norm = image_2 / (np.sum(image_2**2) ** 0.5)
         im2_pad = np.pad(im2_norm, pad_width=pad_size, mode="median")
         im1_fft = np.fft.fft2(im1_pad)
         im2_fft = np.conj(np.fft.fft2(im2_pad))
@@ -450,7 +450,7 @@ def image_tiler(dataset_4D, reducer=4, bit_depth=8):
                 st.util.resizer2D((ronchi + 1), reducer) - 1
             )
     image_tile = image_tile - np.amin(image_tile)
-    image_tile = (2 ** bit_depth) * (image_tile / (np.amax(image_tile)))
+    image_tile = (2**bit_depth) * (image_tile / (np.amax(image_tile)))
     image_tile = image_tile.astype(int)
     return image_tile
 
@@ -493,7 +493,7 @@ def flip_corrector(data4D):
 
 
 def array_rms(arr):
-    arr_sq = arr ** 2
+    arr_sq = arr**2
     arr_mean = np.mean(arr_sq)
     arr_rms = (arr_mean) ** 0.5
     return arr_rms
@@ -520,7 +520,7 @@ def sobel_circle(image):
 def circle_function(xy, x0, y0, radius):
     xx = xy[0] - x0
     yy = xy[1] - y0
-    zz = ((xx ** 2) + (yy ** 2)) ** 0.5
+    zz = ((xx**2) + (yy**2)) ** 0.5
     zz[zz > radius] = 0
     zz[zz > 0] = 1
     return zz
@@ -764,7 +764,7 @@ def euclidean_dist(binary_image):
     for ii in np.arange(ones_vals.shape[0]):
         dist_vals[ii] = np.amin(np.sum(((zero_vals - ones_vals[ii, 0:2]) ** 2), axis=1))
     dist_map = np.zeros_like(binary_image, dtype=np.float)
-    dist_map[bi_ones] = dist_vals ** 0.5
+    dist_map[bi_ones] = dist_vals**0.5
     return dist_map
 
 
