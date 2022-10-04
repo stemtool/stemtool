@@ -8,6 +8,8 @@ import matplotlib_scalebar.scalebar as mpss
 import matplotlib.offsetbox as mploff
 import matplotlib.gridspec as mpgs
 import matplotlib as mpl
+from typing import Any, Tuple
+from nptyping import NDArray, Shape, Int, Float, Bool
 
 
 class atomic_dpc(object):
