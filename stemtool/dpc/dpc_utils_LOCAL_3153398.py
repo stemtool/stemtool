@@ -1,8 +1,11 @@
 import scipy.ndimage as scnd
 import scipy.optimize as sio
 import numpy as np
+import numba
+import warnings
 import stemtool as st
-from tqdm.auto import trange
+import pyfftw.interfaces.numpy_fft as pfft
+from tqdm.auto import trange, tqdm
 from typing import Any, Tuple
 from nptyping import NDArray, Shape, Int, Float, Bool, Complex
 
@@ -162,7 +165,7 @@ def integrate_dpc(
         dy[mask] -= yshift.ravel()
         dx[maskInv] = 0
         dy[maskInv] = 0
-        update += np.fft.irfft2(np.fft.rfft2(dx) * qxOperator + np.fft.rfft2(dy) * qyOperator)
+        update += pfft.irfft2(pfft.rfft2(dx) * qxOperator + pfft.rfft2(dy) * qyOperator)
         padded_phase += scnd.gaussian_filter((stepsize * update), 1)
         dx = (
             np.roll(padded_phase, (-1, 0), axis=(0, 1))

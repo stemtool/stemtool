@@ -2,11 +2,18 @@ import scipy.ndimage as scnd
 import scipy.optimize as sio
 import numpy as np
 import stemtool as st
-from tqdm.auto import trange
+<<<<<<< HEAD
+=======
+import numba
+import math
+>>>>>>> refs/remotes/pycroscopy/master
+import pyfftw.interfaces.numpy_fft as pfft
+from tqdm.auto import trange, tqdm
 from typing import Any, Tuple
 from nptyping import NDArray, Shape, Int, Float, Bool, Complex
 
 
+<<<<<<< HEAD
 def cart2pol(
     x: NDArray[Shape["*"], Any], y: NDArray[Shape["*"], Any]
 ) -> Tuple[NDArray[Shape["*"], Float], NDArray[Shape["*"], Float]]:
@@ -21,6 +28,20 @@ def pol2cart(
     x: NDArray[Shape["*"], Float] = rho * np.cos(phi)
     y: NDArray[Shape["*"], Float] = rho * np.sin(phi)
     return x, y
+=======
+@numba.jit(nopython=True)
+def cart2pol(x, y):
+    rho = ((x ** 2) + (y ** 2)) ** 0.5
+    phi = math.atan2(y, x)
+    return (rho, phi)
+
+
+@numba.jit(nopython=True)
+def pol2cart(rho, phi):
+    x = rho * math.cos(phi)
+    y = rho * math.sin(phi)
+    return (x, y)
+>>>>>>> refs/remotes/pycroscopy/master
 
 
 def angle_fun(
@@ -162,7 +183,7 @@ def integrate_dpc(
         dy[mask] -= yshift.ravel()
         dx[maskInv] = 0
         dy[maskInv] = 0
-        update += np.fft.irfft2(np.fft.rfft2(dx) * qxOperator + np.fft.rfft2(dy) * qyOperator)
+        update += pfft.irfft2(pfft.rfft2(dx) * qxOperator + pfft.rfft2(dy) * qyOperator)
         padded_phase += scnd.gaussian_filter((stepsize * update), 1)
         dx = (
             np.roll(padded_phase, (-1, 0), axis=(0, 1))

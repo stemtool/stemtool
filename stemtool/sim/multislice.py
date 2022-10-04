@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.special as s2
 import PIL
-import ase
 import stemtool as st
 
 

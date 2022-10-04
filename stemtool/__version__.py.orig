@@ -1,0 +1,5 @@
+<<<<<<< HEAD
+__version__ = "2021.11.8"
+=======
+__version__ = "2021.11.08"
+>>>>>>> refs/remotes/pycroscopy/master
