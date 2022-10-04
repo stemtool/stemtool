@@ -23,6 +23,21 @@ stemtools/pty/__pycache__/
 *.pyc
 *.code-workspace
 
+.mypy_cache/
+notebooks/.mypy_cache/
+stemtools/.mypy_cache/
+stemtools/adf/.mypy_cache/
+stemtools/afit/.mypy_cache/
+stemtools/beam/.mypy_cache/
+stemtools/dpc/.mypy_cache/
+stemtools/eels/.mypy_cache/
+stemtools/nbed/.mypy_cache/
+stemtools/proc/.mypy_cache/
+stemtools/sim/.mypy_cache/
+stemtools/util/.mypy_cache/
+stemtools/dpc/.mypy_cache/
+stemtools/pty/.mypy_cache/
+
 .ipynb_checkpoints/
 notebooks/.ipynb_checkpoints/
 stemtools/.ipynb_checkpoints/
