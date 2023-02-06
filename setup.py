@@ -25,7 +25,7 @@ if not os.getenv("READTHEDOCS"):
             "numpy >= 1.13.0",
             "scipy >= 1.0.0",
             "matplotlib >= 2.2.0",
-            "pillow >= 8.3.2",
+            "pillow >= 9.2.1",
             "scikit-image >= 0.13.0",
             "matplotlib-scalebar >= 0.5.0",
             "ase >= 3.16.0",
