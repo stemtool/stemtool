@@ -1,5 +1,4 @@
 import numpy as np
-import numba
 import scipy.ndimage as scnd
 import scipy.optimize as sio
 import scipy.signal as scisig
@@ -123,37 +122,6 @@ def data4Dto2D(data4D):
     return data2D
 
 
-@numba.jit(parallel=True, cache=True)
-def resizer1D_numbaopt(data, res, N):
-    M = data.size
-    carry = 0
-    m = 0
-    for n in range(int(N)):
-        data_sum = carry
-        while ((m * N) - (n * M)) < M:
-            data_sum += data[m]
-            m += 1
-        carry = (m - (n + 1) * (M / N)) * data[m - 1]
-        data_sum -= carry
-        res[n] = data_sum * (N / M)
-    return res
-
-
-@numba.jit(parallel=True, cache=True)
-def resizer2D_numbaopt(data2D, resampled_x, resampled_f, sampling):
-    data_shape = np.asarray(data2D.shape)
-    sampled_shape = (np.round(data_shape / sampling)).astype(int)
-    for yy in range(data_shape[0]):
-        resampled_x[yy, :] = resizer1D_numbaopt(
-            data2D[yy, :], resampled_x[yy, :], sampled_shape[1]
-        )
-    for xx in range(sampled_shape[1]):
-        resampled_f[:, xx] = resizer1D_numbaopt(
-            resampled_x[:, xx], resampled_f[:, xx], sampled_shape[0]
-        )
-    return resampled_f
-
-
 def resizer1D(data, N):
     M = data.size
     carry = 0
@@ -199,7 +167,6 @@ def resizer2D(data2D, sampling):
     return resampled_f
 
 
-@numba.jit
 def bin4D(data4D, bin_factor):
     """
     Bin 4D data in spectral dimensions
@@ -218,16 +185,6 @@ def bin4D(data4D, bin_factor):
     binned_data: ndarray of shape (4,4)
                  Data binned in the spectral dimensions
 
-    Notes
-    -----
-    The data is binned in the first two dimensions - which are
-    the Fourier dimensions using the internal numba functions
-    `resizer2D_numbaopt` and `resizer1D_numbaopt`
-
-    See Also
-    --------
-    resizer1D_numbaopt
-    resizer2D_numbaopt
     """
     data4D_flat = np.reshape(
         data4D, (data4D.shape[0], data4D.shape[1], data4D.shape[2] * data4D.shape[3])
@@ -239,9 +196,7 @@ def bin4D(data4D, bin_factor):
     resampled_x = np.zeros((datashape[0], res_shape[1]), data4D_flat.dtype)
     resampled_f = np.zeros(res_shape[0:2], dtype=data4D_flat.dtype)
     for zz in range(data4D_flat.shape[-1]):
-        data4D_res[:, :, zz] = resizer2D_numbaopt(
-            data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor
-        )
+        data4D_res[:, :, zz] = resizer2D(data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor)
     binned_data = np.reshape(
         data4D_res,
         (resampled_f.shape[0], resampled_f.shape[1], data4D.shape[2], data4D.shape[3]),
@@ -270,12 +225,6 @@ def bin4D_dask(data4D, bin_factor, workers=4):
     -------
     binned_data: ndarray of shape (4,4)
                  Data binned in the spectral dimensions
-
-    Notes
-    -----
-    The data is binned in the first two dimensions - which are
-    the Fourier dimensions using the internal numba functions
-    `resizer2D_numbaopt` and `resizer1D_numbaopt`
 
     See Also
     --------
@@ -489,7 +438,6 @@ def custom_detector(
         return data_det
 
 
-@numba.jit
 def colored_mcr(conc_data, data_shape):
     no_spectra = np.shape(conc_data)[1]
     color_hues = np.arange(no_spectra, dtype=np.float64) / no_spectra
@@ -509,7 +457,6 @@ def colored_mcr(conc_data, data_shape):
     return rgb_image
 
 
-@numba.jit
 def fit_nbed_disks(corr_image, disk_size, positions, diff_spots, nan_cutoff=0):
     """
     Disk Fitting algorithm for a single NBED pattern
@@ -621,7 +568,6 @@ def fit_nbed_disks(corr_image, disk_size, positions, diff_spots, nan_cutoff=0):
     return fitted_disk_list, center_position, fit_deviation, lcbed
 
 
-@numba.jit
 def strain_in_ROI(
     data4D,
     ROI,
@@ -773,7 +719,6 @@ def strain_in_ROI(
     return e_xx_map, e_xy_map, e_th_map, e_yy_map, fit_std
 
 
-@numba.jit
 def strain_log(
     data4D_ROI, center_disk, disk_list, pos_list, reference_axes=0, med_factor=10
 ):
@@ -813,7 +758,6 @@ def strain_log(
     return e_xx_log, e_xy_log, e_th_log, e_yy_log
 
 
-@numba.jit
 def strain_oldstyle(data4D_ROI, center_disk, disk_list, pos_list, reference_axes=0):
     warnings.filterwarnings("ignore")
     # Calculate needed values
@@ -856,7 +800,6 @@ def ROI_strain_map(strain_ROI, ROI):
     return strain_map
 
 
-@numba.jit(cache=True, parallel=True)
 def logarizer4D(data4D, scan_dims, bit_depth=32):
     """
     Take the Logarithm of a 4D dataset.
@@ -905,7 +848,6 @@ def logarizer4D(data4D, scan_dims, bit_depth=32):
     return data_log
 
 
-@numba.jit(cache=True, parallel=True)
 def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     """
     Take the Log-Sobel of a pattern.
@@ -943,9 +885,7 @@ def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     images often are very noisy. This code generates the filtered
     CBED at every scan position, and is dimension agnostic, in
     that your CBED dimensions can either be the first two or last
-    two - just specify the dimensions. Also if loops weirdly need
-    to be outside the for loops - this is a numba feature (bug?)
-    Small change - made the Sobel matrix order 5 rather than 3
+    two - just specify the dimensions. 
 
     See Also
     --------
@@ -1042,7 +982,6 @@ def sort_edges(edge_map, edge_distance=5):
     return outer_edge, inner_edge
 
 
-@numba.jit
 def get_inside(edges, cutoff=0.95):
     big_size = (2.5 * np.asarray(edges.shape)).astype(int)
     starter = (0.5 * (big_size - np.asarray(edges.shape))).astype(int)
