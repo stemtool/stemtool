@@ -1,12 +1,11 @@
 import scipy.ndimage as scnd
 import scipy.optimize as sio
 import numpy as np
-import numba
 import warnings
 import stemtool as st
+from tqdm.auto import trange
 
 
-@numba.jit
 def fit_nbed_disks(corr_image, disk_size, positions, diff_spots):
     warnings.filterwarnings("ignore")
     positions = np.asarray(positions, dtype=np.float64)
@@ -45,7 +44,6 @@ def sobel_filter(image, med_filter=50):
     return ls_image
 
 
-@numba.jit
 def strain_and_disk(data4D, disk_size, pixel_list_xy, disk_list, ROI=1, med_factor=50):
     warnings.filterwarnings("ignore")
 
@@ -121,7 +119,6 @@ def strain_and_disk(data4D, disk_size, pixel_list_xy, disk_list, ROI=1, med_fact
     return e_xx, e_xy, e_th, e_yy, disk_x, disk_y, COM_x, COM_y
 
 
-@numba.jit
 def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
     """
     DPC routine on only the central disk
@@ -173,7 +170,6 @@ def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    warnings.filterwarnings("ignore")
 
     if np.size(ROI) < 2:
         ROI = np.ones((data4D.shape[2], data4D.shape[3]), dtype=bool)
@@ -197,7 +193,7 @@ def dpc_central_disk(data4D, disk_size, position, ROI=1, med_val=20):
     p_com = np.zeros((data4D.shape[2], data4D.shape[3]), dtype=np.float64)
     q_com = np.zeros((data4D.shape[2], data4D.shape[3]), dtype=np.float64)
 
-    for ii in numba.prange(int(no_points)):
+    for ii in trange(int(no_points)):
         cbed_image = data4D_ROI[:, :, ii]
         slm_image, _ = st.util.sobel(
             scnd.gaussian_filter(st.util.image_logarizer(cbed_image), 3)

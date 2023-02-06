@@ -1,10 +1,10 @@
 import numpy as np
 import pywt
-import numba
 import scipy.optimize as spo
 import scipy.signal as scisig
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from tqdm.auto import trange
 
 
 def cleanEELS_wavelet(data, threshold):
@@ -13,7 +13,7 @@ def cleanEELS_wavelet(data, threshold):
     coeffs = pywt.wavedec(data, "sym4", level=max_level)
     coeffs2 = coeffs
     threshold = 0.1
-    for ii in numba.prange(1, len(coeffs)):
+    for ii in trange(1, len(coeffs)):
         coeffs2[ii] = pywt.threshold(coeffs[ii], threshold * np.amax(coeffs[ii]))
     data2 = pywt.waverec(coeffs2, "sym4")
     return data2
@@ -159,7 +159,6 @@ def region_intensity(xdata, ydata, xrange, peak_range, showdata=True):
     return peak_sum
 
 
-@numba.jit
 def eels_3D(eels_dict, fit_range, peak_range, LBA_radius=3):
     fit_range = np.asarray(fit_range)
     peak_range = np.asarray(peak_range)
@@ -203,7 +202,6 @@ def lcpl(xx, c1, p1, c2, p2):
     return yy
 
 
-@numba.jit
 def eels_3D_LCPL(eels_dict, fit_range, peak_range, LBA_radius=3, percentile=5):
     fit_range = np.asarray(fit_range)
     peak_range = np.asarray(peak_range)

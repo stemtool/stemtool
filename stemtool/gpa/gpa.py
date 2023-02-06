@@ -7,7 +7,6 @@ import stemtool as st
 import matplotlib.offsetbox as mploff
 import matplotlib.gridspec as mpgs
 import matplotlib_scalebar.scalebar as mpss
-import numba
 
 
 def phase_diff(angle_image):
@@ -233,8 +232,7 @@ def phase_matrix(gvec, image, circ_size=0, g_blur=True):
     return P_matrix
 
 
-@numba.jit(cache=True, parallel=True)
-def numba_strain_P(P_1, P_2, a_matrix):
+def strain_P(P_1, P_2, a_matrix):
     """
     Use the refined phase matrices and lattice matrix
     to calculate the strain matrices.
@@ -260,13 +258,6 @@ def numba_strain_P(P_1, P_2, a_matrix):
     e_dg: ndarray
           Diagonal Strain
 
-    Notes
-    -----
-    This is a numba accelerated JIT compiled
-    version of the method `gen_strain()` in the
-    where a for loop is used to refine the strain
-    at every pixel position.
-
     See Also
     --------
     phase_diff
@@ -283,7 +274,7 @@ def numba_strain_P(P_1, P_2, a_matrix):
     e_xy = np.zeros_like(P_1)
     e_yx = np.zeros_like(P_1)
     e_yy = np.zeros_like(P_1)
-    for ii in range(len(yy)):
+    for ii in np.arange(len(yy)):
         ypos = yy[ii]
         xpos = xx[ii]
         P_mat[0, 0] = P1_x[ypos, xpos]

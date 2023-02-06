@@ -3,8 +3,6 @@ import matplotlib as mpl
 import mpl_toolkits.axes_grid1 as mplax
 import matplotlib.colors as mplc
 import matplotlib.cm as mplcm
-import numba
-import warnings
 import scipy.misc as scm
 import scipy.optimize as spo
 import scipy.ndimage as scnd
@@ -422,7 +420,6 @@ def make_circle(size_circ, center_x, center_y, radius):
     return circle
 
 
-@numba.jit
 def image_tiler(dataset_4D, reducer=4, bit_depth=8):
     """
     Generate a tiled pattern of the 4D-STEM dataset
@@ -455,7 +452,6 @@ def image_tiler(dataset_4D, reducer=4, bit_depth=8):
     return image_tile
 
 
-@numba.jit
 def flip_corrector(data4D):
     """
     Correcting Image Flip
@@ -481,7 +477,6 @@ def flip_corrector(data4D):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
 
     """
-    warnings.filterwarnings("ignore")
     datasize = (np.asarray(data4D.shape)).astype(int)
     flipped4D = np.zeros((datasize[0], datasize[1], datasize[2], datasize[3]))
     for jj in range(datasize[3]):
@@ -548,7 +543,6 @@ def fit_circle(image_data, med_factor=50):
     return popt
 
 
-@numba.jit
 def resizer(data, N):
     """
     Downsample 1D array
@@ -564,16 +558,10 @@ def resizer(data, N):
     res: ndarray of shape N
          Data resampled
 
-    Notes
-    -----
-    The data is resampled. Since this is a Numba
-    function, compile it once (you will get errors)
-    by calling %timeit
 
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    warnings.filterwarnings("ignore")
     M = data.size
     data = (data).astype(np.float64)
     res = np.zeros(int(N), dtype=np.float64)
@@ -590,7 +578,6 @@ def resizer(data, N):
     return res.astype(data.dtype)
 
 
-@numba.jit
 def resizer2D(data, sampling):
     """
     Downsample 2D array
@@ -619,7 +606,6 @@ def resizer2D(data, sampling):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    warnings.filterwarnings("ignore")
     sampling = np.asarray(sampling)
     data_shape = np.asarray(np.shape(data))
     sampled_shape = (np.round(data_shape / sampling)).astype(int)
@@ -632,7 +618,6 @@ def resizer2D(data, sampling):
     return resampled_f
 
 
-@numba.jit
 def resized(data_orig, new_shape):
     """
     Downsample 2D array
@@ -657,7 +642,6 @@ def resized(data_orig, new_shape):
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
-    warnings.filterwarnings("ignore")
     data_shape = np.asarray(np.shape(data_orig))
     resampled_x = np.zeros((data_shape[0], new_shape[1]), dtype=data_orig.dtype)
     resampled_f = np.zeros(new_shape, dtype=data_orig.dtype)

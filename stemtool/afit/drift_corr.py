@@ -1,14 +1,12 @@
 import matplotlib.offsetbox as mploff
 import numpy as np
-import numba
 import pyfftw.interfaces as pfi
 import stemtool as st
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as mpgs
 
 
-@numba.jit(parallel=True, cache=True)
-def numba_shift_stack(image_stack, row_stack, col_stack, stack_pos, sampling=500):
+def shift_stack(image_stack, row_stack, col_stack, stack_pos, sampling=500):
     """
     Cross-Correlate stack of images
 
@@ -46,18 +44,6 @@ def numba_shift_stack(image_stack, row_stack, col_stack, stack_pos, sampling=500
           Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and
           Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data.
           Ultramicroscopy, 191, pp.56-65.
-
-    Examples
-    --------
-    Since this is a `numba` function, to initialize the JIT we need
-    to call the function with a small dataset first. Running it once also
-    allows `pyFFTW` to figure out the fastest FFT route.
-
-    >>> numba_shift_stack(image_stack,row_stack,col_stack,stack_pos[0:10,:])
-
-    Once the JIT is initialized run the function as:
-
-    >>> numba_shift_stack(image_stack,row_stack,col_stack,stack_pos)
     """
     pfi.cache.enable()
     for pp in range(len(stack_pos)):
@@ -70,8 +56,7 @@ def numba_shift_stack(image_stack, row_stack, col_stack, stack_pos, sampling=500
         )
 
 
-@numba.jit(parallel=True, cache=True)
-def numba_stack_corr(image_stack, moved_stack, rowshifts, colshifts):
+def stack_corr(image_stack, moved_stack, rowshifts, colshifts):
     """
     Get corrected image stack
 
@@ -108,17 +93,6 @@ def numba_stack_corr(image_stack, moved_stack, rowshifts, colshifts):
        Baek, D.J., Sheckelton, J.P., Pasco, C., Nair, H., Schreiber, N.J. and
        Hoffman, J., 2018. Image registration of low signal-to-noise cryo-STEM data.
        Ultramicroscopy, 191, pp.56-65.
-
-    Examples
-    --------
-    Since this is a `numba` function, to initialize the JIT we need
-    to call the function with a small dataset first
-
-    >>> corrected_stack(image_stack,moved_stack,rowshifts,colshifts)
-
-    Once the JIT is initialized run the function as:
-
-    >>> corr_stack = corrected_stack(image_stack,rowshifts,colshifts)
 
     """
     row_mean = np.median(rowshifts, axis=0)
@@ -193,18 +167,7 @@ class multi_image_drift(object):
         pfi.cache.enable()
         rows, cols = np.mgrid[0 : self.no_im, 0 : self.no_im]
         pos_stack = np.asarray((np.ravel(rows), np.ravel(cols))).transpose()
-
-        # Initialize JIT
-        numba_shift_stack(
-            self.image_stack,
-            self.row_stack,
-            self.col_stack,
-            pos_stack[0:10, :],
-            self.sampling,
-        )
-
-        # Run JITted function
-        numba_shift_stack(
+        shift_stack(
             self.image_stack, self.row_stack, self.col_stack, pos_stack, self.sampling
         )
 
@@ -233,15 +196,7 @@ class multi_image_drift(object):
             raise RuntimeError(
                 "Please get the images correlated first as get_shape_stack()"
             )
-        image_stack = np.copy(self.image_stack[0:3, :, :])
-        moved_stack = np.copy(self.moved_stack[0:3, :, :])
-        row_stack = np.copy(self.row_stack[0:3, 0:3])
-        col_stack = np.copy(self.col_stack[0:3, 0:3])
-        # Initialize JIT
-        numba_stack_corr(image_stack, moved_stack, row_stack, col_stack)
-
-        # Run JITted code
-        numba_stack_corr(
+        stack_corr(
             self.image_stack, self.moved_stack, self.row_stack, self.col_stack
         )
         self.corr_image = np.sum(self.moved_stack, axis=0) / self.no_im

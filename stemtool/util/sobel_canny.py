@@ -1,5 +1,4 @@
 import numpy as np
-import numba
 import warnings
 import scipy.signal as scisig
 import scipy.ndimage as scnd
@@ -136,10 +135,9 @@ def circle_fit(edge_image):
     return xCenter, yCenter, radius
 
 
-@numba.jit(parallel=True, cache=True)
-def numba_thinner(pos, edge, mag, ang):
+def edge_thinner(pos, mag, ang):
     """
-    Numba JIT Function for thinning Sobel
+    Function for thinning Sobel
     Filtered Edges
 
     Parameters
@@ -160,7 +158,8 @@ def numba_thinner(pos, edge, mag, ang):
     or not. If the gradient is perpendicular to the
     pixels then it is an edge pixel or else it is not.
     """
-    for pp in numba.prange(len(pos)):
+    thinned_edge = np.zeros_like(mag)
+    for pp in np.arange(len(pos)):
         ii = pos[pp, 0]
         jj = pos[pp, 1]
         q = 1
@@ -179,16 +178,14 @@ def numba_thinner(pos, edge, mag, ang):
             r = mag[ii + 1, jj + 1]
 
         if (mag[ii, jj] >= q) and (mag[ii, jj] >= r):
-            edge[ii, jj] = mag[ii, jj]
+            thinned_edge[ii, jj] = mag[ii, jj]
         else:
-            edge[ii, jj] = 0
+            thinned_edge[ii, jj] = 0
+    return thinned_edge
 
 
-@numba.jit(parallel=True, cache=True)
-def numba_joiner(pos, edge, upper, lower):
+def edge_joiner(pos, thinned_edge, upper, lower):
     """
-    Numba JIT function for joining of Edges
-
     Parameters
     ----------
     pos:   ndarray
@@ -209,23 +206,25 @@ def numba_joiner(pos, edge, upper, lower):
     weak edge but one of its neighbors is a strong edge then
     it is a strong edge pixel.
     """
-    for pp in numba.prange(len(pos)):
+    joined_edge = np.copy(thinned_edge)
+    for pp in np.arange(len(pos)):
         ii = pos[pp, 0]
         jj = pos[pp, 1]
-        if edge[ii, jj] == lower:
+        if joined_edge[ii, jj] == lower:
             if (
-                (edge[ii - 1, jj - 1] == upper)  # top left
-                or (edge[ii - 1, jj] == upper)  # top
-                or (edge[ii - 1, jj + 1] == upper)  # top right
-                or (edge[ii, jj - 1] == upper)  # left
-                or (edge[ii, jj + 1] == upper)  # right
-                or (edge[ii + 1, jj - 1] == upper)  # bottom left
-                or (edge[ii + 1, jj] == upper)  # bottom
-                or (edge[ii + 1, jj + 1] == upper)
+                (joined_edge[ii - 1, jj - 1] == upper)  # top left
+                or (joined_edge[ii - 1, jj] == upper)  # top
+                or (joined_edge[ii - 1, jj + 1] == upper)  # top right
+                or (joined_edge[ii, jj - 1] == upper)  # left
+                or (joined_edge[ii, jj + 1] == upper)  # right
+                or (joined_edge[ii + 1, jj - 1] == upper)  # bottom left
+                or (joined_edge[ii + 1, jj] == upper)  # bottom
+                or (joined_edge[ii + 1, jj + 1] == upper)
             ):  # bottom right
-                edge[ii, jj] = upper
+                joined_edge[ii, jj] = upper
             else:
-                edge[ii, jj] = 0
+                joined_edge[ii, jj] = 0
+    return joined_edge
 
 
 class Canny(object):
@@ -290,7 +289,6 @@ class Canny(object):
         self.imblur = st.util.image_normalizer(scnd.gaussian_filter(image, blurVal))
         self.sobel_mag = np.empty_like(image)
         self.sobel_ang = np.empty_like(image)
-        self.thin_edge = np.empty_like(image)
         self.residual = np.empty_like(image)
         self.cannyEdge = np.empty_like(image)
         self.edge_check = False
@@ -308,27 +306,14 @@ class Canny(object):
         or not. If the gradient is perpendicular to the
         pixels then it is an edge pixel or else it is not.
 
-        See Also
-        --------
-        numba_thinner
         """
         self.sobel_mag, self.sobel_ang = st.util.sobel(self.imblur, order=5)
         self.sobel_ang = self.sobel_ang * (180 / np.pi)
         self.sobel_ang[self.sobel_ang < 0] += 180
         yRange, xRange = np.mgrid[1 : self.im_size[0] - 1, 1 : self.im_size[1] - 1]
         thin_pos = np.asarray((np.ravel(yRange), np.ravel(xRange))).transpose()
-        thin_edge = np.copy(self.thin_edge)
 
-        # initialize JIT
-        numba_thinner(
-            thin_pos[0 : int(len(thin_pos) / 10), :],
-            thin_edge,
-            self.sobel_mag,
-            self.sobel_ang,
-        )
-
-        # now run on full dataset
-        numba_thinner(thin_pos, self.thin_edge, self.sobel_mag, self.sobel_ang)
+        self.thin_edge = edge_thinner(thin_pos, self.sobel_mag, self.sobel_ang)
         if self.plot_steps:
             plt.figure(figsize=(20, 10))
             plt.subplot(1, 2, 1)
@@ -352,7 +337,7 @@ class Canny(object):
         Otsu thresholding to robustly determine edges.
         """
         if not self.edge_check:
-            raise RuntimeError("Please thin the edges first by calling edge_thinner()")
+            raise RuntimeError("Please thin the edges first by calling edge_thinning()")
         highT = np.amax(self.thin_edge) * self.thresh_upper
         lowT = highT * self.thresh_lower
         self.residual[np.where(self.thin_edge > highT)] = highT
@@ -384,10 +369,6 @@ class Canny(object):
         The idea is that if a edge pixel is classified as a
         weak edge but one of its neighbors is a strong edge then
         it is a strong edge pixel.
-
-        See Also
-        --------
-        numba_joiner
         """
         if not self.thresh_check:
             raise RuntimeError(
@@ -395,20 +376,11 @@ class Canny(object):
             )
         yRange, xRange = np.mgrid[1 : self.im_size[0] - 1, 1 : self.im_size[1] - 1]
         edge_pos = np.asarray((np.ravel(yRange), np.ravel(xRange))).transpose()
-        cannyEdge = np.copy(self.residual)
         self.cannyEdge = np.copy(self.residual)
 
-        # initialize JIT
-        numba_joiner(
-            edge_pos[0 : int(len(edge_pos) / 10), :],
-            cannyEdge,
-            self.thresh_upper,
-            self.thresh_lower,
-        )
-
-        # now run on full dataset, twice
-        numba_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
-        numba_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
+        # run edge_joiner on full dataset, twice
+        self.cannyEdge = st.util.edge_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
+        self.cannyEdge = st.util.edge_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
         if self.plot_steps:
             plt.figure(figsize=(10, 10))
             plt.imshow(self.cannyEdge)

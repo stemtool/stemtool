@@ -1,13 +1,14 @@
 import skimage.feature as skfeat
 import matplotlib.pyplot as plt
 import numpy as np
-import numba
 import scipy.ndimage as scnd
 import scipy.optimize as spo
 import scipy.interpolate as scinterp
-import warnings
 import matplotlib_scalebar.scalebar as mpss
 import stemtool as st
+from tqdm.auto import trange
+from typing import Any, Tuple, Union
+from nptyping import NDArray, Shape, Int, Float, Bool, Complex
 
 
 def remove_close_vals(input_arr, limit):
@@ -83,7 +84,6 @@ def peaks_vis(data_image, dist=10, thresh=0.1, imsize=(20, 20)):
     return peaks
 
 
-@numba.jit(parallel=True)
 def refine_atoms(image_data, positions):
     """
     Single Gaussian Peak Atom Refinement
@@ -111,12 +111,12 @@ def refine_atoms(image_data, positions):
     no_pos = len(positions)
     dist = np.empty(no_pos, dtype=np.float)
     ccd = np.empty(no_pos, dtype=np.float)
-    for ii in numba.prange(no_pos):
+    for ii in trange(no_pos):
         ccd = np.sum(((positions[:, 0:2] - positions[ii, 0:2]) ** 2), axis=1)
         dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
     med_dist = 0.5 * np.median(dist)
     ref_arr = np.empty((no_pos, 7), dtype=np.float)
-    for ii in numba.prange(no_pos):
+    for ii in trange(no_pos):
         pos_x = positions[ii, 1]
         pos_y = positions[ii, 0]
         refined_ii = st.util.fit_gaussian2D_mask(image_data, pos_x, pos_y, med_dist)
@@ -125,7 +125,6 @@ def refine_atoms(image_data, positions):
     return ref_arr
 
 
-@numba.jit
 def mpfit(
     main_image,
     initial_peaks,
@@ -252,7 +251,6 @@ def mpfit(
         return mpfit_peaks
 
 
-@numba.jit
 def mpfit_voronoi(
     main_image,
     initial_peaks,
@@ -463,8 +461,6 @@ def find_diffraction_spots(image, circ_c, circ_y, circ_x):
 def find_coords(image, fourier_center, fourier_y, fourier_x, y_axis, x_axis):
     """
     Convert the fourier positions to image axes.
-    Do not use numba to accelerate as LLVM IR
-    throws an error from the the if statements
 
     Parameters
     ----------
@@ -639,7 +635,6 @@ def coords_of_atoms(peaks, coords, origin):
     return atom_coords
 
 
-@numba.jit
 def three_neighbors(peak_list, coords, delta=0.25):
     warnings.filterwarnings("ignore")
     no_atoms = peak_list.shape[0]
@@ -695,7 +690,6 @@ def three_neighbors(peak_list, coords, delta=0.25):
     return atoms_neighbors, atoms_distances
 
 
-@numba.jit
 def relative_strain(n_list, coords):
     warnings.filterwarnings("ignore")
     identity = np.asarray(((1, 0), (0, 1)))
@@ -831,23 +825,21 @@ def create_circmask(image, center, radius, g_val=3, flip=True):
     return masked_image, new_center
 
 
-@numba.jit(parallel=True)
-def med_dist_numba(positions):
+def med_dist(positions):
     warnings.filterwarnings("ignore")
     no_pos = len(positions)
     dist = np.empty(no_pos, dtype=np.float)
     ccd = np.empty(no_pos, dtype=np.float)
-    for ii in numba.prange(no_pos):
+    for ii in np.arange(no_pos):
         ccd = np.sum(((positions[:, 0:2] - positions[ii, 0:2]) ** 2), axis=1)
         dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
     med_dist = 0.5 * np.median(dist)
     return med_dist
 
 
-@numba.jit(parallel=True)
-def refine_atoms_numba(image_data, positions, ref_arr, med_dist):
+def refine_atoms(image_data, positions, ref_arr, med_dist):
     warnings.filterwarnings("ignore")
-    for ii in numba.prange(len(positions)):
+    for ii in np.arange(len(positions)):
         pos_x = positions[ii, 1]
         pos_y = positions[ii, 0]
         refined_ii = st.util.fit_gaussian2D_mask(1 + image_data, pos_x, pos_y, med_dist)
@@ -1110,25 +1102,20 @@ class atom_fit(object):
         self.peaks_check = True
 
     def refine_peaks(self):
-        """
-        Calls the numba functions `med_dist_numba` and
-        `refine_atoms_numba` to refine the peaks originally
-        calculated.
-        """
         if not self.peaks_check:
             raise RuntimeError("Please locate the initial peaks first as peaks_vis()")
         test = int(len(self.peaks) / 50)
-        st.afit.med_dist_numba(self.peaks[0:test, :])
-        md = st.afit.med_dist_numba(self.peaks)
+        st.afit.med_dist(self.peaks[0:test, :])
+        md = st.afit.med_dist(self.peaks)
         refined_peaks = np.empty((len(self.peaks), 7), dtype=np.float)
 
         # Run once on a smaller dataset to initialize JIT
-        st.afit.refine_atoms_numba(
+        st.afit.refine_atoms(
             self.imcleaned, self.peaks[0:test, :], refined_peaks[0:test, :], md
         )
 
         # Run the JIT compiled faster code on the full dataset
-        st.afit.refine_atoms_numba(self.imcleaned, self.peaks, refined_peaks, md)
+        st.afit.refine_atoms(self.imcleaned, self.peaks, refined_peaks, md)
         self.refined_peaks = refined_peaks
         self.refining_check = True
 
