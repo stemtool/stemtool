@@ -167,6 +167,17 @@ class multi_image_drift(object):
         pfi.cache.enable()
         rows, cols = np.mgrid[0 : self.no_im, 0 : self.no_im]
         pos_stack = np.asarray((np.ravel(rows), np.ravel(cols))).transpose()
+
+        # Initialize JIT
+        shift_stack(
+            self.image_stack,
+            self.row_stack,
+            self.col_stack,
+            pos_stack[0:10, :],
+            self.sampling,
+        )
+
+        # Run JITted function
         shift_stack(
             self.image_stack, self.row_stack, self.col_stack, pos_stack, self.sampling
         )
@@ -196,6 +207,14 @@ class multi_image_drift(object):
             raise RuntimeError(
                 "Please get the images correlated first as get_shape_stack()"
             )
+        image_stack = np.copy(self.image_stack[0:3, :, :])
+        moved_stack = np.copy(self.moved_stack[0:3, :, :])
+        row_stack = np.copy(self.row_stack[0:3, 0:3])
+        col_stack = np.copy(self.col_stack[0:3, 0:3])
+        # Initialize JIT
+        stack_corr(image_stack, moved_stack, row_stack, col_stack)
+
+        # Run JITted code
         stack_corr(
             self.image_stack, self.moved_stack, self.row_stack, self.col_stack
         )

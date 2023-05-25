@@ -6,7 +6,6 @@ import matplotlib.cm as mplcm
 import scipy.misc as scm
 import scipy.optimize as spo
 import scipy.ndimage as scnd
-import scipy.signal as scsig
 import skimage.color as skc
 import stemtool as st
 
@@ -558,6 +557,9 @@ def resizer(data, N):
     res: ndarray of shape N
          Data resampled
 
+    Notes
+    -----
+    The data is resampled. 
 
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>

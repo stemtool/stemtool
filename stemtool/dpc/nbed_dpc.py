@@ -3,7 +3,7 @@ import scipy.optimize as sio
 import numpy as np
 import warnings
 import stemtool as st
-from tqdm.auto import trange
+from tqdm.auto import tqdm, trange
 
 
 def fit_nbed_disks(corr_image, disk_size, positions, diff_spots):

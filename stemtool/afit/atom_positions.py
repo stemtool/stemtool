@@ -837,8 +837,8 @@ def med_dist(positions):
     return med_dist
 
 
+
 def refine_atoms(image_data, positions, ref_arr, med_dist):
-    warnings.filterwarnings("ignore")
     for ii in np.arange(len(positions)):
         pos_x = positions[ii, 1]
         pos_y = positions[ii, 0]

@@ -20,7 +20,6 @@ if not os.getenv("READTHEDOCS"):
         keywords=["STEM", "EELS", "4D-STEM", "electron microscopy"],
         zip_safe=False,
         install_requires=[
-            "pyfftw >= 0.10.3",
             "pywavelets >= 0.5.2",
             "numpy >= 1.13.0",
             "scipy >= 1.0.0",

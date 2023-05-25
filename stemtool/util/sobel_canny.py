@@ -1,10 +1,8 @@
 import numpy as np
-import warnings
 import scipy.signal as scisig
 import scipy.ndimage as scnd
 import stemtool as st
 import matplotlib.pyplot as plt
-import math
 
 
 def sobel(im, order=3):
@@ -305,7 +303,6 @@ class Canny(object):
         determine whether a pixel belongs to the edge
         or not. If the gradient is perpendicular to the
         pixels then it is an edge pixel or else it is not.
-
         """
         self.sobel_mag, self.sobel_ang = st.util.sobel(self.imblur, order=5)
         self.sobel_ang = self.sobel_ang * (180 / np.pi)

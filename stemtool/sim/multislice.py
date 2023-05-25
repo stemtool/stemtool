@@ -275,7 +275,7 @@ def atomic_potential(
 
 def find_uc_pos(atom_pos, cell_dim):
     uc_pos = np.zeros_like(atom_pos)
-    for ii in numba.prange(len(uc_pos)):
+    for ii in np.arange(len(uc_pos)):
         for jj in range(len(cell_dim)):
             cc = atom_pos[ii, :] / cell_dim[jj, :]
             cc[cc < 0] += 1
