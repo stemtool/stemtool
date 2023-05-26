@@ -10,6 +10,7 @@ import h5py
 import stemtool as st
 import glob
 from collections import OrderedDict
+import zarr
 
 
 class Frms6Reader(object):
@@ -544,7 +545,7 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
 
     ii = np.arange(tot_files)[filesizes[:, -1] == 0][0]
     if workers == 0:
-        workers = int(1 + tot_files)
+        workers = np.amin((4, int(tot_files)))
     print("Starting Dask")
     cluster = dd.LocalCluster(n_workers=workers)
     client = dd.Client(cluster, timeout="3600s")
@@ -590,6 +591,9 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
     shape4d = (con_shape[0], con_shape[1], xvals, xvals)
     data4d_dask = da.reshape(data3d_arranged, shape4d)
 
+    data4d_dask = data4d_dask.rechunk((-1, -1, "auto", "auto"))
+    client.rebalance()
+
     bin_nums = int((xvals / bin_factor) ** 2)
     xvals_bin = int(xvals / bin_factor)
     if np.logical_not((np.mod(xvals, bin_factor)).astype(bool)):
@@ -618,6 +622,8 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
         data4d_bin = da.reshape(
             data3d_binYX, (con_shape[0], con_shape[1], xvals_bin, xvals_bin)
         )
+        data4d_bin = data4d_bin.rechunk((-1, -1, "auto", "auto"))
+        client.rebalance()
         data4D = data4d_bin.compute()
     else:
         data4D = data4d_dask.compute()
@@ -626,3 +632,128 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
     cluster.close()
     print("Closing Dask")
     return data4D
+
+def frms6_to_zarr(
+    input_dir: str, 
+    output_loc: str, 
+    bin_factor: Int=2, 
+    workers: Int=0,
+    ):
+    current_dir: str = os.getcwd()
+    os.chdir(data_dir)
+    data_class = st.util.Frms6Reader()
+    tot_files = 0
+    zstore = zarr.DirectoryStore(output_loc)
+
+    for file in glob.glob("*.frms6"):
+        tot_files += 1
+    filesizes = np.zeros((tot_files, 4), dtype=int)
+    filenames = np.zeros(tot_files, dtype=object)
+
+    ii = 0
+    for file in glob.glob("*.frms6"):
+        fname = data_dir + file
+        dshape = np.asarray(data_class.getDataShape(fname), dtype=int)
+        filesizes[ii, 0:3] = dshape
+        filesizes[ii, -1] = fname[-7]
+        filenames[ii] = fname
+        ii += 1
+    os.chdir(current_dir)
+
+    draw_shape = (np.mean(filesizes[filesizes[:, -1] != 0, 0:3], axis=0)).astype(int)
+    dref_shape = filesizes[filesizes[:, -1] == 0, 0:3][0]
+    data_shape = np.copy(dref_shape)
+    data_shape[-1] = (np.sum(filesizes[:, -2]) - np.amin(filesizes[:, -2])).astype(int)
+    individual_shape = np.zeros(4, dtype=int)
+    individual_shape[0:3] = draw_shape
+    individual_shape[-1] = int(tot_files - 1)
+    data3d_before = []
+
+    ii = np.arange(tot_files)[filesizes[:, -1] == 0][0]
+    if workers == 0:
+        workers = np.amin((4, int(tot_files)))
+    print("Starting Dask")
+    cluster = dd.LocalCluster(n_workers=workers)
+    client = dd.Client(cluster, timeout="3600s")
+    print(cluster)
+
+    dark_read = dask.delayed(data_class.readData)(
+        filenames[ii],
+        image_range=(0, dref_shape[-1]),
+        pixels_x=dref_shape[0],
+        pixels_y=dref_shape[1],
+    )
+
+
+    dark_data = da.from_delayed(dark_read, filesizes[ii, 0:3], np.float32)
+    del ii
+    mean_dark_ref = da.mean(dark_data, axis=-1)
+
+    for jj in np.arange(1, tot_files):
+        ii = np.arange(tot_files)[filesizes[:, -1] == jj][0]
+        test_read = dask.delayed(data_class.readData)(
+            filenames[ii],
+            image_range=(0, draw_shape[-1]),
+            pixels_x=draw_shape[0],
+            pixels_y=draw_shape[1],
+        )
+        test_data = da.from_delayed(test_read, filesizes[ii, 0:3], np.float32)
+        test_data = test_data.rechunk(-1, -1, 256)
+        data3d_before.append(test_data)
+
+    data3d_dask = da.concatenate(data3d_before, axis=-1)
+
+    data_shape = data3d_dask.shape
+    con_shape = tuple((np.asarray(data_shape[0:2]) * np.asarray((0.5, 2))).astype(int))
+    xvals = int(data_shape[-1] ** 0.5)
+
+    d3r = da.transpose(data3d_dask, (2, 0, 1))
+    d3s = d3r - mean_dark_ref
+    d3D_dref = da.transpose(d3s, (1, 2, 0))
+    top_part = d3D_dref[0 : con_shape[0], :, :]
+    bot_part = d3D_dref[con_shape[0] : data_shape[0], :, :]
+    top_part_rs = top_part[::-1, ::-1, :]
+    data3d_arranged = da.concatenate([bot_part, top_part_rs], axis=1)
+    shape4d = (con_shape[0], con_shape[1], xvals, xvals)
+    data4d_dask = da.reshape(data3d_arranged, shape4d)
+
+    data4d_dask = data4d_dask.rechunk((-1, -1, "auto", "auto"))
+    client.rebalance()
+
+    bin_nums = int((xvals / bin_factor) ** 2)
+    xvals_bin = int(xvals / bin_factor)
+    if np.logical_not((np.mod(xvals, bin_factor)).astype(bool)):
+        yyb = np.arange(data4d_dask.shape[2])[::bin_factor]
+        xxb = np.arange(data4d_dask.shape[3])[::bin_factor]
+        data3d_binY = da.reshape(
+            data4d_dask[:, :, yyb, :],
+            (con_shape[0], con_shape[1], int(xvals * xvals_bin)),
+        )
+        for ybf in np.arange(1, bin_factor):
+            data3d_binY = data3d_binY + da.reshape(
+                data4d_dask[:, :, yyb + ybf, :],
+                (con_shape[0], con_shape[1], int(xvals * xvals_bin)),
+            )
+        data4d_binY = da.reshape(
+            data3d_binY, (con_shape[0], con_shape[1], xvals_bin, xvals)
+        )
+
+        data3d_binYX = da.reshape(
+            data4d_binY[:, :, :, xxb], (con_shape[0], con_shape[1], bin_nums)
+        )
+        for xbf in np.arange(1, bin_factor):
+            data3d_binYX = data3d_binYX + da.reshape(
+                data4d_binY[:, :, :, xxb + xbf], (con_shape[0], con_shape[1], bin_nums)
+            )
+        data4d_bin = da.reshape(
+            data3d_binYX, (con_shape[0], con_shape[1], xvals_bin, xvals_bin)
+        )
+        data4d_bin = data4d_bin.rechunk((-1, -1, "auto", "auto"))
+        client.rebalance()
+        data4d_bin.to_zarr(zstore, overwrite=True)
+    else:
+        data4d_dask.to_zarr(zstore, overwrite=True)
+    del data3d_dask, dark_read, data3d_before
+    client.restart()
+    cluster.close()
+    print("Closing Dask")
