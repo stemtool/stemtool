@@ -122,8 +122,7 @@ def data4Dto2D(data4D):
     return data2D
 
 
-<<<<<<< HEAD
-=======
+
 def resizer1D_opt(data, res, N):
     M = data.size
     carry = 0
@@ -153,7 +152,7 @@ def resizer2D_opt(data2D, resampled_x, resampled_f, sampling):
     return resampled_f
 
 
->>>>>>> 207d0cb (No numba)
+
 def resizer1D(data, N):
     M = data.size
     carry = 0
@@ -228,13 +227,10 @@ def bin4D(data4D, bin_factor):
     resampled_x = np.zeros((datashape[0], res_shape[1]), data4D_flat.dtype)
     resampled_f = np.zeros(res_shape[0:2], dtype=data4D_flat.dtype)
     for zz in range(data4D_flat.shape[-1]):
-<<<<<<< HEAD
         data4D_res[:, :, zz] = resizer2D(data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor)
-=======
         data4D_res[:, :, zz] = resizer2D_opt(
             data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor
         )
->>>>>>> 207d0cb (No numba)
     binned_data = np.reshape(
         data4D_res,
         (resampled_f.shape[0], resampled_f.shape[1], data4D.shape[2], data4D.shape[3]),

@@ -533,12 +533,6 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
         ii += 1
     os.chdir(current_dir)
 
-    if workers == 0:
-        workers = int(1 + tot_files)
-
-    cluster = dd.LocalCluster(n_workers=workers)
-    client = dd.Client(cluster)
-
     draw_shape = (np.mean(filesizes[filesizes[:, -1] != 0, 0:3], axis=0)).astype(int)
     dref_shape = filesizes[filesizes[:, -1] == 0, 0:3][0]
     data_shape = np.copy(dref_shape)
@@ -549,12 +543,21 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
     data3d_before = []
 
     ii = np.arange(tot_files)[filesizes[:, -1] == 0][0]
+    if workers == 0:
+        workers = int(1 + tot_files)
+    print("Starting Dask")
+    cluster = dd.LocalCluster(n_workers=workers)
+    client = dd.Client(cluster, timeout="3600s")
+    print(cluster)
+
     dark_read = dask.delayed(data_class.readData)(
         filenames[ii],
         image_range=(0, dref_shape[-1]),
         pixels_x=dref_shape[0],
         pixels_y=dref_shape[1],
     )
+
+
     dark_data = da.from_delayed(dark_read, filesizes[ii, 0:3], np.float32)
     del ii
     mean_dark_ref = da.mean(dark_data, axis=-1)
@@ -618,5 +621,8 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
         data4D = data4d_bin.compute()
     else:
         data4D = data4d_dask.compute()
+    del data3d_dask, dark_read, data3d_before
+    client.restart()
     cluster.close()
+    print("Closing Dask")
     return data4D
