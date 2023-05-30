@@ -11,6 +11,8 @@ import stemtool as st
 import glob
 from collections import OrderedDict
 import zarr
+from nptyping import Int
+
 
 
 class Frms6Reader(object):
@@ -640,7 +642,7 @@ def frms6_to_zarr(
     workers: Int=0,
     ):
     current_dir: str = os.getcwd()
-    os.chdir(data_dir)
+    os.chdir(input_dir)
     data_class = st.util.Frms6Reader()
     tot_files = 0
     zstore = zarr.DirectoryStore(output_loc)
@@ -652,7 +654,7 @@ def frms6_to_zarr(
 
     ii = 0
     for file in glob.glob("*.frms6"):
-        fname = data_dir + file
+        fname = input_dir + file
         dshape = np.asarray(data_class.getDataShape(fname), dtype=int)
         filesizes[ii, 0:3] = dshape
         filesizes[ii, -1] = fname[-7]

@@ -122,7 +122,6 @@ def data4Dto2D(data4D):
     return data2D
 
 
-
 def resizer1D_opt(data, res, N):
     M = data.size
     carry = 0
@@ -150,7 +149,6 @@ def resizer2D_opt(data2D, resampled_x, resampled_f, sampling):
             resampled_x[:, xx], resampled_f[:, xx], sampled_shape[0]
         )
     return resampled_f
-
 
 
 def resizer1D(data, N):
@@ -227,7 +225,9 @@ def bin4D(data4D, bin_factor):
     resampled_x = np.zeros((datashape[0], res_shape[1]), data4D_flat.dtype)
     resampled_f = np.zeros(res_shape[0:2], dtype=data4D_flat.dtype)
     for zz in range(data4D_flat.shape[-1]):
-        data4D_res[:, :, zz] = resizer2D(data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor)
+        data4D_res[:, :, zz] = resizer2D(
+            data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor
+        )
         data4D_res[:, :, zz] = resizer2D_opt(
             data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor
         )
@@ -338,7 +338,7 @@ def test_aperture(pattern, center, radius, showfig=True):
     yy, xx = np.mgrid[0 : pattern.shape[0], 0 : pattern.shape[1]]
     yy = yy - center[1]
     xx = xx - center[0]
-    rr = ((yy ** 2) + (xx ** 2)) ** 0.5
+    rr = ((yy**2) + (xx**2)) ** 0.5
     aperture = np.asarray(rr <= radius, dtype=np.double)
     if showfig:
         plt.figure(figsize=(15, 15))
@@ -380,7 +380,7 @@ def aperture_image(data4D, center, radius):
     yy, xx = np.mgrid[0 : data4D.shape[0], 0 : data4D.shape[1]]
     yy = yy - center[1]
     xx = xx - center[0]
-    rr = ((yy ** 2) + (xx ** 2)) ** 0.5
+    rr = ((yy**2) + (xx**2)) ** 0.5
     aperture = np.asarray(rr <= radius, dtype=data4D.dtype)
     apt_copy = np.empty(
         (data4D.shape[2], data4D.shape[3]) + aperture.shape, dtype=data4D.dtype
@@ -461,7 +461,7 @@ def custom_detector(
         xx = xx * mrad_calib
     yy = yy - center[0]
     xx = xx - center[1]
-    rr = ((yy ** 2) + (xx ** 2)) ** 0.5
+    rr = ((yy**2) + (xx**2)) ** 0.5
     if outer == 0:
         outer = np.amax(rr)
     detector = np.logical_and((rr > inner), (rr < outer))
@@ -545,7 +545,7 @@ def fit_nbed_disks(corr_image, disk_size, positions, diff_spots, nan_cutoff=0):
     for ii in range(no_pos):
         posx = positions[ii, 0]
         posy = positions[ii, 1]
-        reg = ((yy - posy) ** 2) + ((xx - posx) ** 2) <= (disk_size ** 2)
+        reg = ((yy - posy) ** 2) + ((xx - posx) ** 2) <= (disk_size**2)
         peak_ratio = np.amax(corr_image[reg]) / np.median(corr_image[reg])
         if peak_ratio < (1 + nan_cutoff):
             fitted_disk_list[ii, 0:2] = np.nan
@@ -865,7 +865,7 @@ def logarizer4D(data4D, scan_dims, bit_depth=32):
     log_sobel4D
     util.image_logarizer
     """
-    bit_max = 2 ** bit_depth
+    bit_max = 2**bit_depth
     scan_dims = np.asarray(scan_dims)
     scan_dims[scan_dims < 0] = 4 + scan_dims[scan_dims < 0]
     sum_dims = np.sum(scan_dims)
@@ -919,7 +919,7 @@ def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     images often are very noisy. This code generates the filtered
     CBED at every scan position, and is dimension agnostic, in
     that your CBED dimensions can either be the first two or last
-    two - just specify the dimensions. 
+    two - just specify the dimensions.
 
     See Also
     --------
@@ -1077,7 +1077,7 @@ def sobel_filter(image, med_filter=50):
 def peak_prominence(peak_pos, peak_im, fit_radius):
     prom_y, prom_x = np.mgrid[0 : peak_im.shape[0], 0 : peak_im.shape[1]]
     prom_r = ((prom_y - peak_pos[0]) ** 2) + ((prom_x - peak_pos[1]) ** 2)
-    prom_vals = peak_im[prom_r < (fit_radius ** 2)]
+    prom_vals = peak_im[prom_r < (fit_radius**2)]
     prom_peak = peak_im[
         int(peak_pos[0] - 1) : int(peak_pos[0] + 1),
         int(peak_pos[1] - 1) : int(peak_pos[1] + 1),
@@ -1200,7 +1200,7 @@ def strain4D_general(
 
     radiating = ((diff_y - disk_center[0]) ** 2) + ((diff_x - disk_center[1]) ** 2)
     disk = np.zeros_like(radiating)
-    disk[radiating < (disk_radius ** 2)] = 1
+    disk[radiating < (disk_radius**2)] = 1
     sobel_disk, _ = st.util.sobel(disk)
     if np.sum(ROI) == 0:
         imROI = np.ones(data4D.shape[0:2], dtype=bool)
@@ -1229,15 +1229,16 @@ def strain4D_general(
     else:
         Mean_LSB = np.mean(LSB_ROI, axis=(-1))
     LSB_CC = st.util.cross_corr(Mean_LSB, sobel_disk, hybrid_cc)
-    data_peaks = skfeat.peak_local_max(
-        LSB_CC, min_distance=int(2 * disk_radius), indices=False
-    )
-    peak_labels = scnd.measurements.label(data_peaks)[0]
+    data_peaks = skfeat.peak_local_max(LSB_CC, min_distance=int(2 * disk_radius))
+    mask_peak = np.zeros_like(LSB_CC, dtype=bool)
+    mask_peak[tuple(data_peaks.T)] = True
+    peak_labels, num_labels = scnd.measurements.label(mask_peak)
     merged_peaks = np.asarray(
         scnd.measurements.center_of_mass(
-            data_peaks, peak_labels, range(1, np.max(peak_labels) + 1)
+            mask_peak, peak_labels, range(1, np.max(peak_labels) + 1)
         )
     )
+
     if max_radius > 0:
         dist_peaks = (
             ((merged_peaks[:, 0] - disk_center[0]) ** 2)
@@ -1948,5 +1949,5 @@ def get_strain_plot(volume, roi, precision=(0.2, 0.001), upsampling=6):
         strain[ii, 1] = np.median(yvals[rawvals[:, 0] == strain[ii, 0]])
         nn = len(yvals[rawvals[:, 0] == strain[ii, 0]])
         strain[ii, 2] = np.std(yvals[rawvals[:, 0] == strain[ii, 0]])
-        strain[ii, 3] = (np.std(yvals[rawvals[:, 0] == strain[ii, 0]])) / (nn ** 0.5)
+        strain[ii, 3] = (np.std(yvals[rawvals[:, 0] == strain[ii, 0]])) / (nn**0.5)
     return rawvals, strain, maxdist
