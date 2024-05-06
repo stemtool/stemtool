@@ -749,7 +749,7 @@ def euclidean_dist(binary_image):
     dist_vals = np.zeros(ones_vals.shape[0])
     for ii in np.arange(ones_vals.shape[0]):
         dist_vals[ii] = np.amin(np.sum(((zero_vals - ones_vals[ii, 0:2]) ** 2), axis=1))
-    dist_map = np.zeros_like(binary_image, dtype=np.float)
+    dist_map = np.zeros_like(binary_image, dtype=np.float64)
     dist_map[bi_ones] = dist_vals**0.5
     return dist_map
 

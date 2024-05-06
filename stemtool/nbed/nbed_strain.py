@@ -931,7 +931,7 @@ def log_sobel4D(data4D, scan_dims, med_factor=30, gauss_val=3):
     sum_dims = np.sum(scan_dims)
     if sum_dims < 2:
         data4D = np.transpose(data4D, (2, 3, 0, 1))
-    data_lsb = np.zeros_like(data4D, dtype=np.float)
+    data_lsb = np.zeros_like(data4D, dtype=np.float64)
     for jj in range(data4D.shape[int(scan_dims[1])]):
         for ii in range(data4D.shape[int(scan_dims[0])]):
             pattern = data4D[:, :, ii, jj]
@@ -1034,8 +1034,8 @@ def get_inside(edges, cutoff=0.95):
     xx_aa1 = xx[aa1]
     yy_aa2 = yy[aa2]
     xx_aa2 = xx[aa2]
-    ang_range1 = np.zeros_like(yy, dtype=np.float)
-    ang_range2 = np.zeros_like(yy, dtype=np.float)
+    ang_range1 = np.zeros_like(yy, dtype=np.float64)
+    ang_range2 = np.zeros_like(yy, dtype=np.float64)
     for ii in range(len(positions)):
         angles1 = (180 / np.pi) * np.arctan2(
             yy_aa1 - positions[ii, 0], xx_aa1 - positions[ii, 1]
@@ -1208,7 +1208,7 @@ def strain4D_general(
         imROI = ROI
     ROI_4D = data4D[:, :, imROI]
     no_of_disks = ROI_4D.shape[-1]
-    LSB_ROI = np.zeros_like(ROI_4D, dtype=np.float)
+    LSB_ROI = np.zeros_like(ROI_4D, dtype=np.float64)
     for ii in range(no_of_disks):
         cbed = ROI_4D[:, :, ii]
         cbed = 1 + st.util.image_normalizer(cbed)
@@ -1273,7 +1273,7 @@ def strain4D_general(
     central_disk_no = np.arange(merged_peaks.shape[0])[distarr == np.amin(distarr)][0]
 
     list_pos = np.zeros((int(np.sum(imROI)), peaks_mean.shape[0], peaks_mean.shape[1]))
-    prominences = np.zeros((no_of_disks, merged_peaks.shape[0]), dtype=np.float)
+    prominences = np.zeros((no_of_disks, merged_peaks.shape[0]), dtype=np.float64)
 
     for kk in range(no_of_disks):
         scan_LSB = LSB_ROI[:, :, kk]
@@ -1779,7 +1779,7 @@ def strain_figure(
     """
 
     def ROI_RdBu_map(valmap, roi, valrange):
-        plot_col = np.zeros((256, 3), dtype=np.float)
+        plot_col = np.zeros((256, 3), dtype=np.float64)
         for ii in range(255):
             plot_col[ii, 0:3] = np.asarray(mpl.cm.RdBu_r(ii)[0:3])
         map_col = np.zeros((valmap.shape[0], valmap.shape[1], 3))
@@ -1881,7 +1881,7 @@ def strain_figure(
         ax4.add_artist(scalebar)
     ax4.axis("off")
 
-    sb = np.zeros((10, 1000), dtype=np.float)
+    sb = np.zeros((10, 1000), dtype=np.float64)
     for ii in range(10):
         sb[ii, :] = np.linspace(-vm, vm, 1000)
     ax5.imshow(sb, cmap="RdBu_r")

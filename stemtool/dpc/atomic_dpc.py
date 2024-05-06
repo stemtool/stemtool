@@ -204,8 +204,8 @@ class atomic_dpc(object):
         yy, xx = np.mgrid[0 : self.data_4D.shape[0], 0 : self.data_4D.shape[1]]
         yy = np.ravel(yy)
         xx = np.ravel(xx)
-        self.YCom = np.empty(self.data_4D.shape[0:2], dtype=np.float)
-        self.XCom = np.empty(self.data_4D.shape[0:2], dtype=np.float)
+        self.YCom = np.empty(self.data_4D.shape[0:2], dtype=np.float64)
+        self.XCom = np.empty(self.data_4D.shape[0:2], dtype=np.float64)
         for ii in range(len(yy)):
             pattern = self.data_4D[yy[ii], xx[ii], :, :]
             self.YCom[yy[ii], xx[ii]] = self.inverse * (
@@ -262,7 +262,7 @@ class atomic_dpc(object):
         ax2.add_artist(at)
         ax2.axis("off")
 
-        sb = np.zeros((10, 1000), dtype=np.float)
+        sb = np.zeros((10, 1000), dtype=np.float64)
         for ii in range(10):
             sb[ii, :] = np.linspace(-vm, vm, 1000)
         ax3.imshow(sb, cmap="RdBu_r")
@@ -368,7 +368,7 @@ class atomic_dpc(object):
         ax2.add_artist(at)
         ax2.axis("off")
 
-        sb = np.zeros((10, 1000), dtype=np.float)
+        sb = np.zeros((10, 1000), dtype=np.float64)
         for ii in range(10):
             sb[ii, :] = np.linspace(-vm, vm, 1000)
         ax3.imshow(sb, cmap="RdBu_r")
@@ -429,7 +429,7 @@ class atomic_dpc(object):
         at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
         ax1.add_artist(at)
 
-        sb = np.zeros((10, 1000), dtype=np.float)
+        sb = np.zeros((10, 1000), dtype=np.float64)
         for ii in range(10):
             sb[ii, :] = np.linspace(cm / self.e_charge, -(cm / self.e_charge), 1000)
         ax2.imshow(sb, cmap="RdBu_r")
@@ -492,7 +492,7 @@ class atomic_dpc(object):
         at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
         ax1.add_artist(at)
 
-        sb = np.zeros((10, 1000), dtype=np.float)
+        sb = np.zeros((10, 1000), dtype=np.float64)
         for ii in range(10):
             sb[ii, :] = np.linspace(-pm, pm, 1000)
         ax2.imshow(sb, cmap="RdBu_r")

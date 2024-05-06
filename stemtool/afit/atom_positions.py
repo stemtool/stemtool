@@ -65,7 +65,7 @@ def peaks_vis(data_image, dist=10, thresh=0.1, imsize=(20, 20)):
     data_image = (data_image - np.amin(data_image)) / (
         np.amax(data_image) - np.amin(data_image)
     )
-    thresh_arr = np.array(data_image > thresh, dtype=np.float)
+    thresh_arr = np.array(data_image > thresh, dtype=np.float64)
     data_thresh = (data_image * thresh_arr) - thresh
     data_thresh[data_thresh < 0] = 0
     data_thresh = data_thresh / (1 - thresh)
@@ -109,13 +109,13 @@ def refine_atoms(image_data, positions):
     """
     warnings.filterwarnings("ignore")
     no_pos = len(positions)
-    dist = np.empty(no_pos, dtype=np.float)
-    ccd = np.empty(no_pos, dtype=np.float)
+    dist = np.empty(no_pos, dtype=np.float64)
+    ccd = np.empty(no_pos, dtype=np.float64)
     for ii in trange(no_pos):
         ccd = np.sum(((positions[:, 0:2] - positions[ii, 0:2]) ** 2), axis=1)
         dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
     med_dist = 0.5 * np.median(dist)
-    ref_arr = np.empty((no_pos, 7), dtype=np.float)
+    ref_arr = np.empty((no_pos, 7), dtype=np.float64)
     for ii in trange(no_pos):
         pos_x = positions[ii, 1]
         pos_y = positions[ii, 0]
@@ -184,10 +184,10 @@ def mpfit(
         ccd = np.sum(((initial_peaks[:, 0:2] - initial_peaks[ii, 0:2]) ** 2), axis=1)
         dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
     med_dist = np.median(dist)
-    mpfit_peaks = np.zeros_like(initial_peaks, dtype=np.float)
+    mpfit_peaks = np.zeros_like(initial_peaks, dtype=np.float64)
     yy, xx = np.mgrid[0 : main_image.shape[0], 0 : main_image.shape[1]]
-    cvals = np.zeros((peak_runs, 4), dtype=np.float)
-    peak_vals = np.zeros((len(initial_peaks), peak_runs, 4), dtype=np.float)
+    cvals = np.zeros((peak_runs, 4), dtype=np.float64)
+    peak_vals = np.zeros((len(initial_peaks), peak_runs, 4), dtype=np.float64)
     for jj in np.arange(len(initial_peaks)):
         ystart = initial_peaks[jj, 0]
         xstart = initial_peaks[jj, 1]
@@ -314,7 +314,7 @@ def mpfit_voronoi(
         ccd = np.sum(((initial_peaks[:, 0:2] - initial_peaks[ii, 0:2]) ** 2), axis=1)
         distm[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
     med_dist = np.median(distm)
-    mpfit_peaks = np.zeros_like(initial_peaks, dtype=np.float)
+    mpfit_peaks = np.zeros_like(initial_peaks, dtype=np.float64)
     yy, xx = np.mgrid[0 : main_image.shape[0], 0 : main_image.shape[1]]
     cutoff = med_dist * 2.5
     for jj in np.arange(len(initial_peaks)):
@@ -343,7 +343,7 @@ def mpfit_voronoi(
         vor_dist = np.amax((((xvor - xpos) ** 2) + ((yvor - ypos) ** 2)) ** 0.5)
         zcalc = np.zeros_like(zvor)
         xy = (xvor, yvor)
-        cvals = np.zeros((peak_runs, 4), dtype=np.float)
+        cvals = np.zeros((peak_runs, 4), dtype=np.float64)
         for ii in np.arange(peak_runs):
             zvor = zvor - zcalc
             zgaus = (zvor - np.amin(zvor)) / (np.amax(zvor) - np.amin(zvor))
@@ -828,8 +828,8 @@ def create_circmask(image, center, radius, g_val=3, flip=True):
 def med_dist(positions):
     warnings.filterwarnings("ignore")
     no_pos = len(positions)
-    dist = np.empty(no_pos, dtype=np.float)
-    ccd = np.empty(no_pos, dtype=np.float)
+    dist = np.empty(no_pos, dtype=np.float64)
+    ccd = np.empty(no_pos, dtype=np.float64)
     for ii in np.arange(no_pos):
         ccd = np.sum(((positions[:, 0:2] - positions[ii, 0:2]) ** 2), axis=1)
         dist[ii] = (np.amin(ccd[ccd > 0])) ** 0.5
@@ -1088,7 +1088,7 @@ class atom_fit(object):
             data_peaks, peak_labels, range(1, np.max(peak_labels) + 1)
         )
         peaks = np.array(merged_peaks)
-        self.peaks = (st.afit.remove_close_vals(peaks, pixel_dist)).astype(np.float)
+        self.peaks = (st.afit.remove_close_vals(peaks, pixel_dist)).astype(np.float64)
         spot_size = int(0.5 * np.mean(np.asarray(imsize)))
         plt.figure(figsize=imsize)
         plt.imshow(self.imfilt, cmap="magma")
@@ -1107,7 +1107,7 @@ class atom_fit(object):
         test = int(len(self.peaks) / 50)
         st.afit.med_dist(self.peaks[0:test, :])
         md = st.afit.med_dist(self.peaks)
-        refined_peaks = np.empty((len(self.peaks), 7), dtype=np.float)
+        refined_peaks = np.empty((len(self.peaks), 7), dtype=np.float64)
 
         # Run once on a smaller dataset to initialize JIT
         st.afit.refine_atoms(

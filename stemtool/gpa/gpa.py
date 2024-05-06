@@ -220,7 +220,7 @@ def phase_matrix(gvec, image, circ_size=0, g_blur=True):
         zz = (
             ((yy[circ_mask] - circ_pos[1]) ** 2) + ((xx[circ_mask] - circ_pos[0]) ** 2)
         ) / sigma2
-        four_mask = np.zeros_like(yy, dtype=np.float)
+        four_mask = np.zeros_like(yy, dtype=np.float64)
         four_mask[circ_mask] = np.exp((-0.5) * zz)
         P_matrix = np.angle(
             np.fft.ifft2(four_mask * np.fft.fftshift(np.fft.fft2(image * ham)))
@@ -269,7 +269,7 @@ def strain_P(P_1, P_2, a_matrix):
     yy, xx = np.mgrid[0 : P_shape[0], 0 : P_shape[1]]
     yy = np.ravel(yy)
     xx = np.ravel(xx)
-    P_mat = np.zeros((2, 2), dtype=np.float)
+    P_mat = np.zeros((2, 2), dtype=np.float64)
     e_xx = np.zeros_like(P_1)
     e_xy = np.zeros_like(P_1)
     e_yx = np.zeros_like(P_1)
@@ -827,7 +827,7 @@ class GPA(object):
         ax4.add_artist(at)
         ax4.axis("off")
 
-        sb = np.zeros((10, 1000), dtype=np.float)
+        sb = np.zeros((10, 1000), dtype=np.float64)
         for ii in range(10):
             sb[ii, :] = np.linspace(-vm, vm, 1000)
         ax5.imshow(sb, cmap="RdBu_r")

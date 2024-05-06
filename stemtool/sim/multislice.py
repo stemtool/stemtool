@@ -293,7 +293,7 @@ def find_uc_pos(atom_pos, cell_dim):
 
 
 def miller_inverse(miller):
-    miller_inv = np.empty_like(miller, dtype=np.float)
+    miller_inv = np.empty_like(miller, dtype=np.float64)
     miller_inv[miller == 0] = 0
     miller_inv[miller != 0] = 1 / miller[miller != 0]
     return miller_inv

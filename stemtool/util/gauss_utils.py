@@ -102,7 +102,7 @@ def gauss2D(im_size, x0, y0, theta, sigma_x, sigma_y, amplitude):
     Debangshu Mukherjee <mukherjeed@ornl.gov>
     """
     yr, xr = np.mgrid[0 : im_size[0], 0 : im_size[1]]
-    gauss2D = np.zeros(yr, dtype=np.float)
+    gauss2D = np.zeros(yr, dtype=np.float64)
     x = xr - x0
     y = yr - y0
     term_1 = (((np.cos(theta)) ** 2) / (2 * (sigma_x**2))) + (
@@ -407,8 +407,8 @@ def fit_gaussian1D_mask(signal, position, mask_width, center_type="COM"):
     """
     xV = np.arange(np.len(signal))
     sub = np.abs(xV - position) < mask_width
-    x_pos = np.asarray(xV[sub], dtype=np.float)
-    masked_signal = np.asarray(signal[sub], dtype=np.float)
+    x_pos = np.asarray(xV[sub], dtype=np.float64)
+    masked_signal = np.asarray(signal[sub], dtype=np.float64)
     mi_min = np.amin(masked_signal)
     mi_max = np.amax(masked_signal)
     if center_type == "minima":
