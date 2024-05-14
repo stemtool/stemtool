@@ -14,6 +14,9 @@ import dask
 import dask.array as da
 import dask.distributed as dd
 import warnings
+from typing import Tuple, Dict, Any, Union, List
+from nptyping import NDArray, Float, Complex, Shape, Bool, Int
+from tqdm.auto import trange
 
 
 def rotation_finder(image_orig, axis=0):
@@ -196,45 +199,49 @@ def resizer2D(data2D, sampling):
     return resampled_f
 
 
-def bin4D(data4D, bin_factor):
+def bin4D(
+    data4D: NDArray[Shape["*, *, *, *"], Any], 
+    bin_factor: Union[Float, Int], 
+    real_firstdims: Bool = True
+) -> NDArray[Shape["*, *, *, *"], Any]:
     """
     Bin 4D data in spectral dimensions
+    
+    Args:
+        - data4D (ndarray):
+            A 4D array of integer or floating-point numbers representing the input
+            data. 
+        - bin_factor (int or float):
+            Value by which to bin data
+        - real_firstdims (bool, optional):
+            A boolean value indicating whether the first two dimensions of the
+            input data represent real values. Default is True.
 
-    Parameters
-    ----------
-    data4D:     ndarray of shape (4,4)
-                the first two dimensions are Fourier
-                space, while the next two dimensions
-                are real space
-    bin_factor: int
-                Value by which to bin data
-
-    Returns
-    -------
-    binned_data: ndarray of shape (4,4)
-                 Data binned in the spectral dimensions
+    Returns:
+        - binned_data (ndarray):
+            Data binned in the spectral dimensions
 
     """
-    data4D_flat = np.reshape(
-        data4D, (data4D.shape[0], data4D.shape[1], data4D.shape[2] * data4D.shape[3])
-    )
-    datashape = np.asarray(data4D_flat.shape)
-    res_shape = np.copy(datashape)
-    res_shape[0:2] = np.round(datashape[0:2] / bin_factor)
-    data4D_res = np.zeros(res_shape.astype(int), dtype=data4D_flat.dtype)
-    resampled_x = np.zeros((datashape[0], res_shape[1]), data4D_flat.dtype)
-    resampled_f = np.zeros(res_shape[0:2], dtype=data4D_flat.dtype)
-    for zz in range(data4D_flat.shape[-1]):
-        data4D_res[:, :, zz] = resizer2D(
-            data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor
+    if len(data4D.shape) != 4:
+        raise ValueError("Input data should be a 4D array.")
+    if real_firstdims:
+        data3D: NDArray[Shape["*, *, *"], Any] = data4D.reshape(
+            -1, data4D.shape[2], data4D.shape[3]
         )
-        data4D_res[:, :, zz] = resizer2D_opt(
-            data4D_flat[:, :, zz], resampled_x, resampled_f, bin_factor
+    else:
+        data3D: NDArray[Shape["*, *, *"], Any] = data4D.reshape(
+            data4D.shape[0], data4D.shape[1], -1
         )
-    binned_data = np.reshape(
-        data4D_res,
-        (resampled_f.shape[0], resampled_f.shape[1], data4D.shape[2], data4D.shape[3]),
-    )
+        data3D: NDArray[Shape["*, *, *"], Float] = np.moveaxis(data3D, [0, 1, 2], [1, 2, 0])
+    data3D_res: List = []
+    for zz in trange(data3D.shape[0]):
+        data3D_res.append(st.util.fast_resizer(data3D[zz, :, :], bin_factor))
+    data3D_res: NDArray[Shape["*, *, *"], Any] = np.asarray(data3D_res)
+    binned_data: NDArray[Shape["*, *, *, *"], Any]
+    if real_firstdims:
+        binned_data = data4D.reshape(data4D.shape[0], data4D.shape[1], data3D_res.shape[1], data3D_res.shape[2])
+    else:
+        binned_data = (np.moveaxis(data3D_res, [0, 1, 2], [1, 2, 0])).reshape( data3D_res.shape[1], data3D_res.shape[2], data4D.shape[2], data4D.shape[3])
     return binned_data
 
 

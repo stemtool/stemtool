@@ -8,6 +8,79 @@ import scipy.optimize as spo
 import scipy.ndimage as scnd
 import skimage.color as skc
 import stemtool as st
+from typing import Tuple, Union, NamedTuple, Any, List
+from nptyping import NDArray, Shape, Int, Float, Bool, Object
+
+def fast_resizer(
+    orig_image: NDArray[Shape["*, *"], Any],
+    new_sampling: Union[Float, Tuple[Float, Float], NDArray[Shape["1, 2"], Float]],
+) -> NDArray[Shape["*, *"], Any]:
+    """
+    Resize an image using a fast resizing algorithm.
+
+    Args:
+        orig_image (ndarray):
+            The original image to be resized. It should be a 2D NumPy array.
+        new_sampling (float or tuple):
+            The new sampling rate for resizing the image. It can be a single
+            float value or a tuple of two float values representing the sampling
+            rates for the x and y axes respectively.
+
+    Returns:
+        ndarray:
+            The resized image with the same data type as the original image.
+    """
+
+    def resize_y(
+        y_image: NDArray[Shape["*, *"], Float], new_y_len: Int
+    ) -> NDArray[Shape["new_y_len, *"], Float]:
+        """
+        Resize the image along the y-axis.
+
+        Args:
+            y_image (ndarray):
+                The image to be resized along the y-axis.
+            new_y_len (int):
+                The new length of the y-axis.
+
+        Returns:
+            ndarray:
+                The resized image along the y-axis.
+        """
+        orig_y_len: Int = y_image.shape[0]
+        res_y_image: NDArray[Shape["new_y_len, *"], Float] = np.zeros(
+            (new_y_len, y_image.shape[1]), dtype=np.float64
+        )
+        carry_array: NDArray[Shape["*"], Float] = np.zeros(
+            y_image.shape[1], dtype=np.float64
+        )
+        m: Int = 0
+        for nn in range(new_y_len):
+            data_sum: NDArray[Shape["*"], Float] = np.copy(carry_array)
+            while ((m * new_y_len) - (nn * orig_y_len)) < orig_y_len:
+                data_sum = data_sum + y_image[m, :]
+                m += 1
+            carry_array = (m - (nn + 1) * orig_y_len / new_y_len) * y_image[m - 1, :]
+            data_sum = data_sum - carry_array
+            res_y_image[nn, :] = (data_sum * new_y_len) / orig_y_len
+        return res_y_image
+
+    if np.logical_not(hasattr(new_sampling, "__len__")):
+        new_sampling = np.asarray((new_sampling, new_sampling), dtype=np.float64)
+    else:
+        new_sampling = np.asarray(new_sampling, dtype=np.float64)
+    float_image: NDArray[Shape["*, *"], Float] = orig_image.astype(np.float64)
+    resampled_in_y = resize_y(
+        float_image, int(np.round(float_image.shape[0] / new_sampling[0]))
+    )
+    swapped_image = np.swapaxes(resampled_in_y, 0, 1)
+    resampled_swapped = resize_y(
+        swapped_image, int(np.round(swapped_image.shape[0] / new_sampling[1]))
+    )
+    resampled_image = np.swapaxes(resampled_swapped, 0, 1)
+    if orig_image.dtype == bool:
+        resampled_image[resampled_image > 1] = 1
+    return resampled_image.astype(orig_image.dtype)
 
 
 def move_by_phase(image_to_move, x_pixels, y_pixels):
