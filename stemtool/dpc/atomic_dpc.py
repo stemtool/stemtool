@@ -123,8 +123,8 @@ class atomic_dpc(object):
         c = 299792458
         self.sigma = (
             (2 * np.pi / (self.wavelength * self.voltage))
-            * ((e_mass * (c ** 2)) + (self.e_charge * self.voltage))
-        ) / ((2 * e_mass * (c ** 2)) + (self.e_charge * self.voltage))
+            * ((e_mass * (c**2)) + (self.e_charge * self.voltage))
+        ) / ((2 * e_mass * (c**2)) + (self.e_charge * self.voltage))
 
     def show_ADF_BF(self, imsize=(20, 10)):
         """
@@ -219,7 +219,7 @@ class atomic_dpc(object):
             self.XCom = self.XCom - np.mean(self.XCom)
 
         vm = (np.amax(np.abs(np.concatenate((self.XCom, self.YCom), axis=1)))) / (
-            10 ** 9
+            10**9
         )
         fontsize = int(0.9 * np.amax(np.asarray(imsize)))
         sc_font = {"weight": "bold", "size": fontsize}
@@ -230,7 +230,7 @@ class atomic_dpc(object):
         ax2 = plt.subplot(gs[0:15, 15:30])
         ax3 = plt.subplot(gs[15:17, :])
 
-        ax1.imshow(self.XCom / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax1.imshow(self.XCom / (10**9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -246,7 +246,7 @@ class atomic_dpc(object):
         ax1.add_artist(at)
         ax1.axis("off")
 
-        ax2.imshow(self.YCom / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax2.imshow(self.YCom / (10**9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -324,7 +324,7 @@ class atomic_dpc(object):
         )
 
         vm = (np.amax(np.abs(np.concatenate((self.XComC, self.YComC), axis=1)))) / (
-            10 ** 9
+            10**9
         )
         fontsize = int(0.9 * np.max(imsize))
         sc_font = {"weight": "bold", "size": fontsize}
@@ -336,7 +336,7 @@ class atomic_dpc(object):
         ax2 = plt.subplot(gs[0:15, 15:30])
         ax3 = plt.subplot(gs[15:17, :])
 
-        ax1.imshow(self.XComC / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax1.imshow(self.XComC / (10**9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -352,7 +352,7 @@ class atomic_dpc(object):
         ax1.add_artist(at)
         ax1.axis("off")
 
-        ax2.imshow(self.YComC / (10 ** 9), vmin=-vm, vmax=vm, cmap="RdBu_r")
+        ax2.imshow(self.YComC / (10**9), vmin=-vm, vmax=vm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1
@@ -467,7 +467,7 @@ class atomic_dpc(object):
         )
         self.potential = self.phase / self.sigma
 
-        pm = np.amax(np.abs(self.potential)) * (10 ** 10)
+        pm = np.amax(np.abs(self.potential)) * (10**10)
         plt.figure(figsize=imsize)
         fontsize = int(0.9 * np.max(imsize))
         sc_font = {"weight": "bold", "size": fontsize}
@@ -476,7 +476,7 @@ class atomic_dpc(object):
         ax1 = plt.subplot(gs[0:15, 0:15])
         ax2 = plt.subplot(gs[15:17, :])
 
-        ax1.imshow(self.potential * (10 ** 10), vmin=-pm, vmax=pm, cmap="RdBu_r")
+        ax1.imshow(self.potential * (10**10), vmin=-pm, vmax=pm, cmap="RdBu_r")
         scalebar = mpss.ScaleBar(self.calib / 1000, "nm")
         scalebar.location = "lower right"
         scalebar.box_alpha = 1

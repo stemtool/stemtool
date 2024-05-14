@@ -30,9 +30,9 @@ def wavelength_ang(voltage_kV):
     c = 299792458  # speed of light
     h = 6.62607 * (10 ** (-34))  # Planck's constant
     voltage = voltage_kV * 1000
-    numerator = (h ** 2) * (c ** 2)
-    denominator = (e * voltage) * ((2 * m * (c ** 2)) + (e * voltage))
-    wavelength_ang = (10 ** 10) * ((numerator / denominator) ** 0.5)  # in angstroms
+    numerator = (h**2) * (c**2)
+    denominator = (e * voltage) * ((2 * m * (c**2)) + (e * voltage))
+    wavelength_ang = (10**10) * ((numerator / denominator) ** 0.5)  # in angstroms
     return wavelength_ang
 
 
@@ -63,11 +63,11 @@ def transmission_func(pot_slice, voltage_kV):
     e_e = 1.602177 * (10 ** (-19))  # electron charge
     c = 299792458  # speed of light
     h = 6.62607 * (10 ** (-34))  # planck's constant
-    numerator = (h ** 2) * (c ** 2)
+    numerator = (h**2) * (c**2)
     denominator = (e_e * voltage_kV * 1000) * (
-        (2 * m_e * (c ** 2)) + (e_e * voltage_kV * 1000)
+        (2 * m_e * (c**2)) + (e_e * voltage_kV * 1000)
     )
-    wavelength_ang = (10 ** 10) * (
+    wavelength_ang = (10**10) * (
         (numerator / denominator) ** 0.5
     )  # wavelength in angstroms
     sigma = (
@@ -126,7 +126,7 @@ def FourierCoords(calibration, sizebeam):
     Lx = np.roll(qx, shifter)
     Lya, Lxa = np.meshgrid(Lx, Lx)
     L2 = np.multiply(Lxa, Lxa) + np.multiply(Lya, Lya)
-    L1 = L2 ** 0.5
+    L1 = L2**0.5
     dL = Lx[1] - Lx[0]
     return dL, L1
 
@@ -167,7 +167,7 @@ def make_probe(aperture, voltage, image_size, calibration_pm, defocus=0, c3=0, c
     Ly = np.roll(qy, y_shifter)
     Lya, Lxa = np.meshgrid(Lx, Ly)
     L2 = np.multiply(Lxa, Lxa) + np.multiply(Lya, Lya)
-    inverse_real_matrix = L2 ** 0.5
+    inverse_real_matrix = L2**0.5
     fourier_scan_coordinate = Lx[1] - Lx[0]
     Adist = np.asarray(inverse_real_matrix <= LMax, dtype=complex)
     chi_probe = aberration(inverse_real_matrix, wavelength, defocus, c3, c5)
@@ -235,8 +235,8 @@ def atomic_potential(
     """
     a0 = 0.5292
     ek = 14.4
-    term1 = 4 * (np.pi ** 2) * a0 * ek
-    term2 = 2 * (np.pi ** 2) * a0 * ek
+    term1 = 4 * (np.pi**2) * a0 * ek
+    term2 = 2 * (np.pi**2) * a0 * ek
     kirkland = np.load(datafile)
     xsub = np.arange(-potential_extent, potential_extent, (pixel_size / sampling))
     ysub = np.arange(-potential_extent, potential_extent, (pixel_size / sampling))
@@ -262,9 +262,9 @@ def atomic_potential(
         )
     )
     part2 = term2 * (
-        (kirk_fun[6] / kirk_fun[7]) * np.exp(-((np.pi ** 2) / kirk_fun[7]) * r2)
-        + (kirk_fun[8] / kirk_fun[9]) * np.exp(-((np.pi ** 2) / kirk_fun[9]) * r2)
-        + (kirk_fun[10] / kirk_fun[11]) * np.exp(-((np.pi ** 2) / kirk_fun[11]) * r2)
+        (kirk_fun[6] / kirk_fun[7]) * np.exp(-((np.pi**2) / kirk_fun[7]) * r2)
+        + (kirk_fun[8] / kirk_fun[9]) * np.exp(-((np.pi**2) / kirk_fun[9]) * r2)
+        + (kirk_fun[10] / kirk_fun[11]) * np.exp(-((np.pi**2) / kirk_fun[11]) * r2)
     )
     sspot = part1 + part2
     finalsize = (np.asarray(sspot.shape) / sampling).astype(int)
@@ -380,7 +380,7 @@ def annular_stem(probe, trans_array, prop, pos, coll_angles, pixel_size, voltage
     [fmesh_x, fmesh_y] = np.meshgrid(fcal_x, fcal_y)
     mmesh_x = ((-2) * np.pi * 1j * fmesh_x).astype(np.complex64)
     mmesh_y = ((-2) * np.pi * 1j * fmesh_y).astype(np.complex64)
-    fmesh_r = (((fmesh_x ** 2) + (fmesh_y ** 2)) ** 0.5) / pixel_size
+    fmesh_r = (((fmesh_x**2) + (fmesh_y**2)) ** 0.5) / pixel_size
     radians_r = fmesh_r * st.sim.wavelength_ang(voltage_kv)
     detectors = np.zeros(
         (radians_r.shape[0], radians_r.shape[1], coll_angles.shape[0]), dtype=bool

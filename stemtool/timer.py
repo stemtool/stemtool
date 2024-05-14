@@ -15,6 +15,7 @@ def TicTocGenerator():
 
 TicToc = TicTocGenerator()  # create an instance of the TicTocGen generator
 
+
 # This will be the main function through which we define both tic() and toc()
 def toc(tempBool=True):
     """

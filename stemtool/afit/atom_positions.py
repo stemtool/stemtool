@@ -325,7 +325,7 @@ def mpfit_voronoi(
         distn = dist < cutoff
         distn[dist < 0.1] = False
         neigh = initial_peaks[distn, 0:2]
-        sub = (((yy - ypos) ** 2) + ((xx - xpos) ** 2)) < (cutoff ** 2)
+        sub = (((yy - ypos) ** 2) + ((xx - xpos) ** 2)) < (cutoff**2)
         xvals = xx[sub]
         yvals = yy[sub]
         zvals = main_image[sub]
@@ -837,7 +837,6 @@ def med_dist(positions):
     return med_dist
 
 
-
 def refine_atoms(image_data, positions, ref_arr, med_dist):
     for ii in np.arange(len(positions)):
         pos_x = positions[ii, 1]
@@ -984,29 +983,29 @@ class atom_fit(object):
         angAABB = np.arccos(
             np.sum(ptAA * ptBB, axis=1)
             / (
-                ((np.sum(ptAA ** 2, axis=1)) ** 0.5)
-                * ((np.sum(ptBB ** 2, axis=1)) ** 0.5)
+                ((np.sum(ptAA**2, axis=1)) ** 0.5)
+                * ((np.sum(ptBB**2, axis=1)) ** 0.5)
             )
         )
         angBBCC = np.arccos(
             np.sum(ptBB * ptCC, axis=1)
             / (
-                ((np.sum(ptBB ** 2, axis=1)) ** 0.5)
-                * ((np.sum(ptCC ** 2, axis=1)) ** 0.5)
+                ((np.sum(ptBB**2, axis=1)) ** 0.5)
+                * ((np.sum(ptCC**2, axis=1)) ** 0.5)
             )
         )
         angCCDD = np.arccos(
             np.sum(ptCC * ptDD, axis=1)
             / (
-                ((np.sum(ptCC ** 2, axis=1)) ** 0.5)
-                * ((np.sum(ptDD ** 2, axis=1)) ** 0.5)
+                ((np.sum(ptCC**2, axis=1)) ** 0.5)
+                * ((np.sum(ptDD**2, axis=1)) ** 0.5)
             )
         )
         angDDAA = np.arccos(
             np.sum(ptDD * ptAA, axis=1)
             / (
-                ((np.sum(ptDD ** 2, axis=1)) ** 0.5)
-                * ((np.sum(ptAA ** 2, axis=1)) ** 0.5)
+                ((np.sum(ptDD**2, axis=1)) ** 0.5)
+                * ((np.sum(ptAA**2, axis=1)) ** 0.5)
             )
         )
         angsum = ((angAABB + angBBCC + angCCDD + angDDAA) / (2 * np.pi)).reshape(

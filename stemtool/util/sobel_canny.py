@@ -376,8 +376,12 @@ class Canny(object):
         self.cannyEdge = np.copy(self.residual)
 
         # run edge_joiner on full dataset, twice
-        self.cannyEdge = st.util.edge_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
-        self.cannyEdge = st.util.edge_joiner(edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower)
+        self.cannyEdge = st.util.edge_joiner(
+            edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower
+        )
+        self.cannyEdge = st.util.edge_joiner(
+            edge_pos, self.cannyEdge, self.thresh_upper, self.thresh_lower
+        )
         if self.plot_steps:
             plt.figure(figsize=(10, 10))
             plt.imshow(self.cannyEdge)

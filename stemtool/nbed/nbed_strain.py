@@ -101,27 +101,36 @@ def rotate_and_center_ROI(data4D_ROI, rotangle, xcenter, ycenter):
     return corrected_ROI
 
 
-def data4Dto2D(data4D):
+def data4Dto2D(
+    data4D: NDArray[Shape["*, *, *, *"], Any], real_firstdims: Bool = True
+) -> NDArray[Shape["*, *"], Any]:
     """
     Convert 4D data to 2D data
 
-    Parameters
-    ----------
-    data4D: ndarray of shape (4,4)
-            the first two dimensions are Fourier
-            space, while the next two dimensions
-            are real space
+    Args:
+        - data4D (ndarray):
+            A 4D array of integer or floating-point numbers representing the input
+            data.
+        - real_firstdims (bool, optional):
+            A boolean value indicating whether the first two dimensions of the
+            input data represent real values. Default is True.
 
-    Returns
-    -------
-    data2D: ndarray of shape (2,2)
-            Raveled 2D data where the
-            first two dimensions are positions
-            while the next two dimensions are spectra
+    Returns:
+        - data2D (ndarray):
+            Raveled 2D data, where the first axis is always the reals space axis
+            and the second axis is the spectral axis.
     """
-    data2D = np.transpose(data4D, (2, 3, 0, 1))
-    data_shape = data2D.shape
-    data2D.shape = (data_shape[0] * data_shape[1], data_shape[2] * data_shape[3])
+    if len(data4D.shape) != 4:
+        raise ValueError("Input data should be a 4D array.")
+    data3D: NDArray[Shape["*, *, *"], Any]
+    data2D: NDArray[Shape["*, *"], Any]
+    if real_firstdims:
+        data3D = data4D.reshape(-1, data4D.shape[2], data4D.shape[3])
+        data2D = data3D.reshape(data3D.shape[0], -1)
+    else:
+        data3D = data4D.reshape(data4D.shape[0], data4D.shape[1], -1)
+        data3D = np.moveaxis(data3D, [0, 1, 2], [1, 2, 0])
+        data2D = data3D.reshape(data3D.shape[0], -1)
     return data2D
 
 
@@ -200,17 +209,17 @@ def resizer2D(data2D, sampling):
 
 
 def bin4D(
-    data4D: NDArray[Shape["*, *, *, *"], Any], 
-    bin_factor: Union[Float, Int], 
-    real_firstdims: Bool = True
+    data4D: NDArray[Shape["*, *, *, *"], Any],
+    bin_factor: Union[Float, Int],
+    real_firstdims: Bool = True,
 ) -> NDArray[Shape["*, *, *, *"], Any]:
     """
     Bin 4D data in spectral dimensions
-    
+
     Args:
         - data4D (ndarray):
             A 4D array of integer or floating-point numbers representing the input
-            data. 
+            data.
         - bin_factor (int or float):
             Value by which to bin data
         - real_firstdims (bool, optional):
@@ -224,24 +233,38 @@ def bin4D(
     """
     if len(data4D.shape) != 4:
         raise ValueError("Input data should be a 4D array.")
+    data3D: NDArray[Shape["*, *, *"], Float]
     if real_firstdims:
-        data3D: NDArray[Shape["*, *, *"], Any] = data4D.reshape(
-            -1, data4D.shape[2], data4D.shape[3]
-        )
+        data3D = data4D.reshape(-1, data4D.shape[2], data4D.shape[3])
     else:
-        data3D: NDArray[Shape["*, *, *"], Any] = data4D.reshape(
-            data4D.shape[0], data4D.shape[1], -1
-        )
-        data3D: NDArray[Shape["*, *, *"], Float] = np.moveaxis(data3D, [0, 1, 2], [1, 2, 0])
+        data3D = data4D.reshape(data4D.shape[0], data4D.shape[1], -1)
+        data3D = np.moveaxis(data3D, [0, 1, 2], [1, 2, 0])
     data3D_res: List = []
     for zz in trange(data3D.shape[0]):
         data3D_res.append(st.util.fast_resizer(data3D[zz, :, :], bin_factor))
     data3D_res: NDArray[Shape["*, *, *"], Any] = np.asarray(data3D_res)
     binned_data: NDArray[Shape["*, *, *, *"], Any]
     if real_firstdims:
-        binned_data = data4D.reshape(data4D.shape[0], data4D.shape[1], data3D_res.shape[1], data3D_res.shape[2])
+        binned_data = np.reshape(
+            data3D_res,
+            (
+                data4D.shape[0], 
+                data4D.shape[1], 
+                data3D_res.shape[1], 
+                data3D_res.shape[2]
+            ),
+        )
     else:
-        binned_data = (np.moveaxis(data3D_res, [0, 1, 2], [1, 2, 0])).reshape( data3D_res.shape[1], data3D_res.shape[2], data4D.shape[2], data4D.shape[3])
+        data3D_res = np.moveaxis(data3D_res, [0, 1, 2], [2, 0, 1])
+        binned_data = np.reshape(
+            data3D_res,
+            (
+                data3D_res.shape[0],
+                data3D_res.shape[1],
+                data4D.shape[2],
+                data4D.shape[3],
+            ),
+        )
     return binned_data
 
 

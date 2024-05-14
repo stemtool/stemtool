@@ -14,7 +14,6 @@ import zarr
 from nptyping import Int
 
 
-
 class Frms6Reader(object):
     """This class allows to access frm6 files"""
 
@@ -560,7 +559,6 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
         pixels_y=dref_shape[1],
     )
 
-
     dark_data = da.from_delayed(dark_read, filesizes[ii, 0:3], np.float32)
     del ii
     mean_dark_ref = da.mean(dark_data, axis=-1)
@@ -635,12 +633,13 @@ def generate4D_frms6(data_dir, bin_factor=2, workers=0):
     print("Closing Dask")
     return data4D
 
+
 def frms6_to_zarr(
-    input_dir: str, 
-    output_loc: str, 
-    bin_factor: Int=2, 
-    workers: Int=0,
-    ):
+    input_dir: str,
+    output_loc: str,
+    bin_factor: Int = 2,
+    workers: Int = 0,
+):
     current_dir: str = os.getcwd()
     os.chdir(input_dir)
     data_class = st.util.Frms6Reader()
@@ -685,7 +684,6 @@ def frms6_to_zarr(
         pixels_x=dref_shape[0],
         pixels_y=dref_shape[1],
     )
-
 
     dark_data = da.from_delayed(dark_read, filesizes[ii, 0:3], np.float32)
     del ii

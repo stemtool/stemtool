@@ -90,9 +90,9 @@ import stemtool
 
 # -- Project information -----------------------------------------------------
 
-project = u"STEMTool"
-copyright = u"2021, Debangshu Mukherjee"
-author = u"Debangshu Mukherjee"
+project = "STEMTool"
+copyright = "2021, Debangshu Mukherjee"
+author = "Debangshu Mukherjee"
 master_doc = "index"
 
 # The full version, including alpha/beta/rc tags

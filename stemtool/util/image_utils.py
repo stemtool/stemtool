@@ -11,6 +11,7 @@ import stemtool as st
 from typing import Tuple, Union, NamedTuple, Any, List
 from nptyping import NDArray, Shape, Int, Float, Bool, Object
 
+
 def fast_resizer(
     orig_image: NDArray[Shape["*, *"], Any],
     new_sampling: Union[Float, Tuple[Float, Float], NDArray[Shape["1, 2"], Float]],
@@ -33,7 +34,7 @@ def fast_resizer(
 
     def resize_y(
         y_image: NDArray[Shape["*, *"], Float], new_y_len: Int
-    ) -> NDArray[Shape["new_y_len, *"], Float]:
+    ) -> NDArray[Shape["*, *"], Float]:
         """
         Resize the image along the y-axis.
 
@@ -48,7 +49,7 @@ def fast_resizer(
                 The resized image along the y-axis.
         """
         orig_y_len: Int = y_image.shape[0]
-        res_y_image: NDArray[Shape["new_y_len, *"], Float] = np.zeros(
+        res_y_image: NDArray[Shape["*, *"], Float] = np.zeros(
             (new_y_len, y_image.shape[1]), dtype=np.float64
         )
         carry_array: NDArray[Shape["*"], Float] = np.zeros(
@@ -632,7 +633,7 @@ def resizer(data, N):
 
     Notes
     -----
-    The data is resampled. 
+    The data is resampled.
 
     :Authors:
     Debangshu Mukherjee <mukherjeed@ornl.gov>

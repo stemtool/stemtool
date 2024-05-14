@@ -162,7 +162,9 @@ def integrate_dpc(
         dy[mask] -= yshift.ravel()
         dx[maskInv] = 0
         dy[maskInv] = 0
-        update += np.fft.irfft2(np.fft.rfft2(dx) * qxOperator + np.fft.rfft2(dy) * qyOperator)
+        update += np.fft.irfft2(
+            np.fft.rfft2(dx) * qxOperator + np.fft.rfft2(dy) * qyOperator
+        )
         padded_phase += scnd.gaussian_filter((stepsize * update), 1)
         dx = (
             np.roll(padded_phase, (-1, 0), axis=(0, 1))

@@ -215,9 +215,7 @@ class multi_image_drift(object):
         stack_corr(image_stack, moved_stack, row_stack, col_stack)
 
         # Run JITted code
-        stack_corr(
-            self.image_stack, self.moved_stack, self.row_stack, self.col_stack
-        )
+        stack_corr(self.image_stack, self.moved_stack, self.row_stack, self.col_stack)
         self.corr_image = np.sum(self.moved_stack, axis=0) / self.no_im
         return self.corr_image
 

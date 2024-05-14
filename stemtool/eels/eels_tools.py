@@ -88,7 +88,7 @@ def powerlaw_fit(xdata, ydata, xrange):
     ylog = np.log(ydata[start_val:stop_val][np.where(ydata[start_val:stop_val] > 0)])
     power, const = np.polyfit(xlog, ylog, 1)
     const = np.exp(const)
-    fitted = const * (xdata ** power)
+    fitted = const * (xdata**power)
     return fitted, power, const
 
 
@@ -109,7 +109,7 @@ def powerlaw_plot(
         xrange[1] = np.amax(xdata)
     fitted_data, power, const = powerlaw_fit(xdata, ydata, xrange)
     subtracted_data = ydata - fitted_data
-    yrange = const * (xrange ** power)
+    yrange = const * (xrange**power)
     zero_line = np.zeros(np.shape(xdata))
     if showdata:
         plt.figure(figsize=(32, 8))
@@ -181,7 +181,7 @@ def eels_3D(eels_dict, fit_range, peak_range, LBA_radius=3):
                 eels_data = eels_array[:, ii, jj]
                 fit_points = fit_range[qq, :]
                 peak_point = peak_range[qq, :]
-                lbi = ((yy - ii) ** 2) + ((xx - jj) ** 2) <= LBA_radius ** 2
+                lbi = ((yy - ii) ** 2) + ((xx - jj) ** 2) <= LBA_radius**2
                 eels_lbi = np.mean(eels_array[:, lbi], axis=-1)
                 bg, _, _ = powerlaw_fit(xdata, eels_lbi, fit_points)
                 subtracted_data = eels_data - bg
@@ -198,7 +198,7 @@ def eels_3D(eels_dict, fit_range, peak_range, LBA_radius=3):
 
 
 def lcpl(xx, c1, p1, c2, p2):
-    yy = (c1 * (xx ** p1)) + (c2 * (xx ** p2))
+    yy = (c1 * (xx**p1)) + (c2 * (xx**p2))
     return yy
 
 
@@ -271,7 +271,7 @@ def eels_3D_LCPL(eels_dict, fit_range, peak_range, LBA_radius=3, percentile=5):
                     (fit_points[1] - np.amin(xdata)) / (np.median(np.diff(xdata)))
                 )
 
-                lbi = (((yy - ii) ** 2) + ((xx - jj) ** 2)) <= (LBA_radius ** 2)
+                lbi = (((yy - ii) ** 2) + ((xx - jj) ** 2)) <= (LBA_radius**2)
                 eels_lbi = np.mean(eels_array[:, lbi], axis=-1)
                 popt, _ = spo.curve_fit(
                     lcpl,
