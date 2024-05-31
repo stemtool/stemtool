@@ -3,49 +3,55 @@ import scipy.signal as scisig
 import scipy.ndimage as scnd
 import stemtool as st
 import matplotlib.pyplot as plt
+from nptyping import Bool, Complex, Float, Int, NDArray, Shape
+from typing import Any, Dict, NamedTuple, Tuple, Union
 
 
-def sobel(im, order=3):
+def sobel(
+    image: NDArray[Shape["*, *,"], Any],
+    order: Int = 3,
+) -> NamedTuple:
     """
     Sobel Filter an Input Image
 
-    Parameters
-    ----------
-    im:    ndarray
-           the original input image to be filtered
-    order: int
-           3 is the default but if 5 is specified
-           then a 5x5 Sobel filter is run
+    Args:
+        - `image` (NDArray[Shape["*, *,"], Any]):
+            the original input image to be filtered
+        - `order` (Int):
+            3 is the default but if 5 is specified
+            then a 5x5 Sobel filter is run
 
-    Returns
-    -------
-    mag: ndarray
-         Sobel Filter Magnitude
-    and: ndarray
-         Sobel Filter Angle
+    Returns:
+        (namedtuple):
+        A namedtuple containing the following fields:
+        - `magnitude` (NDArray[Shape["*, *,"], Float]):
+            Sobel Filter Magnitude
+        - `angle` (NDArray[Shape["*, *,"], Float]):
+            Sobel Filter Angle
 
-    Notes
-    -----
-    We define the two differentiation matrices - g_x and g_y
-    and then move along our dataset - to perform the matrix
-    operations on 5x5 or 3x3 sections of the input image. The
-    magnitude of the Sobel filtered image is the absolute
-    of the multiplied matrices - squared and summed and square
-    rooted.
+    Notes:
+        We define the two differentiation matrices - `g_x` and `g_y`
+        and then move along our dataset - to perform the matrix
+        operations on 5x5 or 3x3 sections of the input image. The
+        magnitude of the Sobel filtered image is the absolute
+        of the multiplied matrices - squared and summed and square
+        rooted.
 
-    References
-    ----------
-    .. [3] Sobel, I. and Feldman, G., 1968. A 3x3 isotropic gradient
-           operator for image processing. a talk at the Stanford
-           Artificial Project in, pp.271-272.
+    References:
+        Sobel, I. and Feldman, G., 1968. A 3x3 isotropic gradient
+        operator for image processing. a talk at the Stanford
+        Artificial Project in, pp.271-272.
 
     """
-    im = im.astype(np.float64)
     if order == 3:
-        k_x = np.asarray(((-1, 0, 1), (-2, 0, 2), (-1, 0, 1)), dtype=np.float64)
-        k_y = np.asarray(((-1, -2, -1), (0, 0, 0), (1, 2, 1)), dtype=np.float64)
+        k_x: NDArray[Shape["3, 3,"], Float] = np.asarray(
+            ((-1, 0, 1), (-2, 0, 2), (-1, 0, 1)), dtype=np.float64
+        )
+        k_y: NDArray[Shape["3, 3,"], Float] = np.asarray(
+            ((-1, -2, -1), (0, 0, 0), (1, 2, 1)), dtype=np.float64
+        )
     else:
-        k_x = np.asarray(
+        k_x: NDArray[Shape["5, 5,"], Float] = np.asarray(
             (
                 (-1, -2, 0, 2, 1),
                 (-4, -8, 0, 8, 4),
@@ -55,7 +61,7 @@ def sobel(im, order=3):
             ),
             dtype=np.float64,
         )
-        k_y = np.asarray(
+        k_y: NDArray[Shape["5, 5,"], Float] = np.asarray(
             (
                 (1, 4, 6, 4, 1),
                 (2, 8, 12, 8, 2),
@@ -65,11 +71,22 @@ def sobel(im, order=3):
             ),
             dtype=np.float64,
         )
-    g_x = scisig.convolve2d(im, k_x, mode="same", boundary="symm", fillvalue=0)
-    g_y = scisig.convolve2d(im, k_y, mode="same", boundary="symm", fillvalue=0)
-    mag = ((g_x**2) + (g_y**2)) ** 0.5
-    ang = np.arctan2(g_y, g_x)
-    return mag, ang
+    g_x: NDArray[Shape["*, *,"], Float] = scisig.convolve2d(
+        image.astype(np.float64), k_x, mode="same", boundary="symm", fillvalue=0
+    )
+    g_y: NDArray[Shape["*, *,"], Float] = scisig.convolve2d(
+        image.astype(np.float64), k_y, mode="same", boundary="symm", fillvalue=0
+    )
+    sobel_mag: NDArray[Shape["*, *,"], Float] = ((g_x**2) + (g_y**2)) ** 0.5
+    sobel_ang: NDArray[Shape["*, *,"], Float] = np.arctan2(g_y, g_x)
+    sobel_tuple = NamedTuple(
+        "Sobel",
+        [
+            ("magnitude", NDArray[Shape["*, *"], Float]),
+            ("angle", NDArray[Shape["*, *"], Float]),
+        ],
+    )
+    return sobel_tuple(sobel_mag, sobel_ang)
 
 
 def circle_fit(edge_image):

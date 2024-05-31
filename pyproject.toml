@@ -1,6 +1,6 @@
 [project]
 name = "STEMTool"
-version = "2024.05.06"
+version = "2024.05.31"
 description = "A single package for analyzing atomic resolution STEM, 4D-STEM and STEM-EELS datasets, along with basic STEM simulation functionality"
 authors = [{name = "Debangshu Mukherjee", email = "mukherjeed@ornl.gov"}]
 license = {file = "LICENSE"}
