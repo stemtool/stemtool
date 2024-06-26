@@ -8,7 +8,7 @@ from typing import Any, Dict, NamedTuple, Tuple, Union
 
 
 def sobel(
-    image: NDArray[Shape["*, *,"], Any],
+    image: NDArray[Shape["*, *"], Any],
     order: Int = 3,
 ) -> NamedTuple:
     """
@@ -44,14 +44,14 @@ def sobel(
 
     """
     if order == 3:
-        k_x: NDArray[Shape["3, 3,"], Float] = np.asarray(
+        k_x: NDArray[Shape["3, 3"], Float] = np.asarray(
             ((-1, 0, 1), (-2, 0, 2), (-1, 0, 1)), dtype=np.float64
         )
-        k_y: NDArray[Shape["3, 3,"], Float] = np.asarray(
+        k_y: NDArray[Shape["3, 3"], Float] = np.asarray(
             ((-1, -2, -1), (0, 0, 0), (1, 2, 1)), dtype=np.float64
         )
     else:
-        k_x: NDArray[Shape["5, 5,"], Float] = np.asarray(
+        k_x: NDArray[Shape["5, 5"], Float] = np.asarray(
             (
                 (-1, -2, 0, 2, 1),
                 (-4, -8, 0, 8, 4),
@@ -61,7 +61,7 @@ def sobel(
             ),
             dtype=np.float64,
         )
-        k_y: NDArray[Shape["5, 5,"], Float] = np.asarray(
+        k_y: NDArray[Shape["5, 5"], Float] = np.asarray(
             (
                 (1, 4, 6, 4, 1),
                 (2, 8, 12, 8, 2),
@@ -71,14 +71,14 @@ def sobel(
             ),
             dtype=np.float64,
         )
-    g_x: NDArray[Shape["*, *,"], Float] = scisig.convolve2d(
+    g_x: NDArray[Shape["*, *"], Float] = scisig.convolve2d(
         image.astype(np.float64), k_x, mode="same", boundary="symm", fillvalue=0
     )
-    g_y: NDArray[Shape["*, *,"], Float] = scisig.convolve2d(
+    g_y: NDArray[Shape["*, *"], Float] = scisig.convolve2d(
         image.astype(np.float64), k_y, mode="same", boundary="symm", fillvalue=0
     )
-    sobel_mag: NDArray[Shape["*, *,"], Float] = ((g_x**2) + (g_y**2)) ** 0.5
-    sobel_ang: NDArray[Shape["*, *,"], Float] = np.arctan2(g_y, g_x)
+    sobel_mag: NDArray[Shape["*, *"], Float] = ((g_x**2) + (g_y**2)) ** 0.5
+    sobel_ang: NDArray[Shape["*, *"], Float] = np.arctan2(g_y, g_x)
     sobel_tuple = NamedTuple(
         "Sobel",
         [
