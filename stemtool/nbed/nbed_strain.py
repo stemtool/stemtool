@@ -582,7 +582,7 @@ def fit_nbed_disks(corr_image, disk_size, positions, diff_spots, nan_cutoff=0):
         else:
             par = st.util.fit_gaussian2D_mask(corr_image, posx, posy, disk_size)
             fitted_disk_list[ii, 0:2] = par[0:2]
-    nancount = np.int(np.sum(np.isnan(fitted_disk_list)) / 2)
+    nancount = (np.sum(np.isnan(fitted_disk_list)) / 2).astype(np.int64)
     if nancount == no_pos:
         center_position = np.nan * np.ones((1, 2))
         fit_deviation = np.nan
